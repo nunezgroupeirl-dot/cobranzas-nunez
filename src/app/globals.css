@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+
+  --color-fondo: #f5f3ee;
+  --color-superficie: #ffffff;
+  --color-borde: #ddd8cc;
+  --color-tinta: #1d2a2f;
+  --color-tenue: #5d6a6e;
+
+  --color-marca: #0c5f66;
+  --color-marca-oscura: #08454a;
+  --color-marca-suave: #dcefee;
+
+  --color-verde: #1f8a4c;
+  --color-verde-suave: #ddf3e5;
+  --color-amarillo: #b57900;
+  --color-amarillo-suave: #fdf0cf;
+  --color-rojo: #c0362c;
+  --color-rojo-suave: #fbe1de;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-fondo);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  font-size: 17px;
+}
+
+/* Números alineados en tablas y montos */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media print {
+  .no-imprimir {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}

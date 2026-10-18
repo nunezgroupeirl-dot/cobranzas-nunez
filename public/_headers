@@ -1,0 +1,10 @@
+# Cabeceras de seguridad para Cloudflare Pages
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(self)
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -1,0 +1,25 @@
+# dependencias
+/node_modules
+
+# build
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# variables de entorno (nunca subir llaves)
+.env
+.env*.local
+
+# Supabase CLI
+/supabase/.temp/
+/supabase/.branches/
+
+# sistema / editores
+.DS_Store
+Thumbs.db
+*.pem
+npm-debug.log*
+.vercel
+.wrangler/
