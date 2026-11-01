@@ -175,7 +175,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
             />
             <label className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-marca px-5 font-semibold text-marca hover:bg-marca-suave">
               + Tomar o elegir foto
-              <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => { agregarFotos(e.target.files); e.target.value = ""; }} />
+              <input type="file" accept="image/*" className="sr-only" onChange={(e) => { agregarFotos(e.target.files); e.target.value = ""; }} />
             </label>
           </div>
         ) : (

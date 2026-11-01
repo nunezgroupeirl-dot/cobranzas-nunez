@@ -26,9 +26,10 @@ export function FotoComprobante({ foto, medio, error, alCambiar }: Props) {
           <span className="text-4xl" aria-hidden>
             📷
           </span>
-          Tomar foto o elegir imagen
+          Subir captura o tomar foto
           <span className="text-sm font-normal text-tenue">{medio === "efectivo" ? "Foto del recibo o del dinero entregado" : "Captura del Yape / Plin / voucher"}</span>
-          <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => alCambiar(e.target.files?.[0] ?? null)} />
+          {/* Sin "capture": así el celular deja elegir cámara O galería (la captura de Yape llega por WhatsApp) */}
+          <input type="file" accept="image/*" className="sr-only" onChange={(e) => alCambiar(e.target.files?.[0] ?? null)} />
         </label>
       )}
       {error && <p className="mt-2 text-sm font-semibold text-rojo">{error}</p>}
