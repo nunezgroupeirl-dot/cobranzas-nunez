@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, useCarga, type Columna } from "@/components/ui";
+import { Aviso, Boton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, useCarga, type Columna, Placa } from "@/components/ui";
 import { copiarTexto, descargarExcel, enlaceWhatsApp, textoWhatsApp } from "@/lib/exportar";
 import type { Color, Moroso } from "@/types/database";
 
@@ -34,7 +34,7 @@ export default function PaginaMorosos() {
     ]);
 
   const columnas: Columna<Moroso>[] = [
-    { clave: "placa", titulo: "Placa", celda: (m) => <span className="font-mono text-lg font-bold whitespace-nowrap">{m.placa}</span>, ocultarEnMovil: true },
+    { clave: "placa", titulo: "Placa", celda: (m) => <Placa placa={m.placa} />, ocultarEnMovil: true },
     {
       clave: "cliente",
       titulo: "Cliente",
@@ -125,7 +125,7 @@ export default function PaginaMorosos() {
           tituloMovil={(m) => (
             <span className="flex items-center justify-between gap-2">
               <span>
-                <span className="font-mono text-lg whitespace-nowrap">{m.placa}</span> · {m.cliente}
+                <Placa placa={m.placa} tamano="chico" /> · {m.cliente}
               </span>
               <span className="num text-rojo">{formatoSoles(m.deuda)}</span>
             </span>

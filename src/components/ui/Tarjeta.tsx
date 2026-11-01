@@ -27,8 +27,8 @@ export function TituloPagina({ titulo, sub, accion }: { titulo: string; sub?: Re
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{titulo}</h1>
-        {sub && <p className="mt-1 text-tenue">{sub}</p>}
+        <h1 className="text-[1.75rem] leading-tight font-bold sm:text-[2.125rem]">{titulo}</h1>
+        {sub && <div className="mt-1 text-tenue">{sub}</div>}
       </div>
       {accion && <div className="flex flex-wrap gap-2">{accion}</div>}
     </div>

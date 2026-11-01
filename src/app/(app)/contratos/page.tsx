@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, BotonEnlace, Cargando, Modal, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, NOMBRE_ESTADO_CONTRATO } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Cargando, Modal, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, NOMBRE_ESTADO_CONTRATO, Placa } from "@/components/ui";
 import type { Contrato, Moto } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "../clientes/_componentes/buscar";
 import { FormMoto } from "./_componentes/FormMoto";
@@ -60,7 +60,7 @@ export default function PaginaContratos() {
 
   const colContratos: Columna<Contrato>[] = [
     { clave: "cliente", titulo: "Cliente", celda: (c) => <span className="font-semibold">{nombreCliente(c.cliente_id)}</span> },
-    { clave: "placa", titulo: "Placa", celda: (c) => <span className="font-mono font-semibold">{placa(c.moto_id)}</span> },
+    { clave: "placa", titulo: "Placa", celda: (c) => <Placa placa={placa(c.moto_id)} tamano="chico" /> },
     { clave: "cuota", titulo: "Cuota", numero: true, celda: (c) => formatoSoles(c.monto_cuota) },
     { clave: "nro", titulo: "Cuotas", numero: true, celda: (c) => c.nro_cuotas },
     { clave: "inicio", titulo: "1.ª cuota", celda: (c) => formatoFecha(c.fecha_inicio) },
@@ -68,7 +68,7 @@ export default function PaginaContratos() {
     { clave: "estado", titulo: "Estado", celda: (c) => <span>{NOMBRE_ESTADO_CONTRATO[c.estado]}</span> },
   ];
   const colMotos: Columna<Moto>[] = [
-    { clave: "placa", titulo: "Placa", celda: (m) => <span className="font-mono text-lg font-bold whitespace-nowrap">{m.placa}</span> },
+    { clave: "placa", titulo: "Placa", celda: (m) => <Placa placa={m.placa} /> },
     { clave: "tipo", titulo: "Tipo", celda: (m) => m.tipo },
     { clave: "marca", titulo: "Marca", celda: (m) => m.marca },
     { clave: "color", titulo: "Color", celda: (m) => m.color },

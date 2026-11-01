@@ -3,7 +3,7 @@ import { useSearchParams } from "next/navigation";
 
 /**
  * Filtro de empresa guardado en la URL como ?empresa=<id>.
- * Sin parámetro = Todas. Petit usa el mismo hook en sus pantallas.
+ * Sin parámetro = Todas.
  */
 export function useEmpresa(): string | null {
   return useSearchParams().get("empresa");

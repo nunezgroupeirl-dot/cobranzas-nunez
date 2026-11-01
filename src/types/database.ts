@@ -146,6 +146,14 @@ export interface ResumenEmpresa {
   deuda: number;
 }
 
+/** Una semana (lunes) de una empresa: lo cobrado frente a las cuotas que vencían. */
+export interface CobranzaSemana {
+  semana: string;
+  empresa_id: string;
+  cobrado: number;
+  esperado: number;
+}
+
 /* ---------- Funciones ---------- */
 
 export interface CrearContratoArgs {

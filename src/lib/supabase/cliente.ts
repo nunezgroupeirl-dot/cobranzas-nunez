@@ -1,4 +1,4 @@
-/** Cliente de Supabase para el navegador (provisional: Jefferson deja el oficial con @supabase/ssr). */
+/** Cliente de Supabase para el navegador (una sola instancia, solo con la llave pública). */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let cliente: SupabaseClient | null = null;

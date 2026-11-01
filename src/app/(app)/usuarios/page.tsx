@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Campo, Cargando, Modal, OpcionesBoton, Tabla, TituloPagina, mensajeDeError, useCarga, type Columna } from "@/components/ui";
-import type { Perfil, Rol } from "@/types/database";
+import { Aviso, Boton, Campo, Cargando, Modal, Tabla, TituloPagina, mensajeDeError, useCarga, type Columna } from "@/components/ui";
+import type { Perfil } from "@/types/database";
 
 function Usuarios() {
   const { datos, perfil: yo } = useSesion();
   const { datos: usuarios, cargando, error, recargar } = useCarga(() => datos.usuarios(), [datos]);
   const [abierto, setAbierto] = useState(false);
-  const [f, setF] = useState({ nombre: "", email: "", clave: "", rol: "cobrador" as Rol });
+  const [f, setF] = useState({ nombre: "", email: "", clave: "" });
   const [errForm, setErrForm] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -21,10 +21,10 @@ function Usuarios() {
     setOcupado("crear");
     setErrForm(null);
     try {
-      await datos.crearUsuario({ ...f, nombre: f.nombre.trim(), email: f.email.trim() });
+      await datos.crearUsuario({ ...f, rol: "cobrador", nombre: f.nombre.trim(), email: f.email.trim() });
       setAbierto(false);
-      setAviso({ tipo: "exito", texto: `Usuario ${f.email} creado. Dale su contraseña en persona.` });
-      setF({ nombre: "", email: "", clave: "", rol: "cobrador" });
+      setAviso({ tipo: "exito", texto: `Cobrador ${f.email} creado. Dale su contraseña en persona.` });
+      setF({ nombre: "", email: "", clave: "" });
       recargar();
     } catch (e) {
       setErrForm(mensajeDeError(e));
@@ -50,7 +50,16 @@ function Usuarios() {
   const columnas: Columna<Perfil>[] = [
     { clave: "nombre", titulo: "Nombre", celda: (u) => <span className="font-semibold">{u.nombre}{u.id === yo.id ? " (tú)" : ""}</span> },
     { clave: "email", titulo: "Correo", celda: (u) => u.email },
-    { clave: "rol", titulo: "Rol", celda: (u) => <span className="capitalize">{u.rol}</span> },
+    {
+      clave: "rol",
+      titulo: "Rol",
+      celda: (u) =>
+        u.rol === "administrador" ? (
+          <span className="rounded-full bg-marca-suave px-2.5 py-0.5 text-sm font-semibold text-marca-oscura">Dueño</span>
+        ) : (
+          <span>Cobrador</span>
+        ),
+    },
     {
       clave: "estado",
       titulo: "Estado",
@@ -60,22 +69,13 @@ function Usuarios() {
       clave: "acciones",
       titulo: "",
       celda: (u) =>
-        u.id === yo.id ? null : (
+        // La cuenta del dueño no se desactiva ni cambia de rol (lo exige la base de datos)
+        u.id === yo.id || u.rol === "administrador" ? null : (
           <div className="flex flex-wrap justify-end gap-1">
-            <Boton
-              variante="secundario"
-              tamano="chico"
-              cargando={ocupado === u.id}
-              onClick={() => {
-                const rol: Rol = u.rol === "administrador" ? "cobrador" : "administrador";
-                cambiar(u, { rol }, `¿Cambiar a ${u.nombre} a ${rol}?`);
-              }}
-            >
-              Hacer {u.rol === "administrador" ? "cobrador" : "admin"}
-            </Boton>
             <Boton
               variante={u.activo ? "fantasma" : "secundario"}
               tamano="chico"
+              cargando={ocupado === u.id}
               className={u.activo ? "text-rojo" : ""}
               onClick={() => cambiar(u, { activo: !u.activo }, u.activo ? `¿Desactivar a ${u.nombre}? Ya no podrá ingresar.` : `¿Reactivar a ${u.nombre}?`)}
             >
@@ -88,7 +88,15 @@ function Usuarios() {
 
   return (
     <>
-      <TituloPagina titulo="Usuarios" accion={<Boton tamano="grande" onClick={() => setAbierto(true)}>+ Nuevo usuario</Boton>} />
+      <TituloPagina
+        titulo="Usuarios"
+        sub="Solo el dueño administra el sistema. Cada trabajador entra con su propio usuario de cobrador."
+        accion={
+          <Boton tamano="grande" onClick={() => setAbierto(true)}>
+            + Nuevo cobrador
+          </Boton>
+        }
+      />
       {aviso && (
         <div className="mb-3">
           <Aviso tipo={aviso.tipo} alCerrar={() => setAviso(null)}>
@@ -121,7 +129,7 @@ function Usuarios() {
 
       <Modal
         abierto={abierto}
-        titulo="Nuevo usuario"
+        titulo="Nuevo cobrador"
         alCerrar={() => setAbierto(false)}
         pie={
           <>
@@ -129,7 +137,7 @@ function Usuarios() {
               Cancelar
             </Boton>
             <Boton onClick={crear} cargando={ocupado === "crear"}>
-              Crear usuario
+              Crear cobrador
             </Boton>
           </>
         }
@@ -139,16 +147,9 @@ function Usuarios() {
           <Campo etiqueta="Nombre" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} obligatorio />
           <Campo etiqueta="Correo" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} obligatorio autoComplete="off" />
           <Campo etiqueta="Contraseña inicial" type="text" value={f.clave} onChange={(e) => setF({ ...f, clave: e.target.value })} obligatorio ayuda="Mínimo 6 caracteres." autoComplete="new-password" />
-          <OpcionesBoton
-            etiqueta="Rol"
-            opciones={[
-              { valor: "cobrador", texto: "Cobrador" },
-              { valor: "administrador", texto: "Administrador" },
-            ]}
-            valor={f.rol}
-            alCambiar={(v) => setF({ ...f, rol: v as Rol })}
-          />
-          <p className="text-sm text-tenue">El cobrador ve clientes, cronogramas y morosos y registra pagos. No ve el panel de dinero, no anula ni borra.</p>
+          <p className="text-sm text-tenue">
+            El cobrador ve clientes, cronogramas y morosos, y registra pagos. No ve el panel de dinero ni los reportes, no anula pagos ni cierra contratos.
+          </p>
         </div>
       </Modal>
     </>

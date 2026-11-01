@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, Cargando, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { Aviso, BotonEnlace, Cargando, Placa, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
 import { HistorialPagos } from "../../pagos/_componentes/HistorialPagos";
 import { TarjetaCronograma, TarjetaDatos, TarjetaSituacion } from "../_componentes/FichaTarjetas";
 
@@ -64,7 +64,12 @@ export default function FichaCliente() {
       </Link>
       <TituloPagina
         titulo={cliente.nombres}
-        sub={<>DNI {cliente.dni}</>}
+        sub={
+          <span className="flex flex-wrap items-center gap-3">
+            {estado && <Placa placa={estado.placa} tamano="grande" />}
+            <span className="num">DNI {cliente.dni}</span>
+          </span>
+        }
         accion={
           <>
             <BotonEnlace href={`/clientes/editar?id=${cliente.id}`} variante="secundario">

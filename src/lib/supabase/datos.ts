@@ -25,6 +25,7 @@ import type {
   RegistrarPagoArgs,
   RegistrarPagoResultado,
   ResumenEmpresa,
+  CobranzaSemana,
   Rol,
 } from "@/types/database";
 
@@ -67,6 +68,8 @@ export interface Datos {
   estadoClientes(): Promise<EstadoCliente[]>;
   morosos(): Promise<Moroso[]>;
   resumenEmpresas(): Promise<ResumenEmpresa[]>;
+  /** Cobrado vs esperado de las últimas semanas, por empresa (solo el dueño). */
+  cobranzaSemanal(semanas?: number): Promise<CobranzaSemana[]>;
   // clientes
   clientes(): Promise<Cliente[]>;
   cliente(id: string): Promise<Cliente | null>;

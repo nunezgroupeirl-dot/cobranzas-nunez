@@ -1,12 +1,12 @@
 "use client";
 import { useMemo, useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Tabla, Tarjeta, TituloPagina, formatoFecha, formatoSoles, mensajeDeError, type Columna } from "@/components/ui";
+import { Aviso, Boton, Tabla, Tarjeta, TituloPagina, formatoFecha, formatoSoles, mensajeDeError, type Columna, Placa } from "@/components/ui";
 import { descargarExcel } from "@/lib/exportar";
 import type { FilaImportacion } from "@/types/database";
 import { claveEmpresa } from "@/lib/texto";
 
-/** Columnas de la plantilla (docs/Plantilla_clientes_Cobranzas_Nunez.xlsx, hoja "Clientes") */
+/** Columnas de la plantilla (public/plantilla-clientes.xlsx, hoja "Clientes") */
 const COLUMNAS: Record<keyof Omit<FilaImportacion, "fila">, string> = {
   empresa: "EMPRESA",
   nombres: "NOMBRES Y APELLIDOS",
@@ -231,7 +231,7 @@ function Importar() {
         </span>
       ),
     },
-    { clave: "placa", titulo: "Placa", celda: (f) => <span className="font-mono font-semibold whitespace-nowrap">{f.datos.placa || "—"}</span> },
+    { clave: "placa", titulo: "Placa", celda: (f) => <Placa placa={f.datos.placa} tamano="chico" /> },
     { clave: "empresa", titulo: "Empresa", celda: (f) => f.datos.empresa, ocultarEnMovil: true },
     {
       clave: "cuotas",
@@ -258,11 +258,17 @@ function Importar() {
 
   return (
     <>
-      <TituloPagina titulo="Importar clientes" sub="Carga los clientes activos desde la plantilla Excel que llenó Adrián." />
+      <TituloPagina titulo="Importar clientes" sub="Carga los clientes activos desde la plantilla Excel." />
       <div className="flex flex-col gap-4">
         <Tarjeta titulo="1. Elegir el archivo">
           <ol className="mb-4 list-decimal space-y-1 pl-5 text-tenue">
-            <li>Usa la plantilla de clientes (hoja «Clientes»). Las filas de EJEMPLO se ignoran.</li>
+            <li>
+              Usa la{" "}
+              <a href="/plantilla-clientes.xlsx" download="Plantilla_clientes_Cobranzas_Nunez.xlsx" className="font-semibold text-marca underline">
+                plantilla de clientes
+              </a>{" "}
+              (hoja «Clientes»). Las filas de EJEMPLO se ignoran.
+            </li>
             <li>Los nombres de la columna EMPRESA deben ser iguales a los de Configuración.</li>
             <li>Cada fila crea el cliente (o usa el que ya existe por DNI), su moto y su contrato con las cuotas ya pagadas.</li>
             <li>Si importas el mismo archivo dos veces, las filas ya importadas se rechazan solas.</li>

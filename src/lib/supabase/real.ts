@@ -21,6 +21,7 @@ import type {
   Perfil,
   RegistrarPagoResultado,
   ResumenEmpresa,
+  CobranzaSemana,
 } from "@/types/database";
 import { supabaseNavegador } from "./cliente";
 import { ErrorDatos, type Datos } from "./datos";
@@ -156,6 +157,11 @@ export function crearDatosReales(): Datos {
         esperado_semana: num(r.esperado_semana),
         deuda: num(r.deuda),
       }));
+    },
+    async cobranzaSemanal(semanas = 8) {
+      const r = await sb.rpc("cobranza_semanal", { p_semanas: semanas });
+      lanzar(r.error);
+      return ((r.data ?? []) as CobranzaSemana[]).map((f) => ({ ...f, cobrado: num(f.cobrado), esperado: num(f.esperado) }));
     },
 
     /* ---------------- clientes ---------------- */

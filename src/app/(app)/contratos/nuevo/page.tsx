@@ -2,7 +2,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Campo, Cargando, Tarjeta, TituloPagina, formatoFecha, formatoSoles, hoyLima, mensajeDeError, sumarDias, useCarga } from "@/components/ui";
+import { Aviso, Boton, Campo, Cargando, Tarjeta, TituloPagina, formatoFecha, formatoSoles, hoyLima, mensajeDeError, sumarDias, useCarga, Placa } from "@/components/ui";
 import type { Moto } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "../../clientes/_componentes/buscar";
 import { FormMoto } from "../_componentes/FormMoto";
@@ -137,7 +137,7 @@ export default function NuevoContrato() {
                   aria-pressed={motoId === m.id}
                   className={`rounded-xl border-2 p-3 text-left ${motoId === m.id ? "border-marca bg-marca-suave" : "border-borde hover:border-marca"}`}
                 >
-                  <p className="font-mono text-lg font-bold whitespace-nowrap">{m.placa}</p>
+                  <Placa placa={m.placa} />
                   <p className="text-sm text-tenue">
                     {m.tipo} · {m.marca} · {m.color}
                   </p>

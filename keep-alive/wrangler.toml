@@ -1,0 +1,13 @@
+# Keep-alive de Supabase (Worker aparte de la página; no se publica con Pages).
+# Publicar desde esta carpeta:  npx wrangler deploy
+# Llave (una sola vez):         npx wrangler secret put SUPABASE_ANON_KEY
+name = "cobranzas-nunez-keepalive"
+main = "index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+SUPABASE_URL = "https://ngkgidtceaadqloudwru.supabase.co"
+
+# Cada 6 horas (hora UTC): 4 consultas al día
+[triggers]
+crons = ["0 */6 * * *"]

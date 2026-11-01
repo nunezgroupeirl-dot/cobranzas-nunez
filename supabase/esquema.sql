@@ -78,6 +78,8 @@ create table if not exists public.perfiles (
   creado_en  timestamptz not null default now()
 );
 
+-- (La regla "solo el dueño es administrador" se agrega más abajo, cuando ya existe correo_dueno().)
+
 create table if not exists public.clientes (
   id          uuid primary key default gen_random_uuid(),
   empresa_id  uuid not null references public.empresas (id) on delete restrict,
@@ -186,6 +188,14 @@ create table if not exists public.pago_cuota (
 );
 create index if not exists pago_cuota_cuota_idx on public.pago_cuota (cuota_id);
 
+-- Índices de las demás llaves foráneas (recomendación del asesor de Supabase)
+create index if not exists pagos_cuenta_idx          on public.pagos (cuenta_id);
+create index if not exists pagos_registrado_por_idx  on public.pagos (registrado_por);
+create index if not exists pagos_anulado_por_idx     on public.pagos (anulado_por);
+create index if not exists motos_empresa_idx         on public.motos (empresa_id);
+create index if not exists contratos_creado_por_idx  on public.contratos (creado_por);
+create index if not exists documentos_subido_por_idx on public.documentos (subido_por);
+
 -- Quién hizo qué y cuándo
 create table if not exists public.auditoria (
   id           bigint generated always as identity primary key,
@@ -229,7 +239,20 @@ as $$
   select exists (select 1 from public.perfiles where id = auth.uid() and activo);
 $$;
 
--- ¿El usuario conectado es administrador activo?
+-- ÚNICO DUEÑO DEL SISTEMA. Solo este correo puede ser administrador: anular pagos,
+-- cerrar contratos, crear usuarios, importar, configurar y ver el panel.
+-- (Para instalar el sistema a otro cliente, cambia solo este correo.)
+create or replace function public.correo_dueno()
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select 'nunezgroupeirl@gmail.com'::text;
+$$;
+
+-- ¿El usuario conectado es el dueño (administrador activo con el correo del dueño)?
+-- El correo se toma de auth.users: nadie puede cambiárselo desde la app.
 create or replace function public.es_admin()
 returns boolean
 language sql
@@ -237,8 +260,23 @@ stable
 security definer
 set search_path = ''
 as $$
-  select exists (select 1 from public.perfiles where id = auth.uid() and activo and rol = 'administrador');
+  select exists (
+    select 1
+    from public.perfiles p
+    join auth.users u on u.id = p.id
+    where p.id = auth.uid()
+      and p.activo
+      and p.rol = 'administrador'
+      and lower(u.email) = public.correo_dueno()
+  );
 $$;
+
+-- Defensa en la propia tabla: aunque alguien intente un UPDATE directo,
+-- ningún perfil que no sea el del dueño puede tener rol administrador.
+update public.perfiles set rol = 'cobrador' where rol = 'administrador' and lower(email) <> public.correo_dueno();
+alter table public.perfiles drop constraint if exists solo_el_dueno_es_administrador;
+alter table public.perfiles add constraint solo_el_dueno_es_administrador
+  check (rol <> 'administrador' or lower(email) = public.correo_dueno());
 
 
 -- =============================================================================
@@ -555,8 +593,11 @@ begin
   if not public.es_admin() then
     raise exception 'SIN_PERMISO' using errcode = '42501';
   end if;
-  if p_id = auth.uid() and (p_activo is false or p_rol = 'cobrador') then
-    raise exception 'No puedes quitarte el acceso de administrador a ti mismo.';
+  if exists (select 1 from auth.users where id = p_id and lower(email) = public.correo_dueno()) then
+    raise exception 'La cuenta del dueño no se puede desactivar ni cambiar de rol.';
+  end if;
+  if p_rol = 'administrador' then
+    raise exception 'Solo el dueño puede ser administrador.';
   end if;
   update public.perfiles
   set rol = coalesce(p_rol, rol), activo = coalesce(p_activo, activo)
@@ -570,7 +611,9 @@ $$;
 -- Nombre de empresa comparable: sin tildes, puntos, espacios ni mayúsculas.
 -- 'NUÑEZ GROUP EIRL' = 'Nuñez Group E.I.R.L.'. Igual que claveEmpresa() en src/lib/texto.ts.
 create or replace function public.clave_empresa(p text)
-returns text language sql immutable as $$
+returns text language sql immutable
+set search_path = ''
+as $$
   select regexp_replace(translate(lower(coalesce(p, '')), 'áéíóúüñàèìòù', 'aeiouunaeiou'), '[^a-z0-9]', '', 'g');
 $$;
 
@@ -787,6 +830,49 @@ where public.es_admin()
 order by e.nombre;
 
 
+-- Cobrado vs esperado por semana (lunes a domingo) y empresa: gráfico del panel.
+-- Solo el dueño recibe filas. Máximo 26 semanas.
+create or replace function public.cobranza_semanal(p_semanas integer default 8)
+returns table (semana date, empresa_id uuid, cobrado numeric, esperado numeric)
+language sql
+stable
+set search_path = ''
+as $$
+  with rango as (
+    select h.hoy,
+           h.hoy - (extract(isodow from h.hoy)::integer - 1) as lunes,
+           h.hoy - (extract(isodow from h.hoy)::integer - 1) - 7 * (greatest(least(p_semanas, 26), 1) - 1) as desde
+    from (select public.hoy_lima() as hoy) h
+  ),
+  semanas as (
+    select g::date as semana from rango r, generate_series(r.desde, r.lunes, interval '7 days') g
+  ),
+  cobrado as (
+    select p.fecha_pago - (extract(isodow from p.fecha_pago)::integer - 1) as semana, co.empresa_id, sum(p.monto) as total
+    from public.pagos p
+    join public.contratos co on co.id = p.contrato_id
+    cross join rango r
+    where not p.anulado and co.estado <> 'anulado' and p.fecha_pago between r.desde and r.hoy
+    group by 1, 2
+  ),
+  esperado as (
+    select cb.fecha_vencimiento - (extract(isodow from cb.fecha_vencimiento)::integer - 1) as semana, co.empresa_id, sum(cb.monto) as total
+    from public.cuotas_base cb
+    join public.contratos co on co.id = cb.contrato_id
+    cross join rango r
+    where co.estado in ('activo', 'terminado') and cb.fecha_vencimiento between r.desde and r.lunes + 6
+    group by 1, 2
+  )
+  select s.semana, e.id, coalesce(c.total, 0)::numeric(12, 2), coalesce(x.total, 0)::numeric(12, 2)
+  from semanas s
+  cross join public.empresas e
+  left join cobrado c on c.semana = s.semana and c.empresa_id = e.id
+  left join esperado x on x.semana = s.semana and x.empresa_id = e.id
+  where public.es_admin()
+  order by s.semana, e.nombre;
+$$;
+
+
 -- =============================================================================
 -- 6. CONSULTA PÚBLICA POR DNI (página /consulta, sin iniciar sesión)
 --    Devuelve solo nombre, placa, deuda y cronograma. Nunca dirección, celular ni fotos.
@@ -845,9 +931,11 @@ begin
     new.id,
     coalesce(nullif(trim(new.raw_user_meta_data ->> 'nombre'), ''), split_part(new.email, '@', 1)),
     coalesce(new.email, ''),
-    case when new.raw_app_meta_data ->> 'rol' = 'administrador' then 'administrador'::public.rol_usuario
+    case when lower(new.email) = public.correo_dueno() then 'administrador'::public.rol_usuario
          else 'cobrador'::public.rol_usuario end,
-    coalesce((new.raw_app_meta_data ->> 'creado_por_admin')::boolean, false)
+    -- el dueño queda activo al crearse; los demás solo si los creó el dueño desde la app
+    lower(new.email) = public.correo_dueno()
+      or coalesce((new.raw_app_meta_data ->> 'creado_por_admin')::boolean, false)
   )
   on conflict (id) do nothing;
   return new;
@@ -1020,10 +1108,23 @@ grant execute on function public.cerrar_contrato(uuid, text) to authenticated;
 grant execute on function public.actualizar_usuario(uuid, public.rol_usuario, boolean) to authenticated;
 grant execute on function public.importar_cliente(jsonb) to authenticated;
 grant execute on function public.clave_empresa(text) to authenticated;
+revoke all on function public.correo_dueno() from public, anon;
+grant execute on function public.correo_dueno() to authenticated;
+
+-- Si el proyecto se creó con "Enable automatic RLS", Supabase agrega esta función;
+-- no debe poder llamarse desde la API (el disparador automático sigue funcionando).
+do $$
+begin
+  if exists (select 1 from pg_proc where proname = 'rls_auto_enable' and pronamespace = 'public'::regnamespace) then
+    revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end $$;
 grant execute on function public.es_staff() to authenticated;
 grant execute on function public.es_admin() to authenticated;
 grant execute on function public.hoy_lima() to anon, authenticated;
 grant execute on function public.consulta_publica(text) to anon, authenticated;
+revoke all on function public.cobranza_semanal(integer) from public, anon;
+grant execute on function public.cobranza_semanal(integer) to authenticated;
 
 grant select on public.cuotas, public.v_estado_cliente, public.v_morosos, public.v_resumen_empresa to authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;  -- RLS decide qué se puede
@@ -1056,17 +1157,12 @@ on conflict (nombre) do update set ruc = coalesce(public.empresas.ruc, excluded.
 
 
 -- =============================================================================
--- 12. PRIMER ADMINISTRADOR
+-- 12. CUENTA DEL DUEÑO
 -- -----------------------------------------------------------------------------
---  a) Supabase → Authentication → Users → Add user → Create new user
---     Correo de Andrés + contraseña, marcar "Auto Confirm User".
---  b) Ejecutar (cambiando el correo y el nombre):
---
---     update public.perfiles
---     set rol = 'administrador', activo = true, nombre = 'Andrés Núñez'
---     where email = 'correo-de-andres@ejemplo.com';
---
---  Los demás usuarios se crean desde la pantalla Usuarios del sistema.
+--  Supabase → Authentication → Users → Add user → Create new user
+--  con el correo de correo_dueno() (nunezgroupeirl@gmail.com) y "Auto Confirm User".
+--  Queda como administrador activo automáticamente. Es la ÚNICA cuenta que puede
+--  ser administrador; los demás usuarios se crean como cobradores desde la app.
 --  IMPORTANTE: en Authentication → Sign In / Providers desactiva
 --  "Allow new users to sign up". Así nadie puede registrarse por su cuenta.
 -- =============================================================================

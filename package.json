@@ -16,6 +16,8 @@
     "deploy": "npm run build && npx --yes wrangler@4 pages deploy out --project-name cobranzas-nunez"
   },
   "dependencies": {
+    "@fontsource/barlow": "5.3.0",
+    "@fontsource/barlow-semi-condensed": "5.3.0",
     "@supabase/supabase-js": "^2.57.4",
     "next": "15.5.27",
     "qrcode": "^1.5.4",

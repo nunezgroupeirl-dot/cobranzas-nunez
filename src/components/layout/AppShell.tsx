@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { BuscadorGlobal } from "./BuscadorGlobal";
 import { useConEmpresa } from "./empresa";
 import { FiltroEmpresa } from "./FiltroEmpresa";
 import { menuPara, type ItemMenu } from "./menu";
@@ -14,6 +15,18 @@ function Icono({ d, className = "size-6" }: { d: string; className?: string }) {
     </svg>
   );
 }
+
+/** Nombre del sistema: la marca vive en la tipografía, sin logotipo. */
+function Marca({ claro = false }: { claro?: boolean }) {
+  return (
+    <span className="flex items-baseline gap-2">
+      <span className={`font-display text-[1.75rem] leading-none font-bold ${claro ? "text-white" : "text-tinta"}`}>Núñez</span>
+      <span className={`text-sm ${claro ? "text-white/55" : "hidden text-tenue sm:inline"}`}>cobranzas</span>
+    </span>
+  );
+}
+
+const NOMBRE_ROL = { administrador: "Dueño", cobrador: "Cobrador" } as const;
 
 function activo(rutaActual: string, items: ItemMenu[]): string | null {
   const ruta = rutaActual.length > 1 ? rutaActual.replace(/\/$/, "") : rutaActual;
@@ -37,17 +50,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh md:flex">
       {/* Menú lateral: tablet y escritorio */}
       <aside className="no-imprimir sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-borde bg-tinta text-white md:flex">
-        <div className="px-5 pt-6 pb-5">
-          <p className="text-xs font-semibold tracking-[0.2em] text-white/50 uppercase">Cobranzas</p>
-          <p className="text-2xl font-extrabold">Núñez</p>
+        <div className="px-5 pt-6 pb-6">
+          <Marca claro />
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3">
           {items.map((i) => (
             <Link
               key={i.href}
               href={conEmpresa(i.href)}
-              className={`flex min-h-12 items-center gap-3 rounded-xl px-3 font-semibold transition ${
-                actual === i.href ? "bg-white text-tinta" : "text-white/80 hover:bg-white/10 hover:text-white"
+              aria-current={actual === i.href ? "page" : undefined}
+              className={`relative flex min-h-12 items-center gap-3 rounded-xl px-3 font-medium transition-colors ${
+                actual === i.href
+                  ? "bg-white/10 text-white before:absolute before:inset-y-2.5 before:left-0 before:w-1 before:rounded-full before:bg-[#5fc2c2]"
+                  : "text-white/70 hover:bg-white/5 hover:text-white"
               }`}
             >
               <Icono d={i.icono} />
@@ -56,8 +71,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="border-t border-white/10 p-4">
+          {datos.modoPrueba && <p className="mb-3 rounded-lg bg-amarillo-suave px-2.5 py-1.5 text-xs font-semibold text-amarillo">Modo prueba: datos falsos</p>}
           <p className="truncate font-semibold">{perfil.nombre}</p>
-          <p className="text-sm text-white/60 capitalize">{perfil.rol}</p>
+          <p className="text-sm text-white/60">{NOMBRE_ROL[perfil.rol]}</p>
           <button onClick={salir} className="mt-3 min-h-11 w-full rounded-xl border border-white/20 font-semibold hover:bg-white/10">
             Cerrar sesión
           </button>
@@ -66,14 +82,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="no-imprimir sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-borde bg-fondo/95 px-4 py-3 backdrop-blur sm:px-6">
-          <div className="md:hidden">
-            <p className="text-lg leading-tight font-extrabold">Cobranzas Núñez</p>
-            <p className="text-xs text-tenue">{perfil.nombre}</p>
+          <div className="shrink-0 md:hidden">
+            <Marca />
           </div>
-          <div className="hidden md:block">
-            {datos.modoPrueba && (
-              <span className="rounded-full bg-amarillo-suave px-3 py-1 text-sm font-semibold text-amarillo">Modo prueba · datos falsos</span>
-            )}
+          <div className="flex min-w-0 flex-1 justify-end md:justify-start">
+            <BuscadorGlobal />
           </div>
           <FiltroEmpresa compacto />
         </header>
@@ -103,7 +116,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="fixed inset-0 z-50 flex items-end md:hidden">
           <button type="button" aria-label="Cerrar menú" className="absolute inset-0 bg-tinta/50" onClick={() => setMasAbierto(false)} />
           <div className="relative w-full rounded-t-3xl bg-superficie p-4 pb-8">
-            {datos.modoPrueba && <p className="mb-3 rounded-xl bg-amarillo-suave px-3 py-2 text-sm font-semibold text-amarillo">Modo prueba · datos falsos</p>}
+            {datos.modoPrueba && <p className="mb-3 rounded-xl bg-amarillo-suave px-3 py-2 text-sm font-semibold text-amarillo">Modo prueba: datos falsos</p>}
             <div className="flex flex-col gap-1">
               {enMas.map((i) => (
                 <Link key={i.href} href={conEmpresa(i.href)} onClick={() => setMasAbierto(false)} className="flex min-h-14 items-center gap-3 rounded-xl px-3 font-semibold hover:bg-fondo">

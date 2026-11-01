@@ -2,7 +2,7 @@
 import { Suspense, useCallback, useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { getDatos } from "@/lib/supabase/datos";
-import { Aviso, Boton, formatoSoles, hoyLima, formatoFecha, mensajeDeError } from "@/components/ui";
+import { Aviso, Boton, formatoSoles, hoyLima, formatoFecha, mensajeDeError, Placa } from "@/components/ui";
 import { Cronograma } from "@/app/(app)/contratos/_componentes/Cronograma";
 import type { ConsultaPublica } from "@/types/database";
 
@@ -75,7 +75,7 @@ function Consulta() {
           <section className="rounded-3xl bg-superficie p-5 shadow-sm sm:p-6">
             <p className="text-sm text-tenue">Consulta del {formatoFecha(hoyLima())}</p>
             <h2 className="text-2xl font-extrabold">{resultado.nombre}</h2>
-            <p className="font-mono text-lg font-semibold whitespace-nowrap">{resultado.placa}</p>
+            <p><Placa placa={resultado.placa} /></p>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className={`rounded-2xl p-4 ${resultado.deuda > 0 ? "bg-rojo-suave" : "bg-verde-suave"}`}>
                 <p className="text-sm font-semibold text-tenue">Deuda vencida</p>

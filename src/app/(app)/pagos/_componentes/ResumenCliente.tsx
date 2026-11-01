@@ -1,4 +1,4 @@
-import { EtiquetaSemaforo, Tarjeta, formatoFecha, formatoSoles } from "@/components/ui";
+import { EtiquetaSemaforo, Tarjeta, formatoFecha, formatoSoles, Placa } from "@/components/ui";
 import type { EstadoCliente } from "@/types/database";
 
 /** Tarjeta lateral con el cliente elegido y su situación. */
@@ -8,7 +8,7 @@ export function ResumenCliente({ estado, alCambiar }: { estado: EstadoCliente; a
       <p className="text-sm text-tenue">Cliente</p>
       <p className="text-xl font-extrabold">{estado.cliente}</p>
       <p className="text-tenue">
-        <span className="font-mono font-semibold whitespace-nowrap text-tinta">{estado.placa}</span> · {estado.empresa}
+        <Placa placa={estado.placa} tamano="chico" /> · {estado.empresa}
       </p>
       <div className="my-3">
         <EtiquetaSemaforo color={estado.color} semanas={estado.semanas_atraso} grande />

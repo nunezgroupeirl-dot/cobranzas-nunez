@@ -1,5 +1,5 @@
 // Edge Function "usuarios" · Cobranzas Núñez
-// Crea usuarios del sistema. Solo la puede usar un administrador activo.
+// Crea usuarios del sistema (siempre como cobrador). Solo la puede usar el dueño.
 // Necesita la llave service_role, que Supabase inyecta sola en las Edge Functions
 // (nunca va en el frontend).
 //
@@ -43,7 +43,9 @@ Deno.serve(async (req) => {
     const nombre = String(cuerpo.nombre ?? "").trim();
     const email = String(cuerpo.email ?? "").trim().toLowerCase();
     const clave = String(cuerpo.clave ?? "");
-    const rol = cuerpo.rol === "administrador" ? "administrador" : "cobrador";
+    // Solo existe un administrador: el dueño. Todo usuario nuevo es cobrador.
+    if (cuerpo.rol === "administrador") return responder({ error: "Solo el dueño puede ser administrador." }, 400);
+    const rol = "cobrador";
 
     if (!nombre) return responder({ error: "Escribe el nombre." }, 400);
     if (!/^\S+@\S+\.\S+$/.test(email)) return responder({ error: "Escribe un correo válido." }, 400);

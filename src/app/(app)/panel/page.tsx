@@ -1,117 +1,142 @@
 "use client";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { Aviso, Cargando, Tarjeta, TituloPagina, formatoFecha, formatoSoles, hoyLima, useCarga } from "@/components/ui";
 import type { ResumenEmpresa } from "@/types/database";
+import { BarraColores } from "./_componentes/BarraColores";
+import { DetalleSemana } from "./_componentes/DetalleSemana";
+import { GraficoSemanas, type Semana } from "./_componentes/GraficoSemanas";
 
-function Cifra({ titulo, valor, nota, tono = "tinta" }: { titulo: string; valor: string; nota?: string; tono?: "tinta" | "verde" | "rojo" }) {
-  const color = { tinta: "text-tinta", verde: "text-verde", rojo: "text-rojo" }[tono];
-  return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4 sm:p-5">
-      <p className="text-sm font-semibold text-tenue">{titulo}</p>
-      <p className={`num mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl ${color}`}>{valor}</p>
-      {nota && <p className="mt-1 text-sm text-tenue">{nota}</p>}
-    </div>
-  );
-}
-
-function BarraColores({ v, a, r }: { v: number; a: number; r: number }) {
-  const total = v + a + r || 1;
-  const tramo = (n: number, clase: string, texto: string) =>
-    n > 0 && (
-      <div className={`${clase} flex items-center justify-center text-sm font-bold text-white`} style={{ width: `${(n / total) * 100}%` }} title={`${texto}: ${n}`}>
-        {n}
-      </div>
-    );
-  return (
-    <div className="flex h-9 w-full overflow-hidden rounded-xl bg-fondo">
-      {tramo(v, "bg-verde", "Al día")}
-      {tramo(a, "bg-amarillo", "1 a 3 semanas")}
-      {tramo(r, "bg-rojo", "4 o más semanas")}
-    </div>
-  );
-}
+const SEMANAS = 8;
 
 function Panel() {
   const { datos } = useSesion();
   const empresa = useEmpresa();
-  const { datos: filas, cargando, error } = useCarga(() => datos.resumenEmpresas(), [datos]);
+  const { datos: info, cargando, error } = useCarga(async () => {
+    const [resumen, semanal] = await Promise.all([datos.resumenEmpresas(), datos.cobranzaSemanal(SEMANAS)]);
+    return { resumen, semanal };
+  }, [datos]);
+  const [elegida, setElegida] = useState<string | null>(null);
 
-  if (cargando && !filas) return <Cargando />;
+  const vista = useMemo(() => {
+    if (!info) return null;
+    const lista = info.resumen.filter((f) => !empresa || f.empresa_id === empresa);
+    const filas = info.semanal.filter((f) => !empresa || f.empresa_id === empresa);
+    // una barra por semana (suma de las empresas visibles)
+    const porSemana = new Map<string, Semana>();
+    for (const f of filas) {
+      const s = porSemana.get(f.semana) ?? { semana: f.semana, cobrado: 0, esperado: 0 };
+      s.cobrado += f.cobrado;
+      s.esperado += f.esperado;
+      porSemana.set(f.semana, s);
+    }
+    const suma = (k: keyof ResumenEmpresa) => lista.reduce((t, f) => t + Number(f[k]), 0);
+    return {
+      lista,
+      filas,
+      semanas: [...porSemana.values()].sort((a, b) => a.semana.localeCompare(b.semana)),
+      hoy: suma("cobrado_hoy"),
+      deuda: suma("deuda"),
+      verde: suma("clientes_verde"),
+      amarillo: suma("clientes_amarillo"),
+      rojo: suma("clientes_rojo"),
+    };
+  }, [info, empresa]);
+
+  if (cargando && !info) return <Cargando />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
-  const lista = (filas ?? []).filter((f) => !empresa || f.empresa_id === empresa);
-  const suma = (k: keyof ResumenEmpresa) => lista.reduce((s, f) => s + Number(f[k]), 0);
-  const cobradoSemana = suma("cobrado_semana");
-  const esperado = suma("esperado_semana");
-  const avance = esperado > 0 ? Math.min(100, Math.round((cobradoSemana / esperado) * 100)) : 0;
+  if (!vista) return null;
+
+  const semanaElegida = elegida ?? vista.semanas.at(-1)?.semana ?? "";
+  const activos = vista.verde + vista.amarillo + vista.rojo;
+  const nombreEmpresa = empresa ? (vista.lista[0]?.empresa ?? "") : "Las 4 empresas";
 
   return (
     <>
-      <TituloPagina titulo="Panel del dueño" sub={`Hoy ${formatoFecha(hoyLima())} · ${empresa ? lista[0]?.empresa ?? "" : "Todas las empresas"}`} />
+      <TituloPagina titulo="Panel del dueño" sub={`${nombreEmpresa} · hoy ${formatoFecha(hoyLima())}`} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Cifra titulo="Cobrado hoy" valor={formatoSoles(suma("cobrado_hoy"))} tono="verde" />
-        <Cifra titulo="Cobrado esta semana" valor={formatoSoles(cobradoSemana)} nota={`de ${formatoSoles(esperado)} esperados`} />
-        <Cifra titulo="Deuda vencida" valor={formatoSoles(suma("deuda"))} tono="rojo" />
-        <Cifra titulo="Clientes activos" valor={String(suma("clientes_verde") + suma("clientes_amarillo") + suma("clientes_rojo"))} nota={`${suma("clientes_rojo")} en rojo`} />
-      </div>
+      {/* Lo del día, en una sola franja */}
+      <section className="grid overflow-hidden rounded-2xl border border-borde bg-superficie sm:grid-cols-[1fr_1fr_1.4fr]" aria-label="Resumen de hoy">
+        <div className="p-4 sm:p-5">
+          <p className="text-sm font-semibold text-tenue">Cobrado hoy</p>
+          <p className="num font-display text-4xl font-bold text-verde">{formatoSoles(vista.hoy)}</p>
+        </div>
+        <div className="border-t border-borde p-4 sm:border-t-0 sm:border-l sm:p-5">
+          <p className="text-sm font-semibold text-tenue">Deuda vencida</p>
+          <p className="num font-display text-4xl font-bold text-rojo">{formatoSoles(vista.deuda)}</p>
+        </div>
+        <div className="border-t border-borde p-4 sm:border-t-0 sm:border-l sm:p-5">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-sm font-semibold text-tenue">Clientes activos</p>
+            <p className="num font-display text-2xl font-bold">{activos}</p>
+          </div>
+          <div className="mt-2">
+            <BarraColores v={vista.verde} a={vista.amarillo} r={vista.rojo} enlace empresa={empresa} />
+          </div>
+          <p className="mt-1.5 text-xs text-tenue">Toca un color para ver esos clientes.</p>
+        </div>
+      </section>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Tarjeta titulo="Avance de la semana">
-          <div className="flex items-baseline justify-between">
-            <span className="num text-3xl font-extrabold">{avance}%</span>
-            <span className="text-tenue">
-              {formatoSoles(cobradoSemana)} / {formatoSoles(esperado)}
-            </span>
+      <Tarjeta className="mt-4" titulo={`Cobrado contra esperado · últimas ${SEMANAS} semanas`}>
+        <div className="grid gap-5 lg:grid-cols-[1fr_17rem]">
+          <div>
+            <GraficoSemanas semanas={vista.semanas} elegida={semanaElegida} alElegir={setElegida} />
+            <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-tenue">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-3 rounded-sm bg-marca" aria-hidden /> Cobrado
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-3 rounded-sm bg-borde" aria-hidden /> Cuotas que vencían
+              </span>
+              <span>Semana de lunes a domingo. Después de las 10:00 p.m. cuenta para el día siguiente.</span>
+            </p>
           </div>
-          <div className="mt-2 h-4 overflow-hidden rounded-full bg-fondo">
-            <div className="h-full rounded-full bg-marca transition-[width] duration-500" style={{ width: `${avance}%` }} />
-          </div>
-          <p className="mt-2 text-sm text-tenue">Semana de lunes a domingo. Lo registrado después de las 10:00 p.m. cuenta para el día siguiente.</p>
-        </Tarjeta>
-        <Tarjeta titulo="Clientes por color">
-          <BarraColores v={suma("clientes_verde")} a={suma("clientes_amarillo")} r={suma("clientes_rojo")} />
-          <div className="mt-3 flex flex-wrap gap-4 text-sm">
-            <span>🟢 Al día: {suma("clientes_verde")}</span>
-            <span>🟡 1–3 semanas: {suma("clientes_amarillo")}</span>
-            <span>🔴 4 o más: {suma("clientes_rojo")}</span>
-          </div>
-        </Tarjeta>
-      </div>
+          <DetalleSemana semana={semanaElegida} filas={vista.filas} empresas={vista.lista} />
+        </div>
+      </Tarjeta>
 
       <Tarjeta className="mt-4" titulo="Por empresa">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left">
+          <table className="w-full min-w-[680px] text-left">
             <thead className="text-sm text-tenue">
               <tr>
-                <th className="py-2 pr-3">Empresa</th>
-                <th className="py-2 pr-3 text-right">Hoy</th>
-                <th className="py-2 pr-3 text-right">Semana</th>
-                <th className="py-2 pr-3 text-right">Esperado</th>
-                <th className="py-2 pr-3 w-48">Clientes</th>
-                <th className="py-2 pr-3 text-right">Deuda</th>
+                <th className="py-2 pr-3 font-semibold">Empresa</th>
+                <th className="py-2 pr-3 text-right font-semibold">Hoy</th>
+                <th className="py-2 pr-3 font-semibold">Semana</th>
+                <th className="w-44 py-2 pr-3 font-semibold">Clientes</th>
+                <th className="py-2 pr-3 text-right font-semibold">Deuda</th>
                 <th className="py-2" />
               </tr>
             </thead>
             <tbody>
-              {lista.map((f) => (
-                <tr key={f.empresa_id} className="border-t border-borde">
-                  <td className="py-3 pr-3 font-semibold">{f.empresa}</td>
-                  <td className="num py-3 pr-3 text-right">{formatoSoles(f.cobrado_hoy)}</td>
-                  <td className="num py-3 pr-3 text-right">{formatoSoles(f.cobrado_semana)}</td>
-                  <td className="num py-3 pr-3 text-right text-tenue">{formatoSoles(f.esperado_semana)}</td>
-                  <td className="py-3 pr-3">
-                    <BarraColores v={f.clientes_verde} a={f.clientes_amarillo} r={f.clientes_rojo} />
-                  </td>
-                  <td className="num py-3 pr-3 text-right font-bold text-rojo">{formatoSoles(f.deuda)}</td>
-                  <td className="py-3 text-right">
-                    <Link href={`/morosos?empresa=${f.empresa_id}`} className="font-semibold whitespace-nowrap text-marca">
-                      Ver morosos →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {vista.lista.map((f) => {
+                const avance = f.esperado_semana > 0 ? Math.min(100, (f.cobrado_semana / f.esperado_semana) * 100) : 0;
+                return (
+                  <tr key={f.empresa_id} className="border-t border-borde align-middle">
+                    <td className="py-3 pr-3 font-semibold">{f.empresa}</td>
+                    <td className="num py-3 pr-3 text-right">{formatoSoles(f.cobrado_hoy)}</td>
+                    <td className="py-3 pr-3">
+                      <p className="num text-sm whitespace-nowrap">
+                        {formatoSoles(f.cobrado_semana)} <span className="text-tenue">de {formatoSoles(f.esperado_semana)}</span>
+                      </p>
+                      <div className="mt-1 h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-fondo">
+                        <div className="h-full rounded-full bg-marca" style={{ width: `${avance}%` }} />
+                      </div>
+                    </td>
+                    <td className="py-3 pr-3">
+                      <BarraColores v={f.clientes_verde} a={f.clientes_amarillo} r={f.clientes_rojo} enlace empresa={f.empresa_id} alto="h-7" />
+                    </td>
+                    <td className="num py-3 pr-3 text-right font-bold text-rojo">{formatoSoles(f.deuda)}</td>
+                    <td className="py-3 text-right">
+                      <Link href={`/morosos?empresa=${f.empresa_id}`} className="font-semibold whitespace-nowrap text-marca hover:underline">
+                        Ver morosos
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

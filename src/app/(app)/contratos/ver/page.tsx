@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
-import { Aviso, Boton, BotonEnlace, Cargando, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Cargando, Placa, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
 import { Cronograma } from "../_componentes/Cronograma";
 import { ModalCerrarContrato } from "../_componentes/ModalCerrarContrato";
 import { ResumenContrato } from "../_componentes/ResumenContrato";
@@ -55,8 +55,15 @@ export default function VerContrato() {
         </div>
       )}
       <TituloPagina
-        titulo={`Contrato · ${moto?.placa ?? ""}`}
-        sub={`${cliente?.nombres ?? ""} · ${empresa}`}
+        titulo="Contrato"
+        sub={
+          <span className="flex flex-wrap items-center gap-3">
+            <Placa placa={moto?.placa} tamano="grande" />
+            <span>
+              {cliente?.nombres ?? ""} · {empresa}
+            </span>
+          </span>
+        }
         accion={
           <>
             {cliente && moto && (

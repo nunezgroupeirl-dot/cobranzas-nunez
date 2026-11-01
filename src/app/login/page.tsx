@@ -69,7 +69,7 @@ function FormularioIngreso() {
       {modoPrueba && (
         <div className="rounded-2xl bg-amarillo-suave p-4 text-sm">
           <p className="font-bold text-amarillo">Modo prueba (sin base de datos)</p>
-          <p className="mt-1">Administrador: admin@prueba.pe / admin123</p>
+          <p className="mt-1">Dueño: admin@prueba.pe / admin123</p>
           <p>Cobrador: cobrador@prueba.pe / cobrador123</p>
         </div>
       )}
@@ -79,14 +79,26 @@ function FormularioIngreso() {
 
 export default function PaginaLogin() {
   return (
-    <main className="grid min-h-dvh place-items-center bg-tinta p-4">
-      <div className="w-full max-w-md rounded-3xl bg-superficie p-6 shadow-2xl sm:p-8">
-        <p className="text-xs font-semibold tracking-[0.2em] text-tenue uppercase">Cobranzas</p>
-        <h1 className="mb-6 text-3xl font-extrabold">Núñez</h1>
-        <Suspense>
-          <FormularioIngreso />
-        </Suspense>
-      </div>
+    <main className="grid min-h-dvh bg-superficie md:grid-cols-[1.1fr_1fr]">
+      {/* Marca: franja oscura arriba en celular, columna completa en tablet y PC */}
+      <section className="flex flex-col justify-between bg-tinta px-6 py-8 text-white md:px-12 md:py-14">
+        <h1 className="flex items-baseline gap-3">
+          <span className="font-display text-5xl leading-none font-bold md:text-7xl">Núñez</span>
+          <span className="text-lg text-white/55 md:text-xl">cobranzas</span>
+        </h1>
+        <p className="mt-6 max-w-sm text-lg text-white/75 md:text-xl">
+          Cuotas semanales, pagos con su comprobante y la lista de quién no paga, de las cuatro empresas en un solo lugar.
+        </p>
+      </section>
+      <section className="flex items-center justify-center px-6 py-10 md:px-12">
+        <div className="w-full max-w-sm">
+          <h2 className="mb-1 text-3xl font-bold">Ingresar</h2>
+          <p className="mb-6 text-tenue">Con el correo y la contraseña que te dio el dueño.</p>
+          <Suspense>
+            <FormularioIngreso />
+          </Suspense>
+        </div>
+      </section>
     </main>
   );
 }

@@ -1,13 +1,15 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna } from "@/components/ui";
+import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, Placa } from "@/components/ui";
 import type { Color, EstadoCliente } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
 
 type Fila = EstadoCliente & { sin_contrato?: boolean };
+
+const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo"]);
 
 export default function PaginaClientes() {
   const { datos } = useSesion();
@@ -15,7 +17,9 @@ export default function PaginaClientes() {
   const empresa = useEmpresa();
   const conEmpresa = useConEmpresa();
   const [texto, setTexto] = useState("");
-  const [color, setColor] = useState<Color | "">("");
+  // ?color=rojo llega desde el semáforo del panel
+  const colorInicial = useSearchParams().get("color") ?? "";
+  const [color, setColor] = useState<Color | "">(() => (COLORES_VALIDOS.has(colorInicial) ? (colorInicial as Color) : ""));
 
   const { datos: filas, cargando, error } = useCarga(async () => {
     const [estado, clientes] = await Promise.all([datos.estadoClientes(), datos.clientes()]);
@@ -55,7 +59,7 @@ export default function PaginaClientes() {
   const columnas: Columna<Fila>[] = [
     { clave: "cliente", titulo: "Cliente", celda: (f) => <span className="font-semibold">{f.cliente}</span> },
     { clave: "dni", titulo: "DNI", celda: (f) => <span className="num">{f.dni}</span> },
-    { clave: "placa", titulo: "Placa", celda: (f) => <span className="font-mono font-semibold whitespace-nowrap">{f.placa || "—"}</span> },
+    { clave: "placa", titulo: "Placa", celda: (f) => <Placa placa={f.placa} tamano="chico" /> },
     { clave: "empresa", titulo: "Empresa", celda: (f) => f.empresa || "—", ocultarEnMovil: true },
     {
       clave: "estado",

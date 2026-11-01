@@ -1,6 +1,6 @@
 /**
  * MODO DATOS DE PRUEBA: guarda todo en el navegador (localStorage + IndexedDB para fotos)
- * y aplica las mismas reglas que la base de datos de Jefferson.
+ * y aplica las mismas reglas que la base de datos (supabase/esquema.sql).
  * Usuarios de prueba:
  *   admin@prueba.pe / admin123        (administrador)
  *   cobrador@prueba.pe / cobrador123  (cobrador)
@@ -20,6 +20,7 @@ import type {
   Pago,
   Perfil,
   ResumenEmpresa,
+  CobranzaSemana,
 } from "@/types/database";
 import { ErrorDatos, type Datos } from "./datos";
 import {
@@ -412,6 +413,41 @@ export function crearDatosSimulados(): Datos {
         };
       });
     },
+    async cobranzaSemanal(semanas = 8) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      const hoy = fechaOperativaLima();
+      const lunes = inicioSemana(hoy);
+      const n = Math.min(Math.max(semanas, 1), 26);
+      const desde = sumarDias(lunes, -7 * (n - 1));
+      const empresaDe = new Map(s.contratos.filter((c) => c.estado !== "anulado").map((c) => [c.id, c.empresa_id]));
+      const vigentes = new Set(s.contratos.filter((c) => c.estado === "activo" || c.estado === "terminado").map((c) => c.id));
+      const clave = (semana: string, empresa: string) => `${semana}|${empresa}`;
+      const cobrado = new Map<string, number>();
+      const esperado = new Map<string, number>();
+      for (const p of s.pagos) {
+        const emp = empresaDe.get(p.contrato_id);
+        if (p.anulado || !emp || p.fecha_pago < desde || p.fecha_pago > hoy) continue;
+        const k = clave(inicioSemana(p.fecha_pago), emp);
+        cobrado.set(k, (cobrado.get(k) ?? 0) + aCentimos(p.monto));
+      }
+      for (const c of s.cuotas) {
+        const emp = empresaDe.get(c.contrato_id);
+        if (!emp || !vigentes.has(c.contrato_id) || c.fecha_vencimiento < desde || c.fecha_vencimiento > sumarDias(lunes, 6)) continue;
+        const k = clave(inicioSemana(c.fecha_vencimiento), emp);
+        esperado.set(k, (esperado.get(k) ?? 0) + aCentimos(c.monto));
+      }
+      const filas: CobranzaSemana[] = [];
+      for (let i = 0; i < n; i++) {
+        const semana = sumarDias(desde, 7 * i);
+        for (const e of s.empresas) {
+          const k = clave(semana, e.id);
+          filas.push({ semana, empresa_id: e.id, cobrado: deCentimos(cobrado.get(k) ?? 0), esperado: deCentimos(esperado.get(k) ?? 0) });
+        }
+      }
+      return filas;
+    },
 
     async clientes() {
       return leer().clientes;
@@ -682,15 +718,17 @@ export function crearDatosSimulados(): Datos {
       if (s.perfiles.some((p) => p.email.toLowerCase() === u.email.toLowerCase()))
         throw new ErrorDatos("EMAIL_REPETIDO", "Ya existe un usuario con ese correo.");
       if (u.clave.length < 6) throw new ErrorDatos("CLAVE", "La contraseña debe tener al menos 6 caracteres.");
-      s.perfiles.push({ id: nuevoId(), nombre: u.nombre, email: u.email.trim(), rol: u.rol, activo: true, clave: u.clave });
+      // Igual que en la base: solo el dueño es administrador; todo usuario nuevo es cobrador.
+      if (u.rol === "administrador") throw new ErrorDatos("UN_SOLO_DUENO", "Solo el dueño puede ser administrador.");
+      s.perfiles.push({ id: nuevoId(), nombre: u.nombre, email: u.email.trim(), rol: "cobrador", activo: true, clave: u.clave });
       guardar(s);
     },
     async actualizarUsuario(id, cambios) {
       await pausa();
       const s = leer();
       const yo = exigirAdmin(s);
-      if (id === yo.id && (cambios.activo === false || cambios.rol === "cobrador"))
-        throw new ErrorDatos("PROPIO", "No puedes quitarte el acceso de administrador a ti mismo.");
+      if (id === yo.id) throw new ErrorDatos("PROPIO", "La cuenta del dueño no se puede desactivar ni cambiar de rol.");
+      if (cambios.rol === "administrador") throw new ErrorDatos("UN_SOLO_DUENO", "Solo el dueño puede ser administrador.");
       const p = s.perfiles.find((x) => x.id === id);
       if (!p) throw new ErrorDatos("NO_EXISTE", "El usuario no existe.");
       Object.assign(p, cambios);

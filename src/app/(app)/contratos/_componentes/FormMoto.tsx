@@ -68,7 +68,7 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
           onChange={(e) => poner("placa", e.target.value.toUpperCase())}
           error={errores.placa}
           obligatorio
-          className="font-mono text-lg font-bold uppercase"
+          className="font-display text-lg font-bold tracking-[0.06em] uppercase"
           autoCapitalize="characters"
         />
         <Selector
