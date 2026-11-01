@@ -3,19 +3,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
-import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, Tarjeta, VistaPrevia, mensajeDeError } from "@/components/ui";
+import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, Tarjeta, mensajeDeError } from "@/components/ui";
 import { subirDocumento } from "@/lib/fotos";
 import type { Cliente, Documento, TipoDocumento } from "@/types/database";
-import { Foto } from "./Foto";
+import { FotosPorTipo } from "./FotosPorTipo";
 
-const MAX_FOTOS = 6;
-const TIPOS = Object.keys(NOMBRE_DOCUMENTO) as TipoDocumento[];
-
-interface Pendiente {
-  clave: string;
-  tipo: TipoDocumento;
-  archivo: File;
-}
 
 export function FormCliente({ cliente }: { cliente?: Cliente }) {
   const { datos, empresas } = useSesion();
@@ -34,14 +26,13 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<"" | "solo" | "contrato">("");
   const [existentes, setExistentes] = useState<Documento[]>([]);
-  const [pendientes, setPendientes] = useState<Pendiente[]>([]);
-  const [tipoNuevo, setTipoNuevo] = useState<TipoDocumento>("cliente");
+  // una foto nueva por tipo (cliente, DNI, moto…): se suben al guardar
+  const [pendientes, setPendientes] = useState<Partial<Record<TipoDocumento, File>>>({});
 
   useEffect(() => {
     if (cliente) datos.documentos(cliente.id).then(setExistentes);
   }, [cliente, datos]);
 
-  const libres = MAX_FOTOS - existentes.length - pendientes.length;
   const poner = (campo: keyof typeof f, valor: string) => setF((x) => ({ ...x, [campo]: valor }));
 
   const validar = () => {
@@ -52,14 +43,6 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     setErrores(e);
     return Object.keys(e).length === 0;
-  };
-
-  const agregarFotos = (lista: FileList | null) => {
-    if (!lista) return;
-    const nuevas = Array.from(lista)
-      .slice(0, libres)
-      .map((archivo) => ({ clave: `${archivo.name}-${archivo.lastModified}-${Math.random()}`, tipo: tipoNuevo, archivo }));
-    setPendientes((p) => [...p, ...nuevas]);
   };
 
   const quitarExistente = async (d: Documento) => {
@@ -83,14 +66,14 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         direccion: f.direccion.trim() || null,
         referencia: f.referencia.trim() || null,
       });
-      // Máximo 6 fotos: se suben a la vez (cada una se comprime, sube y registra por su cuenta)
+      // Una foto por tipo (máximo 6): se suben a la vez (cada una se comprime, sube y registra por su cuenta)
       await Promise.all(
-        pendientes.map(async (p) => {
-          const ruta = await subirDocumento(datos, guardado.empresa_id, guardado.id, p.tipo, p.archivo);
-          await datos.agregarDocumento({ cliente_id: guardado.id, tipo: p.tipo, ruta });
+        (Object.entries(pendientes) as [TipoDocumento, File][]).map(async ([tipo, archivo]) => {
+          const ruta = await subirDocumento(datos, guardado.empresa_id, guardado.id, tipo, archivo);
+          await datos.agregarDocumento({ cliente_id: guardado.id, tipo, ruta });
         }),
       );
-      setPendientes([]);
+      setPendientes({});
       router.push(despues === "contrato" ? `/contratos/nuevo?cliente=${guardado.id}` : `/clientes/ficha?id=${guardado.id}`);
     } catch (err) {
       setError(mensajeDeError(err));
@@ -133,55 +116,21 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         </div>
       </Tarjeta>
 
-      <Tarjeta titulo={`Fotos y documentos (${existentes.length + pendientes.length} de ${MAX_FOTOS})`}>
-        <div className="flex flex-wrap gap-3">
-          {existentes.map((d) => (
-            <figure key={d.id} className="flex w-28 flex-col gap-1">
-              <Foto bucket="documentos" ruta={d.ruta} titulo={NOMBRE_DOCUMENTO[d.tipo]} className="size-28" />
-              <figcaption className="text-xs font-semibold">{NOMBRE_DOCUMENTO[d.tipo]}</figcaption>
-              <button type="button" onClick={() => quitarExistente(d)} className="text-left text-xs font-semibold text-rojo">
-                Quitar
-              </button>
-            </figure>
-          ))}
-          {pendientes.map((p) => (
-            <figure key={p.clave} className="flex w-28 flex-col gap-1">
-              <VistaPrevia archivo={p.archivo} className="size-28 rounded-xl border-2 border-marca object-cover" />
-              <select
-                value={p.tipo}
-                onChange={(e) => setPendientes((x) => x.map((y) => (y.clave === p.clave ? { ...y, tipo: e.target.value as TipoDocumento } : y)))}
-                className="rounded-lg border border-borde bg-superficie px-1 py-1 text-xs"
-                aria-label="Tipo de foto"
-              >
-                {TIPOS.map((t) => (
-                  <option key={t} value={t}>
-                    {NOMBRE_DOCUMENTO[t]}
-                  </option>
-                ))}
-              </select>
-              <button type="button" onClick={() => setPendientes((x) => x.filter((y) => y.clave !== p.clave))} className="text-left text-xs font-semibold text-rojo">
-                Quitar
-              </button>
-            </figure>
-          ))}
-        </div>
-        {libres > 0 ? (
-          <div className="mt-4 flex flex-wrap items-end gap-3">
-            <Selector
-              etiqueta="Tipo de la próxima foto"
-              opciones={TIPOS.map((t) => ({ valor: t, texto: NOMBRE_DOCUMENTO[t] }))}
-              value={tipoNuevo}
-              onChange={(e) => setTipoNuevo(e.target.value as TipoDocumento)}
-            />
-            <label className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-marca px-5 font-semibold text-marca hover:bg-marca-suave">
-              + Tomar o elegir foto
-              <input type="file" accept="image/*" className="sr-only" onChange={(e) => { agregarFotos(e.target.files); e.target.value = ""; }} />
-            </label>
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-tenue">Ya tiene las {MAX_FOTOS} fotos permitidas.</p>
-        )}
-        <p className="mt-2 text-sm text-tenue">Cada foto se comprime a unos 200 KB antes de subirla.</p>
+      <Tarjeta titulo={`Fotos y documentos (${existentes.length + Object.keys(pendientes).length} de 6)`}>
+        <FotosPorTipo
+          existentes={existentes}
+          pendientes={pendientes}
+          alElegir={(tipo, archivo) => setPendientes((p) => ({ ...p, [tipo]: archivo }))}
+          alQuitarPendiente={(tipo) =>
+            setPendientes((p) => {
+              const resto = { ...p };
+              delete resto[tipo];
+              return resto;
+            })
+          }
+          alQuitarExistente={quitarExistente}
+        />
+        <p className="mt-3 text-sm text-tenue">Cada foto se sube por separado y se comprime a unos 120 KB. Para cambiar una, quítala y toma otra.</p>
       </Tarjeta>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
