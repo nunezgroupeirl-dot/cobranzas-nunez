@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
+import { Marca } from "@/components/layout/Marca";
 
 /** Página A4 para imprimir y pegar en la oficina: QR que lleva a /consulta */
 export default function PaginaQr() {
@@ -10,7 +11,7 @@ export default function PaginaQr() {
   useEffect(() => {
     const destino = `${window.location.origin}/consulta`;
     setUrl(destino);
-    QRCode.toDataURL(destino, { width: 900, margin: 1, errorCorrectionLevel: "H", color: { dark: "#1d2a2f", light: "#ffffff" } })
+    QRCode.toDataURL(destino, { width: 900, margin: 1, errorCorrectionLevel: "H", color: { dark: "#17252b", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(null));
   }, []);
@@ -24,10 +25,9 @@ export default function PaginaQr() {
         </button>
       </div>
       <article className="mx-auto flex h-[297mm] w-[210mm] flex-col items-center justify-between bg-white px-[18mm] py-[20mm] text-center shadow-xl print:shadow-none">
-        <header className="flex flex-col items-center gap-3">
-          <img src="/logo.png" alt="Logo" className="h-28 w-auto object-contain" onError={(e) => (e.currentTarget.style.display = "none")} />
-          <p className="text-sm font-semibold tracking-[0.3em] text-tenue uppercase">Cobranzas Núñez</p>
-          <h1 className="text-5xl leading-tight font-extrabold">
+        <header className="flex flex-col items-center gap-5">
+          <Marca grande />
+          <h1 className="text-6xl leading-tight font-bold">
             Consulta tu deuda
             <br />y tu cronograma
           </h1>
@@ -39,10 +39,18 @@ export default function PaginaQr() {
         </div>
 
         <footer className="flex flex-col items-center gap-2">
-          <p className="text-xl">
-            1. Escanea el código · 2. Escribe tu <b>DNI</b> · 3. Mira cuánto debes
-          </p>
-          <p className="font-mono text-lg text-tenue">{url}</p>
+          <ol className="flex gap-8 text-xl">
+            <li>
+              <b>1.</b> Escanea el código
+            </li>
+            <li>
+              <b>2.</b> Escribe tu <b>DNI</b>
+            </li>
+            <li>
+              <b>3.</b> Mira cuánto debes
+            </li>
+          </ol>
+          <p className="text-lg text-tenue">{url}</p>
         </footer>
       </article>
     </main>

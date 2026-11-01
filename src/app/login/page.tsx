@@ -1,6 +1,8 @@
 "use client";
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Marca } from "@/components/layout/Marca";
 import { getDatos } from "@/lib/supabase/datos";
 import { Aviso, Boton, Campo, Cargando, mensajeDeError } from "@/components/ui";
 
@@ -82,9 +84,8 @@ export default function PaginaLogin() {
     <main className="grid min-h-dvh bg-superficie md:grid-cols-[1.1fr_1fr]">
       {/* Marca: franja oscura arriba en celular, columna completa en tablet y PC */}
       <section className="flex flex-col justify-between bg-tinta px-6 py-8 text-white md:px-12 md:py-14">
-        <h1 className="flex items-baseline gap-3">
-          <span className="font-display text-5xl leading-none font-bold md:text-7xl">Núñez</span>
-          <span className="text-lg text-white/55 md:text-xl">cobranzas</span>
+        <h1>
+          <Marca claro grande />
         </h1>
         <p className="mt-6 max-w-sm text-lg text-white/75 md:text-xl">
           Cuotas semanales, pagos con su comprobante y la lista de quién no paga, de las cuatro empresas en un solo lugar.
@@ -97,6 +98,12 @@ export default function PaginaLogin() {
           <Suspense>
             <FormularioIngreso />
           </Suspense>
+          <p className="mt-8 border-t border-borde pt-5 text-tenue">
+            ¿Eres cliente?{" "}
+            <Link href="/consulta" className="font-semibold text-marca underline">
+              Consulta tu deuda con tu DNI
+            </Link>
+          </p>
         </div>
       </section>
     </main>

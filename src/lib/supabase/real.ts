@@ -299,8 +299,17 @@ export function crearDatosReales(): Datos {
       const r = await sb.rpc("consulta_publica", { p_dni: dni.trim() });
       lanzar(r.error);
       const d = r.data as ConsultaPublica | null;
-      if (!d) return null;
-      return { ...d, deuda: num(d.deuda), semanas_atraso: num(d.semanas_atraso), cuotas: d.cuotas.map((c) => ({ ...c, monto: num(c.monto), monto_pagado: num(c.monto_pagado) })) };
+      if (!d?.contratos?.length) return null;
+      return {
+        nombre: d.nombre,
+        contratos: d.contratos.map((k) => ({
+          ...k,
+          cuota: num(k.cuota),
+          deuda: num(k.deuda),
+          semanas_atraso: num(k.semanas_atraso),
+          cuotas: k.cuotas.map((c) => ({ ...c, monto: num(c.monto), monto_pagado: num(c.monto_pagado) })),
+        })),
+      };
     },
 
     /* ---------------- usuarios ---------------- */

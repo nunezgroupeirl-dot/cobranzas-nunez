@@ -34,7 +34,7 @@ import {
   sumarDias,
   validarPago,
 } from "./reglas";
-import { claveEmpresa } from "@/lib/texto";
+import { claveEmpresa, nombreReservado } from "@/lib/texto";
 
 const CLAVE_ESTADO = "cn_simulado_v3";
 const CLAVE_SESION = "cn_simulado_sesion";
@@ -683,23 +683,31 @@ export function crearDatosSimulados(): Datos {
       const s = leer();
       const cli = s.clientes.find((c) => c.dni === dni.trim());
       if (!cli) return null;
-      const con = s.contratos.find((c) => c.cliente_id === cli.id && c.estado === "activo");
-      if (!con) return null;
-      const cs = cuotasDe(s, con.id, fechaOperativaLima());
-      const r = resumenCuotas(cs);
+      const activos = s.contratos
+        .filter((c) => c.cliente_id === cli.id && c.estado === "activo")
+        .sort((a, b) => a.creado_en.localeCompare(b.creado_en));
+      if (!activos.length) return null;
+      const hoy = fechaOperativaLima();
       return {
-        nombre: cli.nombres,
-        placa: s.motos.find((m) => m.id === con.moto_id)?.placa ?? "",
-        deuda: r.deuda,
-        semanas_atraso: r.semanas_atraso,
-        cuotas: cs.map(({ numero, fecha_vencimiento, monto, monto_pagado, fecha_pago, estado }) => ({
-          numero,
-          fecha_vencimiento,
-          monto,
-          monto_pagado,
-          fecha_pago,
-          estado,
-        })),
+        nombre: nombreReservado(cli.nombres),
+        contratos: activos.map((con) => {
+          const cs = cuotasDe(s, con.id, hoy);
+          const r = resumenCuotas(cs);
+          return {
+            placa: s.motos.find((m) => m.id === con.moto_id)?.placa ?? "",
+            cuota: con.monto_cuota,
+            deuda: r.deuda,
+            semanas_atraso: r.semanas_atraso,
+            cuotas: cs.map(({ numero, fecha_vencimiento, monto, monto_pagado, fecha_pago, estado }) => ({
+              numero,
+              fecha_vencimiento,
+              monto,
+              monto_pagado,
+              fecha_pago,
+              estado,
+            })),
+          };
+        }),
       };
     },
 

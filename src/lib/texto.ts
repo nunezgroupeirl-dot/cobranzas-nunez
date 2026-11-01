@@ -17,3 +17,11 @@ export const claveBusqueda = (...partes: (string | null | undefined)[]) => parte
 
 /** `true` si la consulta (ya normalizada) aparece en la clave. Consulta vacía = coincide todo. */
 export const coincide = (clave: string, q: string) => !q || clave.indexOf(q) !== -1;
+
+/** "Rosa Quispe Huamán" → "Rosa Q. H." (igual que consulta_publica en la base). */
+export const nombreReservado = (nombres: string) =>
+  nombres
+    .trim()
+    .split(/\s+/)
+    .map((p, i) => (i === 0 ? p : `${p[0]}.`))
+    .join(" ");

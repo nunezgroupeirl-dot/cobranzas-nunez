@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { BuscadorGlobal } from "./BuscadorGlobal";
 import { useConEmpresa } from "./empresa";
+import { Marca } from "./Marca";
 import { FiltroEmpresa } from "./FiltroEmpresa";
 import { menuPara, type ItemMenu } from "./menu";
 import { useSesion } from "./Sesion";
@@ -13,16 +14,6 @@ function Icono({ d, className = "size-6" }: { d: string; className?: string }) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
       <path d={d} />
     </svg>
-  );
-}
-
-/** Nombre del sistema: la marca vive en la tipografía, sin logotipo. */
-function Marca({ claro = false }: { claro?: boolean }) {
-  return (
-    <span className="flex items-baseline gap-2">
-      <span className={`font-display text-[1.75rem] leading-none font-bold ${claro ? "text-white" : "text-tinta"}`}>Núñez</span>
-      <span className={`text-sm ${claro ? "text-white/55" : "hidden text-tenue sm:inline"}`}>cobranzas</span>
-    </span>
   );
 }
 

@@ -206,10 +206,17 @@ export interface RegistrarPagoResultado {
 
 export type ErrorPago = "OPERACION_REPETIDA" | "IMAGEN_REPETIDA" | "MONTO_INVALIDO" | "SIN_FOTO";
 
-export interface ConsultaPublica {
-  nombre: string;
+/** Un contrato activo tal como lo ve el cliente en la consulta pública. */
+export interface ContratoPublico {
   placa: string;
+  cuota: number;
   deuda: number;
   semanas_atraso: number;
   cuotas: Pick<Cuota, "numero" | "fecha_vencimiento" | "monto" | "monto_pagado" | "fecha_pago" | "estado">[];
+}
+
+/** Consulta por DNI: nombre reservado ("Rosa Q. H.") y todos sus contratos activos. */
+export interface ConsultaPublica {
+  nombre: string;
+  contratos: ContratoPublico[];
 }

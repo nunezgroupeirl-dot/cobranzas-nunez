@@ -884,31 +884,45 @@ stable
 security definer
 set search_path = ''
 as $$
-  with contrato as (
-    select co.id, cl.nombres, m.placa
+  -- Un cliente puede tener varias motos: se devuelven TODOS sus contratos activos.
+  -- El nombre sale reservado ("Rosa Q. H."): el cliente se reconoce y un extraño
+  -- que pruebe DNIs al azar no obtiene el nombre completo.
+  with cliente as (
+    select cl.id, cl.nombres
     from public.clientes cl
-    join public.contratos co on co.cliente_id = cl.id and co.estado = 'activo'
-    join public.motos m on m.id = co.moto_id
     where p_dni ~ '^\d{8}$' and cl.dni = p_dni
-    order by co.creado_en desc
-    limit 1
+  ),
+  contratos as (
+    select co.id, co.monto_cuota, co.creado_en, m.placa
+    from cliente c
+    join public.contratos co on co.cliente_id = c.id and co.estado = 'activo'
+    join public.motos m on m.id = co.moto_id
   )
   select jsonb_build_object(
-    'nombre', c.nombres,
-    'placa', c.placa,
-    'deuda', coalesce((select sum(cu.monto - cu.monto_pagado) from public.cuotas cu where cu.contrato_id = c.id and cu.estado = 'vencida'), 0),
-    'semanas_atraso', (select count(*) from public.cuotas cu where cu.contrato_id = c.id and cu.estado = 'vencida'),
-    'cuotas', coalesce((
+    'nombre', (
+      select string_agg(case when t.n = 1 then t.palabra else left(t.palabra, 1) || '.' end, ' ' order by t.n)
+      from cliente c, regexp_split_to_table(trim(c.nombres), '\s+') with ordinality as t(palabra, n)
+    ),
+    'contratos', (
       select jsonb_agg(jsonb_build_object(
-               'numero', cu.numero,
-               'fecha_vencimiento', cu.fecha_vencimiento,
-               'monto', cu.monto,
-               'monto_pagado', cu.monto_pagado,
-               'fecha_pago', cu.fecha_pago,
-               'estado', cu.estado) order by cu.numero)
-      from public.cuotas cu where cu.contrato_id = c.id), '[]'::jsonb)
+        'placa', k.placa,
+        'cuota', k.monto_cuota,
+        'deuda', coalesce((select sum(cu.monto - cu.monto_pagado) from public.cuotas cu where cu.contrato_id = k.id and cu.estado = 'vencida'), 0),
+        'semanas_atraso', (select count(*) from public.cuotas cu where cu.contrato_id = k.id and cu.estado = 'vencida'),
+        'cuotas', coalesce((
+          select jsonb_agg(jsonb_build_object(
+                   'numero', cu.numero,
+                   'fecha_vencimiento', cu.fecha_vencimiento,
+                   'monto', cu.monto,
+                   'monto_pagado', cu.monto_pagado,
+                   'fecha_pago', cu.fecha_pago,
+                   'estado', cu.estado) order by cu.numero)
+          from public.cuotas cu where cu.contrato_id = k.id), '[]'::jsonb)
+      ) order by k.creado_en)
+      from contratos k
+    )
   )
-  from contrato c;
+  where exists (select 1 from contratos);
 $$;
 
 
