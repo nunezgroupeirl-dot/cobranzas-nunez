@@ -7,16 +7,23 @@ import { Aviso, Cargando, Tarjeta, TituloPagina, formatoFecha, formatoSoles, hoy
 import type { ResumenEmpresa } from "@/types/database";
 import { BarraColores } from "./_componentes/BarraColores";
 import { DetalleSemana } from "./_componentes/DetalleSemana";
+import { EspacioFotos } from "./_componentes/EspacioFotos";
 import { GraficoSemanas, type Semana } from "./_componentes/GraficoSemanas";
 
 const SEMANAS = 8;
+/** Con R2 configurado las fotos no ocupan Supabase: el medidor no hace falta. */
+const FOTOS_EN_SUPABASE = !process.env.NEXT_PUBLIC_FOTOS_URL;
 
 function Panel() {
   const { datos } = useSesion();
   const empresa = useEmpresa();
   const { datos: info, cargando, error } = useCarga(async () => {
-    const [resumen, semanal] = await Promise.all([datos.resumenEmpresas(), datos.cobranzaSemanal(SEMANAS)]);
-    return { resumen, semanal };
+    const [resumen, semanal, fotos] = await Promise.all([
+      datos.resumenEmpresas(),
+      datos.cobranzaSemanal(SEMANAS),
+      FOTOS_EN_SUPABASE ? datos.usoFotos().catch(() => null) : Promise.resolve(null),
+    ]);
+    return { resumen, semanal, fotos };
   }, [datos]);
   const [elegida, setElegida] = useState<string | null>(null);
 
@@ -96,6 +103,8 @@ function Panel() {
           <DetalleSemana semana={semanaElegida} filas={vista.filas} empresas={vista.lista} />
         </div>
       </Tarjeta>
+
+      {info?.fotos && <EspacioFotos bytes={info.fotos.bytes} archivos={info.fotos.archivos} />}
 
       <Tarjeta className="mt-4" titulo="Por empresa">
         <div className="overflow-x-auto">

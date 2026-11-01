@@ -70,6 +70,8 @@ export interface Datos {
   resumenEmpresas(): Promise<ResumenEmpresa[]>;
   /** Cobrado vs esperado de las últimas semanas, por empresa (solo el dueño). */
   cobranzaSemanal(semanas?: number): Promise<CobranzaSemana[]>;
+  /** Espacio que ocupan las fotos en Supabase Storage (solo el dueño). */
+  usoFotos(): Promise<{ bytes: number; archivos: number }>;
   // clientes
   clientes(): Promise<Cliente[]>;
   cliente(id: string): Promise<Cliente | null>;

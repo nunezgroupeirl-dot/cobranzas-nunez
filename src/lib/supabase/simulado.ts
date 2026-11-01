@@ -413,6 +413,13 @@ export function crearDatosSimulados(): Datos {
         };
       });
     },
+    async usoFotos() {
+      // Modo prueba: estimación con el tamaño promedio de una foto comprimida (~120 KB)
+      const s = leer();
+      exigirAdmin(s);
+      const archivos = s.documentos.length + s.pagos.length;
+      return { bytes: archivos * 120 * 1024, archivos };
+    },
     async cobranzaSemanal(semanas = 8) {
       await pausa();
       const s = leer();

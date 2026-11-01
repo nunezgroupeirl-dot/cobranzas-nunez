@@ -1,12 +1,13 @@
 /**
- * Fotos: comprimir en el navegador (~200 KB), calcular SHA-256 de la ORIGINAL y subir.
+ * Fotos: comprimir en el navegador (~120 KB), calcular SHA-256 de la ORIGINAL y subir.
  * Ruta en los buckets: empresa_id/cliente_id/archivo.jpg
  */
 import type { Bucket } from "@/types/database";
 import type { Datos } from "@/lib/supabase/datos";
 
-const OBJETIVO_BYTES = 200 * 1024;
-const LADO_MAXIMO = 1600;
+// ~120 KB y 1280 px: una captura de Yape o un DNI siguen legibles, y en 10 GB caben ~80 000 fotos
+const OBJETIVO_BYTES = 120 * 1024;
+const LADO_MAXIMO = 1280;
 
 /* ---------------- SHA-256 ---------------- */
 
@@ -92,7 +93,7 @@ async function cargarImagen(archivo: Blob): Promise<ImageBitmap> {
 const aBlob = (canvas: HTMLCanvasElement, calidad: number) =>
   new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("No se pudo comprimir la foto."))), "image/jpeg", calidad));
 
-/** Reduce la foto a JPG de ~200 KB (baja calidad y tamaño hasta lograrlo). */
+/** Reduce la foto a JPG de ~120 KB (baja calidad y tamaño hasta lograrlo). */
 export async function comprimirImagen(archivo: File | Blob): Promise<Blob> {
   if (!archivo.type.startsWith("image/")) throw new Error("El archivo debe ser una foto.");
   const img = await cargarImagen(archivo);

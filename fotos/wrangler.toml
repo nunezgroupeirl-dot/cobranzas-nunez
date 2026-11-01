@@ -1,0 +1,14 @@
+# Fotos en Cloudflare R2 (Worker aparte de la página).
+# Publicar desde esta carpeta:  npx wrangler deploy
+# Secreto (una sola vez):       npx wrangler secret put FIRMA_SECRETA
+#                               npx wrangler secret put SUPABASE_ANON_KEY
+name = "cobranzas-nunez-fotos"
+main = "index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+SUPABASE_URL = "https://ngkgidtceaadqloudwru.supabase.co"
+
+[[r2_buckets]]
+binding = "FOTOS"
+bucket_name = "cobranzas-nunez-fotos"

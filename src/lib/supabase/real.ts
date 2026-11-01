@@ -24,6 +24,7 @@ import type {
   CobranzaSemana,
 } from "@/types/database";
 import { supabaseNavegador } from "./cliente";
+import { crearAlmacen } from "./almacen";
 import { ErrorDatos, type Datos } from "./datos";
 
 /** Códigos que lanza la base de datos y que la pantalla traduce (ver MENSAJE_ERROR) */
@@ -85,6 +86,7 @@ type PagoConPerfil = Omit<Pago, "registrado_por_nombre"> & { perfil: { nombre: s
 
 export function crearDatosReales(): Datos {
   const sb = supabaseNavegador();
+  const almacen = crearAlmacen(sb); // fotos: Worker con R2 o Supabase Storage
 
   const perfilDe = async (userId: string): Promise<Perfil | null> =>
     fila<Perfil>(await sb.from("perfiles").select("*").eq("id", userId).maybeSingle());
@@ -158,6 +160,12 @@ export function crearDatosReales(): Datos {
         deuda: num(r.deuda),
       }));
     },
+    async usoFotos() {
+      const r = await sb.rpc("uso_fotos");
+      lanzar(r.error);
+      const f = ((r.data ?? []) as { bytes: number; archivos: number }[])[0];
+      return { bytes: num(f?.bytes), archivos: num(f?.archivos) };
+    },
     async cobranzaSemanal(semanas = 8) {
       const r = await sb.rpc("cobranza_semanal", { p_semanas: semanas });
       lanzar(r.error);
@@ -190,7 +198,7 @@ export function crearDatosReales(): Datos {
       const r = await sb.from("documentos").delete().eq("id", id).select("id");
       lanzar(r.error);
       if (!r.data?.length) throw new ErrorDatos("SIN_PERMISO", "Solo el administrador o quien subió la foto puede borrarla.");
-      if (doc?.ruta) await sb.storage.from("documentos").remove([doc.ruta]);
+      if (doc?.ruta) await almacen.borrar("documentos", doc.ruta);
     },
 
     /* ---------------- motos y contratos ---------------- */
@@ -338,15 +346,14 @@ export function crearDatosReales(): Datos {
 
     /* ---------------- archivos ---------------- */
     async subirArchivo(bucket, ruta, archivo) {
-      lanzar((await sb.storage.from(bucket).upload(ruta, archivo, { contentType: archivo.type || "image/jpeg", upsert: false })).error);
+      await almacen.subir(bucket, ruta, archivo);
     },
     async borrarArchivo(bucket, ruta) {
-      lanzar((await sb.storage.from(bucket).remove([ruta])).error);
+      await almacen.borrar(bucket, ruta);
     },
     async urlArchivo(bucket, ruta) {
       if (!ruta) return null;
-      const { data } = await sb.storage.from(bucket).createSignedUrl(ruta, 3600);
-      return data?.signedUrl ?? null;
+      return almacen.url(bucket, ruta);
     },
   };
 }

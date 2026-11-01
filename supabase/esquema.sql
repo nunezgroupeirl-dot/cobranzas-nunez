@@ -873,6 +873,22 @@ as $$
 $$;
 
 
+-- Espacio usado por las fotos en Supabase Storage (medidor del panel; solo el dueño).
+-- El plan gratis da 1 GB: el panel avisa antes de que se llene.
+create or replace function public.uso_fotos()
+returns table (bytes bigint, archivos bigint)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(sum((o.metadata ->> 'size')::bigint), 0)::bigint, count(*)::bigint
+  from storage.objects o
+  where o.bucket_id in ('evidencias', 'documentos')
+    and public.es_admin();
+$$;
+
+
 -- =============================================================================
 -- 6. CONSULTA PÚBLICA POR DNI (página /consulta, sin iniciar sesión)
 --    Devuelve solo nombre, placa, deuda y cronograma. Nunca dirección, celular ni fotos.
@@ -1137,6 +1153,8 @@ grant execute on function public.es_staff() to authenticated;
 grant execute on function public.es_admin() to authenticated;
 grant execute on function public.hoy_lima() to anon, authenticated;
 grant execute on function public.consulta_publica(text) to anon, authenticated;
+revoke all on function public.uso_fotos() from public, anon;
+grant execute on function public.uso_fotos() to authenticated;
 revoke all on function public.cobranza_semanal(integer) from public, anon;
 grant execute on function public.cobranza_semanal(integer) to authenticated;
 
