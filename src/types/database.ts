@@ -166,6 +166,17 @@ export interface CrearContratoArgs {
   inicial?: number | null;
 }
 
+/** Datos editables de un contrato (solo el dueño). Al guardar se rehace el cronograma. */
+export interface EditarContratoArgs {
+  monto_cuota: number;
+  nro_cuotas: number;
+  fecha_inicio: string;
+  precio_total: number | null;
+  inicial: number | null;
+  cuotas_pagadas: number;
+  observaciones: string | null;
+}
+
 /** Una fila de la plantilla Excel de clientes (importar_cliente) */
 export interface FilaImportacion {
   fila: number; // número de fila en el Excel (para los mensajes)

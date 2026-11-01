@@ -13,9 +13,11 @@ interface Props {
   empresaInicial?: string;
   alGuardar: (m: Moto) => void;
   alCancelar?: () => void;
+  /** Solo el dueño: borra la moto si no tiene contratos. */
+  alEliminar?: () => void;
 }
 
-export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancelar }: Props) {
+export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancelar, alEliminar }: Props) {
   const { datos, empresas } = useSesion();
   const filtro = useEmpresa();
   const [f, setF] = useState({
@@ -91,7 +93,12 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
           ))}
         </datalist>
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        {alEliminar && (
+          <Boton variante="borrar" className="mr-auto" onClick={alEliminar}>
+            Eliminar moto
+          </Boton>
+        )}
         {alCancelar && (
           <Boton variante="secundario" onClick={alCancelar}>
             Cancelar

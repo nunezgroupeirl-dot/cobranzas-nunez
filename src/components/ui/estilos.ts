@@ -1,5 +1,5 @@
 /** Clases de los botones (las usan Boton, BotonEnlace y el botón del PDF del cronograma). */
-export type Variante = "primario" | "secundario" | "peligro" | "fantasma";
+export type Variante = "primario" | "secundario" | "peligro" | "fantasma" | "borrar";
 export type Tamano = "normal" | "grande" | "chico";
 
 const VARIANTES: Record<Variante, string> = {
@@ -7,6 +7,7 @@ const VARIANTES: Record<Variante, string> = {
   secundario: "bg-superficie text-tinta border border-borde hover:bg-fondo",
   peligro: "bg-rojo text-white hover:brightness-95",
   fantasma: "text-marca hover:bg-marca-suave",
+  borrar: "text-rojo border border-transparent hover:border-rojo/30 hover:bg-rojo/10",
 };
 const TAMANOS: Record<Tamano, string> = {
   chico: "min-h-10 px-3 text-sm",

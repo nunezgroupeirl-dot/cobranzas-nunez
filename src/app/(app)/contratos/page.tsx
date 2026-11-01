@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, BotonEnlace, Cargando, Modal, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, NOMBRE_ESTADO_CONTRATO, Placa } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Cargando, Modal, mensajeDeError, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, NOMBRE_ESTADO_CONTRATO, Placa } from "@/components/ui";
 import type { Contrato, Moto } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "../clientes/_componentes/buscar";
 import { FormMoto } from "./_componentes/FormMoto";
@@ -11,7 +11,8 @@ import { FormMoto } from "./_componentes/FormMoto";
 type Pestana = "contratos" | "motos";
 
 export default function PaginaContratos() {
-  const { datos } = useSesion();
+  const { datos, esAdmin } = useSesion();
+  const [aviso, setAviso] = useState<string | null>(null);
   const router = useRouter();
   const empresa = useEmpresa();
   const conEmpresa = useConEmpresa();
@@ -116,6 +117,11 @@ export default function PaginaContratos() {
       </div>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
+      {aviso && (
+        <div className="mb-3">
+          <Aviso tipo="error">{aviso}</Aviso>
+        </div>
+      )}
       {cargando && !info ? (
         <Cargando />
       ) : pestana === "contratos" ? (
@@ -129,6 +135,22 @@ export default function PaginaContratos() {
           <FormMoto
             moto={editando === "nueva" ? undefined : editando}
             alCancelar={() => setEditando(null)}
+            alEliminar={
+              esAdmin && editando !== "nueva"
+                ? async () => {
+                    const m = editando;
+                    if (!confirm(`¿Eliminar la moto ${m.placa}? Solo se puede si no tiene contratos.`)) return;
+                    setEditando(null);
+                    try {
+                      await datos.eliminarMoto(m.id);
+                      setAviso(null);
+                      recargar();
+                    } catch (e) {
+                      setAviso(mensajeDeError(e));
+                    }
+                  }
+                : undefined
+            }
             alGuardar={() => {
               setEditando(null);
               recargar();

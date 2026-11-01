@@ -354,6 +354,19 @@ begin
 end;
 $$;
 
+-- Genera las cuotas semanales de un contrato (cada 7 días desde la 1.ª). Uso interno.
+create or replace function public.generar_cuotas(p_contrato_id uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into public.cuotas_base (contrato_id, numero, fecha_vencimiento, monto)
+  select c.id, n, c.fecha_inicio + (n - 1) * 7, c.monto_cuota
+  from public.contratos c, generate_series(1, c.nro_cuotas) as n
+  where c.id = p_contrato_id;
+$$;
+
 -- Crea el contrato y genera todas sus cuotas semanales
 create or replace function public.crear_contrato(
   p_cliente_id      uuid,
@@ -415,9 +428,7 @@ begin
   )
   returning id into v_id;
 
-  insert into public.cuotas_base (contrato_id, numero, fecha_vencimiento, monto)
-  select v_id, n, p_fecha_inicio + (n - 1) * 7, round(p_monto_cuota, 2)
-  from generate_series(1, p_nro_cuotas) as n;
+  perform public.generar_cuotas(v_id);
 
   update public.motos set cliente_id = p_cliente_id where id = p_moto_id and cliente_id is null;
 
@@ -605,6 +616,126 @@ begin
   if not found then
     raise exception 'El usuario no existe.';
   end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Editar y eliminar (solo el dueño). Todo queda registrado en la auditoría.
+-- ---------------------------------------------------------------------------
+
+-- Editar un contrato: rehace el cronograma con los datos nuevos y vuelve a aplicar
+-- los pagos ya registrados (a la cuota más antigua, como siempre).
+create or replace function public.editar_contrato(
+  p_contrato_id     uuid,
+  p_monto_cuota     numeric,
+  p_nro_cuotas      integer,
+  p_fecha_inicio    date,
+  p_precio_total    numeric default null,
+  p_inicial         numeric default null,
+  p_cuotas_pagadas  integer default null,
+  p_observaciones   text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_c public.contratos;
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  select * into v_c from public.contratos where id = p_contrato_id for update;
+  if not found then
+    raise exception 'El contrato no existe.';
+  end if;
+  if v_c.estado = 'anulado' then
+    raise exception 'El contrato está cerrado: no se puede editar.';
+  end if;
+  if p_monto_cuota is null or p_monto_cuota <= 0 then
+    raise exception 'La cuota semanal debe ser mayor a 0.';
+  end if;
+  if p_nro_cuotas is null or p_nro_cuotas < 1 or p_nro_cuotas > 260 then
+    raise exception 'El número de cuotas debe estar entre 1 y 260.';
+  end if;
+  if p_fecha_inicio is null then
+    raise exception 'Elige la fecha de la primera cuota.';
+  end if;
+  if coalesce(p_cuotas_pagadas, v_c.cuotas_pagadas_inicial) < 0 or coalesce(p_cuotas_pagadas, v_c.cuotas_pagadas_inicial) > p_nro_cuotas then
+    raise exception 'Las cuotas ya pagadas no pueden ser más que el número de cuotas.';
+  end if;
+
+  update public.contratos
+  set monto_cuota = round(p_monto_cuota, 2),
+      nro_cuotas = p_nro_cuotas,
+      fecha_inicio = p_fecha_inicio,
+      precio_total = p_precio_total,
+      inicial = p_inicial,
+      cuotas_pagadas_inicial = coalesce(p_cuotas_pagadas, cuotas_pagadas_inicial),
+      observaciones = nullif(trim(p_observaciones), '')
+  where id = p_contrato_id;
+
+  delete from public.cuotas_base where contrato_id = p_contrato_id;  -- pago_cuota se borra en cascada
+  perform public.generar_cuotas(p_contrato_id);
+  perform public.recalcular_contrato(p_contrato_id);                 -- reaplica los pagos
+end;
+$$;
+
+-- Eliminar un contrato con sus cuotas y pagos. Devuelve las fotos de pago a borrar del almacenamiento.
+create or replace function public.eliminar_contrato(p_contrato_id uuid)
+returns text[]
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_fotos text[];
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  perform 1 from public.contratos where id = p_contrato_id for update;
+  if not found then
+    raise exception 'El contrato no existe.';
+  end if;
+  select coalesce(array_agg(foto_ruta), '{}') into v_fotos from public.pagos where contrato_id = p_contrato_id;
+  delete from public.pagos where contrato_id = p_contrato_id;
+  delete from public.contratos where id = p_contrato_id;              -- cuotas en cascada
+  return v_fotos;
+end;
+$$;
+
+-- Eliminar un cliente con TODO lo suyo: contratos, cuotas, pagos, fotos y sus motos libres.
+-- Devuelve las fotos a borrar del almacenamiento: {"evidencias": [...], "documentos": [...]}.
+create or replace function public.eliminar_cliente(p_cliente_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_evidencias text[];
+  v_documentos text[];
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  perform 1 from public.clientes where id = p_cliente_id for update;
+  if not found then
+    raise exception 'El cliente no existe.';
+  end if;
+  select coalesce(array_agg(p.foto_ruta), '{}') into v_evidencias
+  from public.pagos p join public.contratos c on c.id = p.contrato_id where c.cliente_id = p_cliente_id;
+  select coalesce(array_agg(ruta), '{}') into v_documentos from public.documentos where cliente_id = p_cliente_id;
+
+  delete from public.pagos p using public.contratos c where c.id = p.contrato_id and c.cliente_id = p_cliente_id;
+  delete from public.contratos where cliente_id = p_cliente_id;
+  -- sus motos que ya no tienen ningún contrato (de nadie)
+  delete from public.motos m
+  where m.cliente_id = p_cliente_id and not exists (select 1 from public.contratos c where c.moto_id = m.id);
+  delete from public.clientes where id = p_cliente_id;                -- documentos en cascada; otras motos quedan sin dueño
+  return jsonb_build_object('evidencias', to_jsonb(v_evidencias), 'documentos', to_jsonb(v_documentos));
 end;
 $$;
 
@@ -1056,8 +1187,10 @@ create policy leer on public.auditoria   for select to authenticated using ((sel
 -- Empresas y cuentas: solo el administrador las crea o cambia
 create policy crear on public.empresas for insert to authenticated with check ((select public.es_admin()));
 create policy editar on public.empresas for update to authenticated using ((select public.es_admin())) with check ((select public.es_admin()));
+create policy borrar on public.empresas for delete to authenticated using ((select public.es_admin()));
 create policy crear on public.cuentas for insert to authenticated with check ((select public.es_admin()));
 create policy editar on public.cuentas for update to authenticated using ((select public.es_admin())) with check ((select public.es_admin()));
+create policy borrar on public.cuentas for delete to authenticated using ((select public.es_admin()));
 
 -- Clientes y motos: el personal los crea y edita; solo el administrador borra
 create policy crear on public.clientes for insert to authenticated with check ((select public.es_staff()));
@@ -1101,8 +1234,7 @@ create policy "cn subir fotos" on storage.objects for insert to authenticated
 create policy "cn borrar evidencias" on storage.objects for delete to authenticated
   using (
     bucket_id = 'evidencias'
-    and (select public.es_staff())
-    and owner_id = (select auth.uid())::text
+    and ((select public.es_admin()) or ((select public.es_staff()) and owner_id = (select auth.uid())::text))
     and not exists (select 1 from public.pagos p where p.foto_ruta = name)
   );
 
@@ -1137,6 +1269,13 @@ grant execute on function public.anular_pago(uuid, text) to authenticated;
 grant execute on function public.cerrar_contrato(uuid, text) to authenticated;
 grant execute on function public.actualizar_usuario(uuid, public.rol_usuario, boolean) to authenticated;
 grant execute on function public.importar_cliente(jsonb) to authenticated;
+revoke all on function public.generar_cuotas(uuid) from public, anon, authenticated;
+revoke all on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text) from public, anon;
+revoke all on function public.eliminar_contrato(uuid) from public, anon;
+revoke all on function public.eliminar_cliente(uuid) from public, anon;
+grant execute on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text) to authenticated;
+grant execute on function public.eliminar_contrato(uuid) to authenticated;
+grant execute on function public.eliminar_cliente(uuid) to authenticated;
 grant execute on function public.clave_empresa(text) to authenticated;
 revoke all on function public.correo_dueno() from public, anon;
 grant execute on function public.correo_dueno() to authenticated;

@@ -6,6 +6,7 @@ import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa } from "@/components/layout/empresa";
 import { Aviso, BotonEnlace, Cargando, Placa, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
 import { HistorialPagos } from "../../pagos/_componentes/HistorialPagos";
+import { EliminarCliente } from "../_componentes/EliminarCliente";
 import { TarjetaCronograma, TarjetaDatos, TarjetaSituacion } from "../_componentes/FichaTarjetas";
 
 export default function FichaCliente() {
@@ -72,6 +73,7 @@ export default function FichaCliente() {
         }
         accion={
           <>
+            <EliminarCliente cliente={cliente} contratos={contratos.length} pagos={pagos.length} />
             <BotonEnlace href={`/clientes/editar?id=${cliente.id}`} variante="secundario">
               Editar
             </BotonEnlace>
@@ -102,6 +104,7 @@ export default function FichaCliente() {
       <Tarjeta className="mt-4" titulo={`Historial de pagos (${pagosVigentes})`}>
         <HistorialPagos pagos={pagos} cuentas={cuentas} alCambiar={recargar} />
       </Tarjeta>
+
     </>
   );
 }

@@ -21,7 +21,7 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 | `/reportes` | Excel de clientes y de pagos por fechas | Dueño |
 | `/usuarios` | Crear y desactivar cobradores | Dueño |
 | `/importar` | Cargar clientes desde la plantilla Excel | Dueño |
-| `/configuracion` | Empresas (razón social, RUC) y cuentas de cobro | Dueño |
+| `/configuracion` | Agregar, editar y eliminar empresas y cuentas de cobro | Dueño |
 | `/consulta` · `/qr` | El cliente consulta su deuda con su DNI · hoja con el QR | Público |
 
 ## Reglas del negocio
@@ -39,6 +39,7 @@ Las reglas viven en la base de datos (`supabase/esquema.sql`). `src/lib/supabase
 - **Un solo dueño.** Solo la cuenta `correo_dueno()` (en `esquema.sql`) puede ser administrador: anular pagos, cerrar contratos, crear usuarios, importar, configurar y ver panel y reportes. Lo garantiza la base de datos (función, disparador y restricción en la tabla), no solo la pantalla. Todo usuario nuevo es **cobrador**.
 - **RLS en todas las tablas.** El frontend solo lleva la llave pública (anon). Lo que cada usuario puede ver o cambiar lo decide la base de datos.
 - Pagos, contratos y cuotas **no se escriben directo**: solo con `registrar_pago`, `crear_contrato`, `anular_pago` y `cerrar_contrato`.
+- **El dueño tiene CRUD de todo:** empresas, cuentas, clientes, motos y contratos se pueden crear, editar y eliminar. Borrar algo con datos ligados (una empresa con clientes, una cuenta con pagos, una moto con contrato) lo impide la base de datos. Eliminar un cliente o un contrato pide escribir su DNI o placa y borra también sus pagos y fotos.
 - Fotos **privadas** en Cloudflare R2 (o Supabase Storage si no se configura R2), visibles solo con enlace firmado de 1 hora. El Worker `fotos/` valida la sesión de Supabase en cada subida o borrado.
 - La tabla `auditoria` guarda quién creó o cambió cada cliente, moto, contrato y pago.
 - Todo el tráfico va por **HTTPS** (Cloudflare + Supabase) con cabeceras de seguridad (`public/_headers`).

@@ -2,7 +2,7 @@
 // Worker de Cloudflare que guarda las fotos en R2 (10 GB gratis) en vez de Supabase Storage.
 // Aplica los MISMOS permisos que tenían los buckets de Supabase:
 //   · ver y subir: cualquier usuario activo del sistema (dueño o cobrador)
-//   · borrar foto de pago: solo quien la subió y solo si aún no está ligada a un pago
+//   · borrar foto de pago: quien la subió o el dueño, y solo si ya no está ligada a un pago
 //   · borrar foto de cliente: el dueño, o quien la subió
 // Quién es el usuario lo decide Supabase: se valida su sesión en cada petición.
 //
@@ -155,7 +155,7 @@ export default {
       if (!obj) return new Response(null, { status: 204, headers: CORS });
       const esSuya = obj.customMetadata?.subido_por === yo.id;
       if (p.bucket === "evidencias") {
-        if (!esSuya) return fallo(403, "Solo quien subió la foto puede descartarla.");
+        if (!esSuya && !yo.admin) return fallo(403, "Solo quien subió la foto o el dueño pueden descartarla.");
         if (await ligadaAPago(env, tokenDe(peticion), p.ruta)) return fallo(403, "La foto ya es evidencia de un pago y no se puede borrar.");
       } else if (!yo.admin && !esSuya) {
         return fallo(403, "Solo el dueño o quien subió la foto puede borrarla.");

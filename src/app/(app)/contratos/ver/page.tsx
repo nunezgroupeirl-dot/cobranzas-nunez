@@ -7,6 +7,7 @@ import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
 import { Aviso, Boton, BotonEnlace, Cargando, Placa, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
 import { Cronograma } from "../_componentes/Cronograma";
 import { ModalCerrarContrato } from "../_componentes/ModalCerrarContrato";
+import { AccionesDuenoContrato } from "../_componentes/AccionesDuenoContrato";
 import { ResumenContrato } from "../_componentes/ResumenContrato";
 
 export default function VerContrato() {
@@ -69,6 +70,7 @@ export default function VerContrato() {
             {cliente && moto && (
               <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} placa={moto.placa} empresa={empresa} contrato={contrato} cuotas={cuotas} />
             )}
+            <AccionesDuenoContrato contrato={contrato} placa={moto?.placa} clienteId={cliente?.id} alCambiar={recargar} />
             {activo && esAdmin && (
               <Boton variante="secundario" tamano="grande" onClick={() => setCerrando(true)}>
                 Cerrar contrato

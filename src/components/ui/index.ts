@@ -3,6 +3,7 @@ export { clasesBoton } from "./estilos";
 export { Campo, AreaTexto, Selector, OpcionesBoton, type Opcion } from "./Campo";
 export { Tabla, type Columna } from "./Tabla";
 export { Modal } from "./Modal";
+export { ModalEliminar } from "./ModalEliminar";
 export { VistaPrevia } from "./VistaPrevia";
 export { Placa } from "./Placa";
 export { Aviso } from "./Aviso";

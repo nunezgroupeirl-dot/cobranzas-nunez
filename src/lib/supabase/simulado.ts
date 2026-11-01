@@ -353,10 +353,34 @@ export function crearDatosSimulados(): Datos {
       if (e.ruc && !/^\d{11}$/.test(e.ruc)) throw new ErrorDatos("DATOS", "El RUC debe tener 11 números.");
       if (s.empresas.some((x) => x.nombre.toLowerCase() === nombre.toLowerCase() && x.id !== e.id))
         throw new ErrorDatos("REPETIDO", "Ya existe una empresa con ese nombre.");
+      if (!e.id) {
+        s.empresas.push({ id: nuevoId(), nombre, ruc: e.ruc || null });
+        guardar(s);
+        return;
+      }
       const emp = s.empresas.find((x) => x.id === e.id);
       if (!emp) throw new ErrorDatos("NO_EXISTE", "La empresa no existe.");
       emp.nombre = nombre;
       emp.ruc = e.ruc || null;
+      guardar(s);
+    },
+    async eliminarEmpresa(id) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      const usada = [s.clientes, s.motos, s.cuentas, s.contratos].some((lista) => lista.some((x) => x.empresa_id === id));
+      if (usada)
+        throw new ErrorDatos("EN_USO", "La empresa todavía tiene clientes, motos, cuentas o contratos. Elimínalos o muévelos a otra empresa primero.");
+      s.empresas = s.empresas.filter((x) => x.id !== id);
+      guardar(s);
+    },
+    async eliminarCuenta(id) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      if (s.pagos.some((p) => p.cuenta_id === id))
+        throw new ErrorDatos("EN_USO", "Esta cuenta ya tiene pagos registrados. Desactívala en vez de eliminarla, así se conserva el historial.");
+      s.cuentas = s.cuentas.filter((x) => x.id !== id);
       guardar(s);
     },
     async guardarCuenta(c) {
@@ -519,7 +543,73 @@ export function crearDatosSimulados(): Datos {
       s.motos.push(nueva);
       guardar(s);
       return nueva;
+    },    async eliminarMoto(id) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      if (s.contratos.some((c) => c.moto_id === id)) throw new ErrorDatos("EN_USO", "Esta moto tiene contratos. Elimina o cierra su contrato primero.");
+      s.motos = s.motos.filter((m) => m.id !== id);
+      guardar(s);
     },
+    async eliminarCliente(id) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      if (!s.clientes.some((c) => c.id === id)) throw new ErrorDatos("NO_EXISTE", "El cliente no existe.");
+      const contratos = new Set(s.contratos.filter((c) => c.cliente_id === id).map((c) => c.id));
+      const fotos = [
+        ...s.pagos.filter((p) => contratos.has(p.contrato_id)).map((p) => ["evidencias", p.foto_ruta] as const),
+        ...s.documentos.filter((d) => d.cliente_id === id).map((d) => ["documentos", d.ruta] as const),
+      ];
+      s.pagos = s.pagos.filter((p) => !contratos.has(p.contrato_id));
+      s.cuotas = s.cuotas.filter((q) => !contratos.has(q.contrato_id));
+      s.contratos = s.contratos.filter((c) => !contratos.has(c.id));
+      s.motos = s.motos.filter((m) => !(m.cliente_id === id && !s.contratos.some((c) => c.moto_id === m.id)));
+      for (const m of s.motos) if (m.cliente_id === id) m.cliente_id = null;
+      s.documentos = s.documentos.filter((d) => d.cliente_id !== id);
+      s.clientes = s.clientes.filter((c) => c.id !== id);
+      guardar(s);
+      await Promise.all(fotos.map(([bucket, ruta]) => borrarArchivoLocal(bucket, ruta)));
+    },
+    async eliminarContrato(id) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      if (!s.contratos.some((c) => c.id === id)) throw new ErrorDatos("NO_EXISTE", "El contrato no existe.");
+      const fotos = s.pagos.filter((p) => p.contrato_id === id).map((p) => p.foto_ruta);
+      s.pagos = s.pagos.filter((p) => p.contrato_id !== id);
+      s.cuotas = s.cuotas.filter((q) => q.contrato_id !== id);
+      s.contratos = s.contratos.filter((c) => c.id !== id);
+      guardar(s);
+      await Promise.all(fotos.map((ruta) => borrarArchivoLocal("evidencias", ruta)));
+    },
+    async editarContrato(id, c) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      const con = s.contratos.find((x) => x.id === id);
+      if (!con) throw new ErrorDatos("NO_EXISTE", "El contrato no existe.");
+      if (con.estado === "anulado") throw new ErrorDatos("CERRADO", "El contrato está cerrado: no se puede editar.");
+      if (!(c.monto_cuota > 0)) throw new ErrorDatos("DATOS", "La cuota semanal debe ser mayor a 0.");
+      if (!(c.nro_cuotas >= 1 && c.nro_cuotas <= 260)) throw new ErrorDatos("DATOS", "El número de cuotas debe estar entre 1 y 260.");
+      if (c.cuotas_pagadas < 0 || c.cuotas_pagadas > c.nro_cuotas)
+        throw new ErrorDatos("DATOS", "Las cuotas ya pagadas no pueden ser más que el número de cuotas.");
+      Object.assign(con, {
+        monto_cuota: c.monto_cuota,
+        nro_cuotas: c.nro_cuotas,
+        fecha_inicio: c.fecha_inicio,
+        precio_total: c.precio_total,
+        inicial: c.inicial,
+        cuotas_pagadas_inicial: c.cuotas_pagadas,
+        observaciones: c.observaciones?.trim() || null,
+      });
+      // Igual que en la base: cronograma nuevo; los pagos se reaplican al calcular las cuotas
+      s.cuotas = s.cuotas.filter((q) => q.contrato_id !== id);
+      s.cuotas.push(...generarCuotas(con).map((q) => ({ ...q, id: `${id}-c${q.numero}` })));
+      actualizarEstadoContrato(s, id);
+      guardar(s);
+    },
+
     async contratos() {
       return leer().contratos;
     },

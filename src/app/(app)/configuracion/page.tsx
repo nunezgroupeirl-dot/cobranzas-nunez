@@ -7,6 +7,7 @@ import type { Cuenta, Empresa, MedioPago } from "@/types/database";
 const MEDIOS_CUENTA: MedioPago[] = ["yape", "plin", "banco"];
 
 type FormCuenta = { id?: string; empresa_id: string; nombre: string; medio: MedioPago; activa: boolean };
+type FormEmpresa = { id?: string; nombre: string; ruc: string | null };
 
 function Configuracion() {
   const { datos } = useSesion();
@@ -16,7 +17,7 @@ function Configuracion() {
   }, [datos]);
 
   const [aviso, setAviso] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
-  const [empresa, setEmpresa] = useState<Empresa | null>(null);
+  const [empresa, setEmpresa] = useState<FormEmpresa | null>(null);
   const [cuenta, setCuenta] = useState<FormCuenta | null>(null);
   const [errForm, setErrForm] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -32,7 +33,7 @@ function Configuracion() {
     try {
       await datos.guardarEmpresa({ id: empresa.id, nombre: empresa.nombre, ruc: empresa.ruc || null });
       setEmpresa(null);
-      setAviso({ tipo: "exito", texto: "Empresa guardada. Recarga la página para verla con el nuevo nombre en el filtro de empresas." });
+      setAviso({ tipo: "exito", texto: "Empresa guardada. Recarga la página para verla en el filtro de empresas." });
       recargar();
     } catch (e) {
       setErrForm(mensajeDeError(e));
@@ -56,6 +57,18 @@ function Configuracion() {
       setErrForm(mensajeDeError(e));
     } finally {
       setGuardando(false);
+    }
+  };
+
+  /** Eliminar empresa o cuenta. Si tiene datos ligados, la base de datos lo impide y se explica qué hacer. */
+  const eliminar = async (texto: string, accion: () => Promise<void>, hecho: string) => {
+    if (!confirm(texto)) return;
+    try {
+      await accion();
+      setAviso({ tipo: "exito", texto: hecho });
+      recargar();
+    } catch (e) {
+      setAviso({ tipo: "error", texto: mensajeDeError(e) });
     }
   };
 
@@ -86,9 +99,20 @@ function Configuracion() {
       clave: "acciones",
       titulo: "",
       celda: (e) => (
-        <Boton variante="secundario" tamano="chico" onClick={() => { setErrForm(null); setEmpresa({ ...e }); }}>
-          Editar
-        </Boton>
+        <div className="flex flex-wrap justify-end gap-1">
+          <Boton variante="secundario" tamano="chico" onClick={() => { setErrForm(null); setEmpresa({ ...e }); }}>
+            Editar
+          </Boton>
+          <Boton
+            variante="borrar"
+            tamano="chico"
+            onClick={() =>
+              eliminar(`¿Eliminar la empresa "${e.nombre}"? Solo se puede si no tiene clientes, motos, cuentas ni contratos.`, () => datos.eliminarEmpresa(e.id), `Empresa "${e.nombre}" eliminada. Recarga la página para quitarla del filtro.`)
+            }
+          >
+            Eliminar
+          </Boton>
+        </div>
       ),
     },
   ];
@@ -113,6 +137,13 @@ function Configuracion() {
           <Boton variante="fantasma" tamano="chico" onClick={() => cambiarActiva(c)}>
             {c.activa ? "Desactivar" : "Activar"}
           </Boton>
+          <Boton
+            variante="borrar"
+            tamano="chico"
+            onClick={() => eliminar(`¿Eliminar la cuenta "${c.nombre}"? Si ya tiene pagos, no se podrá: desactívala.`, () => datos.eliminarCuenta(c.id), `Cuenta "${c.nombre}" eliminada.`)}
+          >
+            Eliminar
+          </Boton>
         </div>
       ),
     },
@@ -129,7 +160,14 @@ function Configuracion() {
         </div>
       )}
       <div className="flex flex-col gap-4">
-        <Tarjeta titulo="Empresas">
+        <Tarjeta
+          titulo="Empresas"
+          accion={
+            <Boton tamano="chico" onClick={() => { setErrForm(null); setEmpresa({ nombre: "", ruc: "" }); }}>
+              + Agregar empresa
+            </Boton>
+          }
+        >
           <p className="mb-3 text-sm text-tenue">El nombre debe coincidir con la columna EMPRESA de la plantilla Excel para poder importar clientes.</p>
           <Tabla columnas={colEmpresas} filas={info.empresas} claveFila={(e) => e.id} />
         </Tarjeta>
@@ -150,7 +188,7 @@ function Configuracion() {
 
       <Modal
         abierto={empresa !== null}
-        titulo="Editar empresa"
+        titulo={empresa?.id ? "Editar empresa" : "Nueva empresa"}
         alCerrar={() => setEmpresa(null)}
         pie={
           <>

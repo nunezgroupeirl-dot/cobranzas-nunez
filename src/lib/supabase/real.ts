@@ -22,6 +22,7 @@ import type {
   RegistrarPagoResultado,
   ResumenEmpresa,
   CobranzaSemana,
+  Bucket,
 } from "@/types/database";
 import { supabaseNavegador } from "./cliente";
 import { crearAlmacen } from "./almacen";
@@ -88,6 +89,16 @@ export function crearDatosReales(): Datos {
   const sb = supabaseNavegador();
   const almacen = crearAlmacen(sb); // fotos: Worker con R2 o Supabase Storage
 
+  /** Borra una fila; si otra tabla la usa (llave foránea), explica qué hacer. */
+  const borrarFila = async (tabla: string, id: string, enUso: string) => {
+    const r = await sb.from(tabla).delete().eq("id", id).select("id");
+    if (r.error?.code === "23503") throw new ErrorDatos("EN_USO", enUso);
+    lanzar(r.error);
+    if (!r.data?.length) throw new ErrorDatos("SIN_PERMISO", "No tienes permiso para eliminar esto.");
+  };
+  /** Después de borrar los registros, se borran sus fotos (si alguna falla, no detiene nada). */
+  const borrarFotos = (bucket: Bucket, rutas: string[]) => Promise.all(rutas.map((ruta) => almacen.borrar(bucket, ruta).catch(() => undefined)));
+
   const perfilDe = async (userId: string): Promise<Perfil | null> =>
     fila<Perfil>(await sb.from("perfiles").select("*").eq("id", userId).maybeSingle());
 
@@ -131,7 +142,13 @@ export function crearDatosReales(): Datos {
     },
     async guardarEmpresa(e) {
       const datos = { nombre: e.nombre.trim(), ruc: e.ruc?.trim() || null };
-      lanzar((await sb.from("empresas").update(datos).eq("id", e.id)).error);
+      lanzar((e.id ? await sb.from("empresas").update(datos).eq("id", e.id) : await sb.from("empresas").insert(datos)).error);
+    },
+    async eliminarEmpresa(id) {
+      await borrarFila("empresas", id, "La empresa todavía tiene clientes, motos, cuentas o contratos. Elimínalos o muévelos a otra empresa primero.");
+    },
+    async eliminarCuenta(id) {
+      await borrarFila("cuentas", id, "Esta cuenta ya tiene pagos registrados. Desactívala en vez de eliminarla, así se conserva el historial.");
     },
     async guardarCuenta(c) {
       const { id, ...resto } = c;
@@ -212,7 +229,37 @@ export function crearDatosReales(): Datos {
         ? await sb.from("motos").update(datos).eq("id", id).select("id, cliente_id, empresa_id, placa, tipo, marca, color").single()
         : await sb.from("motos").insert(datos).select("id, cliente_id, empresa_id, placa, tipo, marca, color").single();
       return fila<Moto>(r) as Moto;
+    },    async eliminarMoto(id) {
+      await borrarFila("motos", id, "Esta moto tiene contratos. Elimina o cierra su contrato primero.");
     },
+    async eliminarCliente(id) {
+      const r = await sb.rpc("eliminar_cliente", { p_cliente_id: id });
+      lanzar(r.error);
+      const fotos = (r.data ?? {}) as { evidencias?: string[]; documentos?: string[] };
+      await Promise.all([borrarFotos("evidencias", fotos.evidencias ?? []), borrarFotos("documentos", fotos.documentos ?? [])]);
+    },
+    async eliminarContrato(id) {
+      const r = await sb.rpc("eliminar_contrato", { p_contrato_id: id });
+      lanzar(r.error);
+      await borrarFotos("evidencias", (r.data ?? []) as string[]);
+    },
+    async editarContrato(id, c) {
+      lanzar(
+        (
+          await sb.rpc("editar_contrato", {
+            p_contrato_id: id,
+            p_monto_cuota: c.monto_cuota,
+            p_nro_cuotas: c.nro_cuotas,
+            p_fecha_inicio: c.fecha_inicio,
+            p_precio_total: c.precio_total,
+            p_inicial: c.inicial,
+            p_cuotas_pagadas: c.cuotas_pagadas,
+            p_observaciones: c.observaciones,
+          })
+        ).error,
+      );
+    },
+
     async contratos() {
       const filas = await todas<Contrato>((a, b) => sb.from("contratos").select("*").order("creado_en", { ascending: false }).range(a, b));
       return filas.map(normalizarContrato);

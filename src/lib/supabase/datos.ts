@@ -27,6 +27,7 @@ import type {
   ResumenEmpresa,
   CobranzaSemana,
   Rol,
+  EditarContratoArgs,
 } from "@/types/database";
 
 export class ErrorDatos extends Error {
@@ -62,7 +63,12 @@ export interface Datos {
   empresas(): Promise<Empresa[]>;
   cuentas(): Promise<Cuenta[]>; // solo activas
   todasLasCuentas(): Promise<Cuenta[]>; // incluye desactivadas (Configuración)
-  guardarEmpresa(e: Pick<Empresa, "id" | "nombre" | "ruc">): Promise<void>;
+  /** Sin id crea la empresa; con id la edita. */
+  guardarEmpresa(e: { id?: string; nombre: string; ruc: string | null }): Promise<void>;
+  /** Solo si no tiene clientes, motos, cuentas ni contratos. */
+  eliminarEmpresa(id: string): Promise<void>;
+  /** Solo si no tiene pagos; si los tiene, se desactiva. */
+  eliminarCuenta(id: string): Promise<void>;
   guardarCuenta(c: Omit<Cuenta, "id"> & { id?: string }): Promise<void>;
   // vistas
   estadoClientes(): Promise<EstadoCliente[]>;
@@ -82,6 +88,14 @@ export interface Datos {
   // motos y contratos
   motos(): Promise<Moto[]>;
   guardarMoto(m: NuevaMoto): Promise<Moto>;
+  /** Solo si no tiene contratos. */
+  eliminarMoto(id: string): Promise<void>;
+  /** Elimina el cliente con sus contratos, cuotas, pagos y fotos (solo el dueño). */
+  eliminarCliente(id: string): Promise<void>;
+  /** Elimina el contrato con sus cuotas, pagos y fotos de pago (solo el dueño). */
+  eliminarContrato(id: string): Promise<void>;
+  /** Cambia cuota, n.º de cuotas o fecha: rehace el cronograma y reaplica los pagos (solo el dueño). */
+  editarContrato(id: string, c: EditarContratoArgs): Promise<void>;
   contratos(): Promise<Contrato[]>;
   contrato(id: string): Promise<Contrato | null>;
   crearContrato(args: CrearContratoArgs): Promise<string>;
