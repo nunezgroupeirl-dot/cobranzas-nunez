@@ -6,6 +6,7 @@ import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layou
 import { Aviso, Boton, BotonEnlace, Cargando, Modal, mensajeDeError, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, NOMBRE_ESTADO_CONTRATO, Placa } from "@/components/ui";
 import type { Contrato, Moto } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "../clientes/_componentes/buscar";
+import { BotonPlantillaContrato } from "./_componentes/BotonPlantillaContrato";
 import { FormMoto } from "./_componentes/FormMoto";
 
 type Pestana = "contratos" | "motos";
@@ -83,6 +84,7 @@ export default function PaginaContratos() {
         titulo="Motos y contratos"
         accion={
           <>
+            <BotonPlantillaContrato tamano="grande" />
             <Boton variante="secundario" tamano="grande" onClick={() => setEditando("nueva")}>
               + Moto
             </Boton>

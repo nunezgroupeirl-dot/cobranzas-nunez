@@ -9,6 +9,7 @@ import { Cronograma } from "../_componentes/Cronograma";
 import { ModalCerrarContrato } from "../_componentes/ModalCerrarContrato";
 import { AccionesDuenoContrato } from "../_componentes/AccionesDuenoContrato";
 import { ResumenContrato } from "../_componentes/ResumenContrato";
+import { TarjetaContratoFirmado } from "../_componentes/TarjetaContratoFirmado";
 
 export default function VerContrato() {
   const parametros = useSearchParams();
@@ -33,6 +34,7 @@ export default function VerContrato() {
       moto: motos.find((m) => m.id === contrato.moto_id) ?? null,
       cuotas,
       estado: estados.find((e) => e.contrato_id === id) ?? null,
+      empresaDatos: empresas.find((e) => e.id === contrato.empresa_id) ?? null,
       empresa: empresas.find((e) => e.id === contrato.empresa_id)?.nombre ?? "",
     };
   }, [datos, id]);
@@ -40,7 +42,7 @@ export default function VerContrato() {
   if (cargando) return <Cargando />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!info) return <Aviso tipo="error">No se encontró el contrato.</Aviso>;
-  const { contrato, cliente, moto, cuotas, estado, empresa } = info;
+  const { contrato, cliente, moto, cuotas, estado, empresa, empresaDatos } = info;
   const activo = contrato.estado === "activo";
 
   return (
@@ -85,6 +87,7 @@ export default function VerContrato() {
         }
       />
       <ResumenContrato contrato={contrato} cuotas={cuotas} estado={estado} moto={moto} />
+      <TarjetaContratoFirmado contrato={contrato} cliente={cliente} moto={moto} empresa={empresaDatos} />
       <Tarjeta className="mt-4" titulo="Cronograma">
         <Cronograma cuotas={cuotas} />
       </Tarjeta>

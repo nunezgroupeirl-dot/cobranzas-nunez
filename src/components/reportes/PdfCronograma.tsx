@@ -1,6 +1,6 @@
 "use client";
 import type { Contrato, Cuota } from "@/types/database";
-import { NOMBRE_ESTADO_CUOTA, formatoFecha, formatoSoles, hoyLima } from "@/components/ui/formato";
+import { NOMBRE_ESTADO_CUOTA, formatoFecha, formatoSoles, hoyLima, nombreDocumento } from "@/components/ui/formato";
 import { clasesBoton } from "@/components/ui/estilos";
 
 interface Props {
@@ -49,7 +49,7 @@ footer{margin-top:10px;color:#5d6a6e;font-size:8.5pt}
 <header><div><div class="t">Cobranzas Núñez · ${esc(empresa)}</div><h1>Cronograma de pagos</h1></div>
 <div style="text-align:right"><div class="t">Emitido</div><b>${formatoFecha(hoyLima())}</b></div></header>
 <section class="datos">
-<div><span>Cliente</span><b>${esc(cliente)}</b></div><div><span>DNI</span><b>${esc(dni)}</b></div>
+<div><span>Cliente</span><b>${esc(cliente)}</b></div><div><span>${nombreDocumento(dni)}</span><b>${esc(dni)}</b></div>
 <div><span>Placa</span><b>${esc(placa)}</b></div><div><span>Cuota semanal</span><b>${formatoSoles(contrato.monto_cuota)}</b></div>
 <div><span>N.º de cuotas</span><b>${contrato.nro_cuotas}</b></div><div><span>Total del contrato</span><b>${formatoSoles(total)}</b></div>
 <div><span>Pagado</span><b>${formatoSoles(pagado)}</b></div><div><span>Deuda vencida</span><b style="color:#c0362c">${formatoSoles(vencido)}</b></div>

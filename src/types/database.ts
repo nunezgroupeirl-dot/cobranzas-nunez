@@ -7,7 +7,7 @@
 export type Rol = "administrador" | "cobrador";
 export type Color = "verde" | "amarillo" | "rojo";
 export type MedioPago = "yape" | "plin" | "banco" | "agente" | "efectivo";
-export type TipoDocumento = "cliente" | "dni" | "moto" | "fachada" | "recibo" | "otro";
+export type TipoDocumento = "cliente" | "dni" | "moto" | "fachada" | "recibo" | "otro" | "contrato";
 export type Bucket = "evidencias" | "documentos";
 
 /* ---------- Tablas ---------- */
@@ -16,6 +16,10 @@ export interface Empresa {
   id: string;
   nombre: string;
   ruc: string | null;
+  // salen en el contrato impreso
+  representante?: string | null;
+  representante_dni?: string | null;
+  domicilio?: string | null;
 }
 
 export interface Cuenta {
@@ -38,7 +42,7 @@ export interface Cliente {
   id: string;
   empresa_id: string;
   nombres: string;
-  dni: string;
+  dni: string; // DNI (8 números) o Carné de Extranjería (9 a 12)
   celular: string | null;
   direccion: string | null;
   referencia: string | null;
@@ -50,6 +54,7 @@ export interface Documento {
   cliente_id: string;
   tipo: TipoDocumento;
   ruta: string; // empresa_id/cliente_id/archivo.jpg en el bucket "documentos"
+  contrato_id?: string | null; // solo las páginas del contrato firmado
   creado_en: string;
 }
 
@@ -61,6 +66,14 @@ export interface Moto {
   tipo: string; // "Lineal", "Scooter", "Trimoto", "Otro"
   marca: string;
   color: string;
+  // ficha técnica (sale en el contrato impreso)
+  modelo?: string | null;
+  anio?: number | null;
+  clase?: string | null;
+  combustible?: string | null;
+  serie?: string | null;
+  motor?: string | null;
+  carroceria?: string | null;
 }
 
 export interface Contrato {

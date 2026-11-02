@@ -2,7 +2,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Campo, Cargando, Tarjeta, TituloPagina, formatoFecha, formatoSoles, hoyLima, mensajeDeError, sumarDias, useCarga, Placa } from "@/components/ui";
+import { Aviso, Boton, Campo, Cargando, Tarjeta, TituloPagina, formatoFecha, formatoSoles, hoyLima, mensajeDeError, sumarDias, useCarga, Placa, nombreDocumento } from "@/components/ui";
 import type { Moto } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "../../clientes/_componentes/buscar";
 import { FormMoto } from "../_componentes/FormMoto";
@@ -101,7 +101,7 @@ export default function NuevoContrato() {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-marca-suave p-4">
               <div>
                 <p className="text-lg font-bold">{cliente.nombres}</p>
-                <p className="text-tenue">DNI {cliente.dni}</p>
+                <p className="text-tenue">{nombreDocumento(cliente.dni)} {cliente.dni}</p>
               </div>
               <Boton variante="secundario" tamano="chico" onClick={() => { setClienteId(null); setMotoId(null); }}>
                 Cambiar

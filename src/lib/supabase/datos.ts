@@ -64,7 +64,7 @@ export interface Datos {
   cuentas(): Promise<Cuenta[]>; // solo activas
   todasLasCuentas(): Promise<Cuenta[]>; // incluye desactivadas (Configuración)
   /** Sin id crea la empresa; con id la edita. */
-  guardarEmpresa(e: { id?: string; nombre: string; ruc: string | null }): Promise<void>;
+  guardarEmpresa(e: Omit<Empresa, "id"> & { id?: string }): Promise<void>;
   /** Solo si no tiene clientes, motos, cuentas ni contratos. */
   eliminarEmpresa(id: string): Promise<void>;
   /** Solo si no tiene pagos; si los tiene, se desactiva. */

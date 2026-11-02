@@ -3,11 +3,12 @@ import { useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
 import { Aviso, Boton, Campo, Cargando, Modal, NOMBRE_MEDIO, OpcionesBoton, Selector, Tabla, Tarjeta, TituloPagina, mensajeDeError, useCarga, type Columna } from "@/components/ui";
 import type { Cuenta, Empresa, MedioPago } from "@/types/database";
+import { CamposEmpresa, type FormEmpresa } from "./_componentes/CamposEmpresa";
 
 const MEDIOS_CUENTA: MedioPago[] = ["yape", "plin", "banco"];
 
 type FormCuenta = { id?: string; empresa_id: string; nombre: string; medio: MedioPago; activa: boolean };
-type FormEmpresa = { id?: string; nombre: string; ruc: string | null };
+
 
 function Configuracion() {
   const { datos } = useSesion();
@@ -31,7 +32,7 @@ function Configuracion() {
     setGuardando(true);
     setErrForm(null);
     try {
-      await datos.guardarEmpresa({ id: empresa.id, nombre: empresa.nombre, ruc: empresa.ruc || null });
+      await datos.guardarEmpresa(empresa);
       setEmpresa(null);
       setAviso({ tipo: "exito", texto: "Empresa guardada. Recarga la página para verla en el filtro de empresas." });
       recargar();
@@ -201,20 +202,7 @@ function Configuracion() {
           </>
         }
       >
-        {empresa && (
-          <div className="flex flex-col gap-4">
-            <Campo etiqueta="Razón social" value={empresa.nombre} onChange={(e) => setEmpresa({ ...empresa, nombre: e.target.value })} obligatorio />
-            <Campo
-              etiqueta="RUC"
-              inputMode="numeric"
-              maxLength={11}
-              value={empresa.ruc ?? ""}
-              onChange={(e) => setEmpresa({ ...empresa, ruc: e.target.value.replace(/\D/g, "") })}
-              ayuda="11 números. Opcional."
-            />
-            {errForm && <Aviso tipo="error">{errForm}</Aviso>}
-          </div>
-        )}
+        {empresa && <CamposEmpresa empresa={empresa} alCambiar={setEmpresa} error={errForm} />}
       </Modal>
 
       <Modal

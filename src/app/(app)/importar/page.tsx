@@ -69,7 +69,7 @@ function validar(f: FilaImportacion, empresas: Set<string>): string | null {
   if (!f.empresa) return "Falta la empresa.";
   if (!empresas.has(claveEmpresa(f.empresa))) return `La empresa "${f.empresa}" no existe. Revisa el nombre en Configuración.`;
   if (!f.nombres) return "Falta el nombre.";
-  if (!/^\d{8}$/.test(f.dni)) return "El DNI debe tener 8 números.";
+  if (!/^\d{8,12}$/.test(f.dni)) return "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).";
   if (!f.placa) return "Falta la placa.";
   if (!f.cuota || f.cuota <= 0) return "Falta la cuota semanal.";
   if (!f.nro_cuotas || !Number.isInteger(f.nro_cuotas) || f.nro_cuotas < 1) return "Falta el número de cuotas.";

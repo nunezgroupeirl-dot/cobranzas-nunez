@@ -37,8 +37,9 @@ exception when duplicate_object then null; end $$;
 do $$ begin create type public.medio_pago as enum ('yape', 'plin', 'banco', 'agente', 'efectivo');
 exception when duplicate_object then null; end $$;
 
-do $$ begin create type public.tipo_documento as enum ('cliente', 'dni', 'moto', 'fachada', 'recibo', 'otro');
+do $$ begin create type public.tipo_documento as enum ('cliente', 'dni', 'moto', 'fachada', 'recibo', 'otro', 'contrato');
 exception when duplicate_object then null; end $$;
+alter type public.tipo_documento add value if not exists 'contrato';  -- páginas del contrato firmado
 
 -- activo: se está pagando · terminado: pagó todo · anulado: cerrado por el administrador (moto recuperada, etc.)
 do $$ begin create type public.estado_contrato as enum ('activo', 'terminado', 'anulado');
@@ -56,6 +57,10 @@ create table if not exists public.empresas (
   ruc        text check (ruc is null or ruc ~ '^\d{11}$'),
   creado_en  timestamptz not null default now()
 );
+-- Datos que salen en el contrato impreso
+alter table public.empresas add column if not exists representante text;
+alter table public.empresas add column if not exists representante_dni text;
+alter table public.empresas add column if not exists domicilio text;
 
 -- Cuentas donde llega el dinero (Yape, Plin, bancos)
 create table if not exists public.cuentas (
@@ -84,13 +89,15 @@ create table if not exists public.clientes (
   id          uuid primary key default gen_random_uuid(),
   empresa_id  uuid not null references public.empresas (id) on delete restrict,
   nombres     text not null check (length(trim(nombres)) > 0),
-  dni         text not null unique check (dni ~ '^\d{8}$'),
+  dni         text not null unique,  -- DNI (8 números) o Carné de Extranjería (9 a 12)
   celular     text check (celular is null or celular ~ '^9\d{8}$'),
   direccion   text,
   referencia  text,
   creado_en   timestamptz not null default now()
 );
 create index if not exists clientes_empresa_idx on public.clientes (empresa_id);
+alter table public.clientes drop constraint if exists clientes_dni_check;
+alter table public.clientes add constraint clientes_dni_check check (dni ~ '^\d{8,12}$');
 
 -- Fotos y documentos del cliente (las imágenes viven en el bucket "documentos")
 create table if not exists public.documentos (
@@ -114,6 +121,16 @@ create table if not exists public.motos (
   creado_en   timestamptz not null default now()
 );
 create index if not exists motos_cliente_idx on public.motos (cliente_id);
+-- Ficha técnica (sale en el contrato impreso)
+alter table public.motos add column if not exists modelo text;
+alter table public.motos add column if not exists anio integer;
+alter table public.motos add column if not exists clase text;
+alter table public.motos add column if not exists combustible text;
+alter table public.motos add column if not exists serie text;
+alter table public.motos add column if not exists motor text;
+alter table public.motos add column if not exists carroceria text;
+alter table public.motos drop constraint if exists motos_anio_check;
+alter table public.motos add constraint motos_anio_check check (anio is null or anio between 1990 and 2100);
 
 create table if not exists public.contratos (
   id                      uuid primary key default gen_random_uuid(),
@@ -139,6 +156,9 @@ create table if not exists public.contratos (
 create index if not exists contratos_cliente_idx on public.contratos (cliente_id);
 create index if not exists contratos_empresa_idx on public.contratos (empresa_id);
 create index if not exists contratos_estado_idx on public.contratos (estado);
+-- Páginas del contrato firmado y escaneado (documentos de tipo "contrato")
+alter table public.documentos add column if not exists contrato_id uuid references public.contratos (id) on delete cascade;
+create index if not exists documentos_contrato_idx on public.documentos (contrato_id);
 -- Una moto solo puede tener un contrato activo
 create unique index if not exists contratos_moto_activa_uq on public.contratos (moto_id) where estado = 'activo';
 
@@ -778,7 +798,7 @@ begin
   if v_empresa is null then
     raise exception 'La empresa "%" no existe en el sistema. Revisa el nombre en Configuración.', p_fila ->> 'empresa';
   end if;
-  if v_dni !~ '^\d{8}$' then raise exception 'DNI inválido.'; end if;
+  if v_dni !~ '^\d{8,12}$' then raise exception 'DNI o Carné de Extranjería inválido.'; end if;
   if v_placa = '' then raise exception 'Falta la placa.'; end if;
   if coalesce(trim(p_fila ->> 'nombres'), '') = '' then raise exception 'Falta el nombre.'; end if;
   if v_celular is not null and v_celular !~ '^9\d{8}$' then v_celular := null; end if;
@@ -1037,7 +1057,7 @@ as $$
   with cliente as (
     select cl.id, cl.nombres
     from public.clientes cl
-    where p_dni ~ '^\d{8}$' and cl.dni = p_dni
+    where p_dni ~ '^\d{8,12}$' and cl.dni = p_dni
   ),
   contratos as (
     select co.id, co.monto_cuota, co.creado_en, m.placa

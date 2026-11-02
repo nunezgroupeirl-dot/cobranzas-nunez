@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
-import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, Tarjeta, mensajeDeError } from "@/components/ui";
+import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, Tarjeta, esDocumentoValido, mensajeDeError } from "@/components/ui";
 import { subirDocumento } from "@/lib/fotos";
 import type { Cliente, Documento, TipoDocumento } from "@/types/database";
 import { FotosPorTipo } from "./FotosPorTipo";
@@ -30,7 +30,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
   const [pendientes, setPendientes] = useState<Partial<Record<TipoDocumento, File>>>({});
 
   useEffect(() => {
-    if (cliente) datos.documentos(cliente.id).then(setExistentes);
+    if (cliente) datos.documentos(cliente.id).then((d) => setExistentes(d.filter((x) => x.tipo !== "contrato")));
   }, [cliente, datos]);
 
   const poner = (campo: keyof typeof f, valor: string) => setF((x) => ({ ...x, [campo]: valor }));
@@ -38,7 +38,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
   const validar = () => {
     const e: Record<string, string> = {};
     if (!f.nombres.trim()) e.nombres = "Escribe el nombre completo.";
-    if (!/^\d{8}$/.test(f.dni)) e.dni = "El DNI debe tener 8 números.";
+    if (!esDocumentoValido(f.dni)) e.dni = "El DNI tiene 8 números (Carné de Extranjería: 9 a 12).";
     if (f.celular && !/^9\d{8}$/.test(f.celular)) e.celular = "El celular debe tener 9 números y empezar con 9.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     setErrores(e);
@@ -92,9 +92,9 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
             <Campo etiqueta="Nombres y apellidos" value={f.nombres} onChange={(e) => poner("nombres", e.target.value)} error={errores.nombres} obligatorio autoComplete="off" />
           </div>
           <Campo
-            etiqueta="DNI"
+            etiqueta="DNI o Carné de Extranjería"
             inputMode="numeric"
-            maxLength={8}
+            maxLength={12}
             value={f.dni}
             onChange={(e) => poner("dni", e.target.value.replace(/\D/g, ""))}
             error={errores.dni}

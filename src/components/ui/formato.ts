@@ -43,7 +43,12 @@ export const NOMBRE_DOCUMENTO: Record<TipoDocumento, string> = {
   fachada: "Fachada",
   recibo: "Recibo de luz/agua",
   otro: "Otro",
+  contrato: "Contrato firmado",
 };
+
+/** DNI (8 números) o Carné de Extranjería (9 a 12). */
+export const esDocumentoValido = (n: string) => /^\d{8,12}$/.test(n);
+export const nombreDocumento = (n: string) => (n.length === 8 ? "DNI" : "C.E.");
 
 /** Mensajes en palabras simples para los errores de la base de datos */
 export const MENSAJE_ERROR: Record<string, string> = {

@@ -61,8 +61,8 @@ export default function PaginaConsulta() {
 
   const consultar = async (e: FormEvent) => {
     e.preventDefault();
-    if (!/^\d{8}$/.test(dni)) {
-      setError("Escribe tu DNI: son 8 números.");
+    if (!/^\d{8,12}$/.test(dni)) {
+      setError("Escribe tu DNI (8 números) o tu Carné de Extranjería.");
       return;
     }
     setBuscando(true);
@@ -92,20 +92,20 @@ export default function PaginaConsulta() {
       <div className="mx-auto -mt-10 flex max-w-2xl flex-col gap-4 px-4 pb-10">
         <form onSubmit={consultar} className="rounded-2xl bg-superficie p-5 shadow-lg sm:p-6">
           <label htmlFor="dni" className="font-semibold">
-            Número de DNI
+            Número de DNI o Carné de Extranjería
           </label>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input
               id="dni"
               inputMode="numeric"
               autoComplete="off"
-              maxLength={8}
+              maxLength={12}
               value={dni}
               onChange={(e) => {
                 setDni(e.target.value.replace(/\D/g, ""));
                 setResultado(undefined);
               }}
-              placeholder="8 números"
+              placeholder="DNI o C.E."
               className="num min-h-16 flex-1 rounded-xl border border-borde px-5 font-display text-3xl font-bold tracking-[0.15em] focus:border-marca focus:ring-3 focus:ring-marca/20 focus:outline-none"
             />
             <Boton type="submit" tamano="grande" cargando={buscando}>

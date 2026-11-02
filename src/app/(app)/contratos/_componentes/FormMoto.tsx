@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { Aviso, Boton, Campo, OpcionesBoton, Selector, mensajeDeError } from "@/components/ui";
+import { CamposFichaTecnica } from "./FichaTecnica";
+import { CAMPOS_FICHA, type FichaTecnica } from "./fichaTecnica";
 import type { Moto } from "@/types/database";
 
 const TIPOS_MOTO = ["Mototaxi", "Lineal", "Scooter", "Trimoto", "Otro"];
@@ -27,6 +29,9 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
     color: moto?.color ?? "",
     empresa_id: moto?.empresa_id ?? empresaInicial ?? filtro ?? empresas[0]?.id ?? "",
   });
+  const [ficha, setFicha] = useState<FichaTecnica>(() =>
+    Object.fromEntries(CAMPOS_FICHA.map((k) => [k, moto?.[k] == null ? "" : String(moto[k])])) as FichaTecnica,
+  );
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -38,6 +43,8 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
     if (!f.marca.trim()) e.marca = "Escribe la marca.";
     if (!f.color.trim()) e.color = "Escribe el color.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
+    const anio = ficha.anio ? Number(ficha.anio) : null;
+    if (anio !== null && (anio < 1990 || anio > 2100)) e.anio = "Año de modelo no válido.";
     setErrores(e);
     if (Object.keys(e).length) return;
     setGuardando(true);
@@ -51,6 +58,13 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
         tipo: f.tipo,
         marca: f.marca.trim(),
         color: f.color.trim(),
+        modelo: ficha.modelo.trim() || null,
+        anio,
+        clase: ficha.clase.trim() || null,
+        combustible: ficha.combustible.trim() || null,
+        serie: ficha.serie.trim() || null,
+        motor: ficha.motor.trim() || null,
+        carroceria: ficha.carroceria.trim() || null,
       });
       alGuardar(m);
     } catch (err) {
@@ -93,6 +107,8 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
           ))}
         </datalist>
       </div>
+      <CamposFichaTecnica valores={ficha} alCambiar={(k, v) => setFicha((x) => ({ ...x, [k]: v }))} />
+      {errores.anio && <Aviso tipo="error">{errores.anio}</Aviso>}
       <div className="flex flex-wrap justify-end gap-2">
         {alEliminar && (
           <Boton variante="borrar" className="mr-auto" onClick={alEliminar}>

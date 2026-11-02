@@ -93,12 +93,15 @@ async function cargarImagen(archivo: Blob): Promise<ImageBitmap> {
 const aBlob = (canvas: HTMLCanvasElement, calidad: number) =>
   new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("No se pudo comprimir la foto."))), "image/jpeg", calidad));
 
+/** Hoja escaneada (contrato firmado): más resolución para que el texto se lea. */
+export const CALIDAD_HOJA = { lado: 2000, objetivo: 450 * 1024 };
+
 /** Reduce la foto a JPG de ~120 KB (baja calidad y tamaño hasta lograrlo). */
-export async function comprimirImagen(archivo: File | Blob): Promise<Blob> {
+export async function comprimirImagen(archivo: File | Blob, { lado: ladoMax = LADO_MAXIMO, objetivo = OBJETIVO_BYTES } = {}): Promise<Blob> {
   if (!archivo.type.startsWith("image/")) throw new Error("El archivo debe ser una foto.");
   const img = await cargarImagen(archivo);
   try {
-    let lado = LADO_MAXIMO;
+    let lado = ladoMax;
     for (let intento = 0; intento < 6; intento++) {
       const escala = Math.min(1, lado / Math.max(img.width, img.height));
       const canvas = document.createElement("canvas");
@@ -111,7 +114,7 @@ export async function comprimirImagen(archivo: File | Blob): Promise<Blob> {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       for (const calidad of [0.82, 0.72, 0.62, 0.52]) {
         const blob = await aBlob(canvas, calidad); // cada intento depende del anterior
-        if (blob.size <= OBJETIVO_BYTES) return blob;
+        if (blob.size <= objetivo) return blob;
       }
       lado = Math.round(lado * 0.75);
     }
@@ -138,8 +141,15 @@ export async function prepararFotoPago(datos: Datos, empresaId: string, clienteI
 }
 
 /** Foto o documento del cliente: comprime y sube a "documentos". */
-export async function subirDocumento(datos: Datos, empresaId: string, clienteId: string, tipo: string, archivo: File): Promise<string> {
-  const comprimida = await comprimirImagen(archivo);
+export async function subirDocumento(
+  datos: Datos,
+  empresaId: string,
+  clienteId: string,
+  tipo: string,
+  archivo: File,
+  calidad?: { lado: number; objetivo: number },
+): Promise<string> {
+  const comprimida = await comprimirImagen(archivo, calidad);
   const ruta = rutaArchivo(empresaId, clienteId, tipo);
   await datos.subirArchivo("documentos", ruta, comprimida);
   return ruta;

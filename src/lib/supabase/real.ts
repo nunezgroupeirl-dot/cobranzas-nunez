@@ -31,6 +31,7 @@ import { ErrorDatos, type Datos } from "./datos";
 /** Códigos que lanza la base de datos y que la pantalla traduce (ver MENSAJE_ERROR) */
 const CODIGOS = ["OPERACION_REPETIDA", "IMAGEN_REPETIDA", "MONTO_INVALIDO", "SIN_FOTO", "SIN_PERMISO"];
 const TAMANO_PAGINA = 1000;
+const COLUMNAS_MOTO = "id, cliente_id, empresa_id, placa, tipo, marca, color, modelo, anio, clase, combustible, serie, motor, carroceria";
 
 type ErrorSupabase = Pick<PostgrestError, "message" | "code"> | { message: string; code?: string };
 
@@ -132,7 +133,7 @@ export function crearDatosReales(): Datos {
 
     /* ---------------- empresas y cuentas ---------------- */
     async empresas() {
-      return todas<Empresa>((a, b) => sb.from("empresas").select("id, nombre, ruc").order("nombre").range(a, b));
+      return todas<Empresa>((a, b) => sb.from("empresas").select("id, nombre, ruc, representante, representante_dni, domicilio").order("nombre").range(a, b));
     },
     async cuentas() {
       return todas<Cuenta>((a, b) => sb.from("cuentas").select("id, empresa_id, nombre, medio, activa").eq("activa", true).order("nombre").range(a, b));
@@ -141,7 +142,14 @@ export function crearDatosReales(): Datos {
       return todas<Cuenta>((a, b) => sb.from("cuentas").select("id, empresa_id, nombre, medio, activa").order("nombre").range(a, b));
     },
     async guardarEmpresa(e) {
-      const datos = { nombre: e.nombre.trim(), ruc: e.ruc?.trim() || null };
+      const limpio = (t?: string | null) => t?.trim() || null;
+      const datos = {
+        nombre: e.nombre.trim(),
+        ruc: limpio(e.ruc),
+        representante: limpio(e.representante),
+        representante_dni: limpio(e.representante_dni),
+        domicilio: limpio(e.domicilio),
+      };
       lanzar((e.id ? await sb.from("empresas").update(datos).eq("id", e.id) : await sb.from("empresas").insert(datos)).error);
     },
     async eliminarEmpresa(id) {
@@ -205,10 +213,10 @@ export function crearDatosReales(): Datos {
       return fila<Cliente>(r) as Cliente;
     },
     async documentos(clienteId) {
-      return todas<Documento>((a, b) => sb.from("documentos").select("id, cliente_id, tipo, ruta, creado_en").eq("cliente_id", clienteId).order("creado_en").range(a, b));
+      return todas<Documento>((a, b) => sb.from("documentos").select("id, cliente_id, tipo, ruta, contrato_id, creado_en").eq("cliente_id", clienteId).order("creado_en").range(a, b));
     },
     async agregarDocumento(d) {
-      return fila<Documento>(await sb.from("documentos").insert(d).select("id, cliente_id, tipo, ruta, creado_en").single()) as Documento;
+      return fila<Documento>(await sb.from("documentos").insert(d).select("id, cliente_id, tipo, ruta, contrato_id, creado_en").single()) as Documento;
     },
     async borrarDocumento(id) {
       const doc = fila<Pick<Documento, "ruta">>(await sb.from("documentos").select("ruta").eq("id", id).maybeSingle());
@@ -220,14 +228,14 @@ export function crearDatosReales(): Datos {
 
     /* ---------------- motos y contratos ---------------- */
     async motos() {
-      return todas<Moto>((a, b) => sb.from("motos").select("id, cliente_id, empresa_id, placa, tipo, marca, color").order("placa").range(a, b));
+      return todas<Moto>((a, b) => sb.from("motos").select(COLUMNAS_MOTO).order("placa").range(a, b));
     },
     async guardarMoto(m) {
       const { id, ...resto } = m;
       const datos = { ...resto, placa: resto.placa.trim().toUpperCase() };
       const r = id
-        ? await sb.from("motos").update(datos).eq("id", id).select("id, cliente_id, empresa_id, placa, tipo, marca, color").single()
-        : await sb.from("motos").insert(datos).select("id, cliente_id, empresa_id, placa, tipo, marca, color").single();
+        ? await sb.from("motos").update(datos).eq("id", id).select(COLUMNAS_MOTO).single()
+        : await sb.from("motos").insert(datos).select(COLUMNAS_MOTO).single();
       return fila<Moto>(r) as Moto;
     },    async eliminarMoto(id) {
       await borrarFila("motos", id, "Esta moto tiene contratos. Elimina o cierra su contrato primero.");
@@ -239,9 +247,15 @@ export function crearDatosReales(): Datos {
       await Promise.all([borrarFotos("evidencias", fotos.evidencias ?? []), borrarFotos("documentos", fotos.documentos ?? [])]);
     },
     async eliminarContrato(id) {
+      // las páginas escaneadas del contrato se borran con el contrato: antes se anotan sus archivos
+      const escaneos = await sb.from("documentos").select("ruta").eq("contrato_id", id);
+      // react-doctor-disable-next-line server-sequential-independent-await
       const r = await sb.rpc("eliminar_contrato", { p_contrato_id: id });
       lanzar(r.error);
-      await borrarFotos("evidencias", (r.data ?? []) as string[]);
+      await Promise.all([
+        borrarFotos("evidencias", (r.data ?? []) as string[]),
+        borrarFotos("documentos", (escaneos.data ?? []).map((d) => d.ruta as string)),
+      ]);
     },
     async editarContrato(id, c) {
       lanzar(

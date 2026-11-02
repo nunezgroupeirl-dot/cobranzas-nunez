@@ -3,9 +3,10 @@ import { NOMBRE_DOCUMENTO, VistaPrevia } from "@/components/ui";
 import type { Documento, TipoDocumento } from "@/types/database";
 import { Foto } from "./Foto";
 
-const TIPOS_FOTO = Object.keys(NOMBRE_DOCUMENTO) as TipoDocumento[];
+// las páginas del contrato firmado se suben en la pantalla del contrato
+const TIPOS_FOTO = (Object.keys(NOMBRE_DOCUMENTO) as TipoDocumento[]).filter((t) => t !== "contrato");
 
-const AYUDA: Record<TipoDocumento, string> = {
+const AYUDA: Record<Exclude<TipoDocumento, "contrato">, string> = {
   cliente: "Rostro, de frente",
   dni: "Que se lea el número",
   moto: "Con la placa visible",
@@ -34,7 +35,7 @@ export function FotosPorTipo({ existentes, pendientes, alElegir, alQuitarPendien
           <section key={tipo} className="flex flex-col gap-2 rounded-xl border border-borde p-3" data-tipo={tipo}>
             <div>
               <h3 className="font-semibold leading-tight">{NOMBRE_DOCUMENTO[tipo]}</h3>
-              <p className="text-xs text-tenue">{AYUDA[tipo]}</p>
+              <p className="text-xs text-tenue">{AYUDA[tipo as keyof typeof AYUDA]}</p>
             </div>
             {guardadas.map((d) => (
               <div key={d.id} className="flex flex-col gap-1">

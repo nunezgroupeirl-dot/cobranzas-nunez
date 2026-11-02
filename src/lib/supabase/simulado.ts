@@ -353,15 +353,16 @@ export function crearDatosSimulados(): Datos {
       if (e.ruc && !/^\d{11}$/.test(e.ruc)) throw new ErrorDatos("DATOS", "El RUC debe tener 11 números.");
       if (s.empresas.some((x) => x.nombre.toLowerCase() === nombre.toLowerCase() && x.id !== e.id))
         throw new ErrorDatos("REPETIDO", "Ya existe una empresa con ese nombre.");
+      const limpio = (t?: string | null) => t?.trim() || null;
+      const datos = { nombre, ruc: limpio(e.ruc), representante: limpio(e.representante), representante_dni: limpio(e.representante_dni), domicilio: limpio(e.domicilio) };
       if (!e.id) {
-        s.empresas.push({ id: nuevoId(), nombre, ruc: e.ruc || null });
+        s.empresas.push({ id: nuevoId(), ...datos });
         guardar(s);
         return;
       }
       const emp = s.empresas.find((x) => x.id === e.id);
       if (!emp) throw new ErrorDatos("NO_EXISTE", "La empresa no existe.");
-      emp.nombre = nombre;
-      emp.ruc = e.ruc || null;
+      Object.assign(emp, datos);
       guardar(s);
     },
     async eliminarEmpresa(id) {
@@ -490,7 +491,7 @@ export function crearDatosSimulados(): Datos {
       await pausa();
       const s = leer();
       exigirSesion(s);
-      if (!/^\d{8}$/.test(c.dni)) throw new ErrorDatos("DNI_INVALIDO", "El DNI debe tener 8 números.");
+      if (!/^\d{8,12}$/.test(c.dni)) throw new ErrorDatos("DNI_INVALIDO", "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).");
       if (s.clientes.some((x) => x.dni === c.dni && x.id !== c.id)) throw new ErrorDatos("DNI_REPETIDO", "Ya existe un cliente con ese DNI.");
       if (c.id) {
         const i = s.clientes.findIndex((x) => x.id === c.id);
@@ -577,11 +578,13 @@ export function crearDatosSimulados(): Datos {
       exigirAdmin(s);
       if (!s.contratos.some((c) => c.id === id)) throw new ErrorDatos("NO_EXISTE", "El contrato no existe.");
       const fotos = s.pagos.filter((p) => p.contrato_id === id).map((p) => p.foto_ruta);
+      const escaneos = s.documentos.filter((d) => d.contrato_id === id).map((d) => d.ruta);
+      s.documentos = s.documentos.filter((d) => d.contrato_id !== id);
       s.pagos = s.pagos.filter((p) => p.contrato_id !== id);
       s.cuotas = s.cuotas.filter((q) => q.contrato_id !== id);
       s.contratos = s.contratos.filter((c) => c.id !== id);
       guardar(s);
-      await Promise.all(fotos.map((ruta) => borrarArchivoLocal("evidencias", ruta)));
+      await Promise.all([...fotos.map((ruta) => borrarArchivoLocal("evidencias", ruta)), ...escaneos.map((ruta) => borrarArchivoLocal("documentos", ruta))]);
     },
     async editarContrato(id, c) {
       await pausa();
@@ -671,7 +674,7 @@ export function crearDatosSimulados(): Datos {
       if (!empresa) throw new ErrorDatos("DATOS", `La empresa "${f.empresa}" no existe en el sistema. Revisa el nombre en Configuración.`);
       const dni = f.dni.replace(/\D/g, "");
       const placa = f.placa.trim().toUpperCase();
-      if (!/^\d{8}$/.test(dni)) throw new ErrorDatos("DATOS", "DNI inválido.");
+      if (!/^\d{8,12}$/.test(dni)) throw new ErrorDatos("DATOS", "DNI o Carné de Extranjería inválido.");
       if (!placa) throw new ErrorDatos("DATOS", "Falta la placa.");
       if (!f.nombres.trim()) throw new ErrorDatos("DATOS", "Falta el nombre.");
       if (!f.cuota || f.cuota <= 0) throw new ErrorDatos("DATOS", "Falta la cuota semanal.");

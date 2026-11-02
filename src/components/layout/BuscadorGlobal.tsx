@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { EtiquetaSemaforo, Placa } from "@/components/ui";
+import { EtiquetaSemaforo, Placa, nombreDocumento } from "@/components/ui";
 import { claveBusqueda, coincide, normalizar } from "@/lib/texto";
 import type { EstadoCliente } from "@/types/database";
 import { useSesion } from "./Sesion";
@@ -165,7 +165,7 @@ export function BuscadorGlobal() {
                       <span className="min-w-0">
                         <span className="block truncate font-semibold">{e.cliente}</span>
                         <span className="block truncate text-sm text-tenue">
-                          DNI {e.dni} · {e.empresa}
+                          {nombreDocumento(e.dni)} {e.dni} · {e.empresa}
                         </span>
                       </span>
                     </button>

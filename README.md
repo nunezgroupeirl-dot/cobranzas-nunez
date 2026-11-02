@@ -14,7 +14,7 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 |---|---|---|
 | `/login` | Ingreso | Todos |
 | `/clientes` · `/clientes/nuevo` · `/clientes/ficha?id=` · `/clientes/editar?id=` | Lista con semáforo, alta con fotos, ficha completa | Dueño y cobradores |
-| `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` | Motos, contratos y cronograma | Dueño y cobradores |
+| `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` | Motos, contratos, cronograma, contrato para imprimir (PDF) y hojas firmadas escaneadas | Dueño y cobradores |
 | `/pagos` · `/pagos/nuevo` | Historial y registro de pagos con foto | Dueño y cobradores |
 | `/morosos` | ¿Quién no paga? Copiar para WhatsApp y Excel | Dueño y cobradores |
 | `/panel` | Cobrado hoy y en la semana, deuda por empresa | Dueño |
