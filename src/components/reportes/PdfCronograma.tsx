@@ -46,7 +46,7 @@ td{padding:4px 5px;border-bottom:1px solid #ddd8cc}.n{text-align:right;font-vari
 thead{display:table-header-group}tr{page-break-inside:avoid}
 footer{margin-top:10px;color:#5d6a6e;font-size:8.5pt}
 </style></head><body>
-<header><div><div class="t">Cobranzas Núñez · ${esc(empresa)}</div><h1>Cronograma de pagos</h1></div>
+<header><div><div class="t">Inversiones Núñez &amp; Asociados · ${esc(empresa)}</div><h1>Cronograma de pagos</h1></div>
 <div style="text-align:right"><div class="t">Emitido</div><b>${formatoFecha(hoyLima())}</b></div></header>
 <section class="datos">
 <div><span>Cliente</span><b>${esc(cliente)}</b></div><div><span>${nombreDocumento(dni)}</span><b>${esc(dni)}</b></div>

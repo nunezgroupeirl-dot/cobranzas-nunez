@@ -73,7 +73,7 @@ b{font-weight:700}
 <div class="firma"><div class="linea">Empresa: ${r(165)}<br>RUC: ${r(185)}<br>Gerente: ${r(170)}<br>DNI: ${r(175)}<br><b>EL ARRENDADOR</b></div><div class="huella">Huella</div></div>
 <div class="firma"><div class="linea">Nombre: ${r(170)}<br>${casilla("DNI")} ${casilla("C.E.")} N.º ${r(105)}<br><b>EL ARRENDATARIO</b></div><div class="huella">Huella</div></div>
 </div>
-<div class="pie">Cobranzas Núñez — Una vez lleno y firmado, escanea o fotografía cada hoja y súbela en la app: Motos y contratos → el contrato → “Contrato firmado”.</div>
+<div class="pie">Inversiones Núñez &amp; Asociados — Una vez lleno y firmado, escanea o fotografía cada hoja y súbela en la app: Motos y contratos → el contrato → “Contrato firmado”.</div>
 <script>window.onload=function(){setTimeout(function(){window.print()},400)}</script>
 </body></html>`;
 }

@@ -9,7 +9,7 @@ import "@fontsource/barlow-semi-condensed/latin-700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Cobranzas Núñez",
+  title: "Inversiones Núñez & Asociados · Cobranzas",
   description: "Registro de clientes, contratos y pagos",
 };
 

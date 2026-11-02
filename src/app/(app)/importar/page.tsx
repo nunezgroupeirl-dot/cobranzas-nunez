@@ -264,7 +264,7 @@ function Importar() {
           <ol className="mb-4 list-decimal space-y-1 pl-5 text-tenue">
             <li>
               Usa la{" "}
-              <a href="/plantilla-clientes.xlsx" download="Plantilla_clientes_Cobranzas_Nunez.xlsx" className="font-semibold text-marca underline">
+              <a href="/plantilla-clientes.xlsx" download="Plantilla_clientes_Nunez_y_Asociados.xlsx" className="font-semibold text-marca underline">
                 plantilla de clientes
               </a>{" "}
               (hoja «Clientes»). Las filas de EJEMPLO se ignoran.
