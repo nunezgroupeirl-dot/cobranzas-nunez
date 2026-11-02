@@ -8,7 +8,7 @@ import { copiarTexto, descargarExcel, enlaceWhatsApp, textoWhatsApp } from "@/li
 import type { Color, Moroso } from "@/types/database";
 
 export default function PaginaMorosos() {
-  const { datos, empresas } = useSesion();
+  const { datos, empresas, esAdmin } = useSesion();
   const empresa = useEmpresa();
   const [color, setColor] = useState<Color | "">("");
   const [aviso, setAviso] = useState<string | null>(null);
@@ -38,11 +38,14 @@ export default function PaginaMorosos() {
     {
       clave: "cliente",
       titulo: "Cliente",
-      celda: (m) => (
-        <Link href={`/clientes/ficha?id=${m.cliente_id}`} className="font-semibold hover:text-marca hover:underline" onClick={(e) => e.stopPropagation()}>
-          {m.cliente}
-        </Link>
-      ),
+      celda: (m) =>
+        esAdmin ? (
+          <Link href={`/clientes/ficha?id=${m.cliente_id}`} className="font-semibold hover:text-marca hover:underline" onClick={(e) => e.stopPropagation()}>
+            {m.cliente}
+          </Link>
+        ) : (
+          <span className="font-semibold">{m.cliente}</span>
+        ),
     },
     {
       clave: "celular",

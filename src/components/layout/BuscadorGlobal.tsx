@@ -18,7 +18,7 @@ const esCampoDeTexto = (el: EventTarget | null) =>
  * Escribe nombre, DNI o placa; Enter abre la ficha y "Cobrar" va directo a registrar el pago.
  */
 export function BuscadorGlobal() {
-  const { datos } = useSesion();
+  const { datos, esAdmin } = useSesion();
   const router = useRouter();
   const dialogo = useRef<HTMLDialogElement>(null);
   const cache = useRef<{ en: number; filas: EstadoCliente[] } | null>(null);
@@ -84,8 +84,9 @@ export function BuscadorGlobal() {
     setAbierto(false);
     router.push(href);
   };
-  const ficha = (e: EstadoCliente) => ir(`/clientes/ficha?id=${e.cliente_id}`);
   const cobrar = (e: EstadoCliente) => ir(`/pagos/nuevo?contrato=${e.contrato_id}`);
+  // el cobrador no entra a la ficha: tocar al cliente lo lleva a cobrarle
+  const ficha = (e: EstadoCliente) => (esAdmin ? ir(`/clientes/ficha?id=${e.cliente_id}`) : cobrar(e));
 
   const teclas = (ev: KeyboardEvent<HTMLInputElement>) => {
     if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
@@ -151,7 +152,15 @@ export function BuscadorGlobal() {
               )}
               {filas !== null && !texto && (
                 <li className="p-4 text-center text-sm text-tenue">
-                  Escribe para buscar. <b>Enter</b> abre la ficha · <b>Alt + Enter</b> registra un pago.
+                  {esAdmin ? (
+                    <>
+                      Escribe para buscar. <b>Enter</b> abre la ficha · <b>Alt + Enter</b> registra un pago.
+                    </>
+                  ) : (
+                    <>
+                      Escribe para buscar. <b>Enter</b> registra un pago.
+                    </>
+                  )}
                 </li>
               )}
               {resultados.map((e, i) => (

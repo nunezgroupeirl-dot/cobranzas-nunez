@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useSesion } from "@/components/layout/Sesion";
 import { Boton, Tarjeta, formatoSoles } from "@/components/ui";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 
 /** Confirmación después de registrar un pago. */
 export function PagoRegistrado({ monto, cuotasCubiertas, cliente, clienteId, alOtroPago, alOtroCliente }: Props) {
+  const { esAdmin } = useSesion();
   const detalle =
     cuotasCubiertas.length > 0
       ? `Cubre ${cuotasCubiertas.length === 1 ? "la cuota" : "las cuotas"} N.º ${cuotasCubiertas.join(", ")}.`
@@ -34,9 +36,11 @@ export function PagoRegistrado({ monto, cuotasCubiertas, cliente, clienteId, alO
               Pago de otro cliente
             </Boton>
           </div>
-          <Link href={`/clientes/ficha?id=${clienteId}`} className="font-semibold text-marca">
-            Ver ficha del cliente
-          </Link>
+          {esAdmin && (
+            <Link href={`/clientes/ficha?id=${clienteId}`} className="font-semibold text-marca">
+              Ver ficha del cliente
+            </Link>
+          )}
         </div>
       </Tarjeta>
     </div>

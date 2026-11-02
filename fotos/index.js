@@ -1,7 +1,7 @@
 // Fotos · Cobranzas Núñez
 // Worker de Cloudflare que guarda las fotos en R2 (10 GB gratis) en vez de Supabase Storage.
 // Aplica los MISMOS permisos que tenían los buckets de Supabase:
-//   · ver y subir: cualquier usuario activo del sistema (dueño o cobrador)
+//   · ver: cualquier usuario activo · subir comprobantes: dueño y cobradores · subir fotos del cliente: solo el dueño
 //   · borrar foto de pago: quien la subió o el dueño, y solo si ya no está ligada a un pago
 //   · borrar foto de cliente: el dueño, o quien la subió
 // Quién es el usuario lo decide Supabase: se valida su sesión en cada petición.
@@ -134,8 +134,9 @@ export default {
     if (!yo) return fallo(401, "Tu sesión expiró. Vuelve a ingresar.");
     if (!yo.staff) return fallo(403, "No tienes permiso para manejar fotos.");
 
-    // Subir
+    // Subir: comprobantes de pago (dueño y cobradores); fotos y documentos del cliente (solo el dueño)
     if (peticion.method === "PUT") {
+      if (p.bucket === "documentos" && !yo.admin) return fallo(403, "Solo el dueño puede subir fotos y documentos del cliente.");
       if ((peticion.headers.get("Content-Type") || "") !== "image/jpeg") return fallo(415, "La foto debe ser JPG.");
       const largo = Number(peticion.headers.get("Content-Length") || 0);
       if (largo > TAMANO_MAXIMO) return fallo(413, "La foto es demasiado grande.");

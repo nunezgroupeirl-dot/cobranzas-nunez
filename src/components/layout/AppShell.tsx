@@ -74,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="no-imprimir sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-borde bg-fondo/95 px-4 py-3 backdrop-blur sm:px-6">
           <div className="shrink-0 md:hidden">
-            <Marca />
+            <Marca chico />
           </div>
           <div className="flex min-w-0 flex-1 justify-end md:justify-start">
             <BuscadorGlobal />

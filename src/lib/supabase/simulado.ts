@@ -490,7 +490,7 @@ export function crearDatosSimulados(): Datos {
     async guardarCliente(c) {
       await pausa();
       const s = leer();
-      exigirSesion(s);
+      exigirAdmin(s);
       if (!/^\d{8,12}$/.test(c.dni)) throw new ErrorDatos("DNI_INVALIDO", "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).");
       if (s.clientes.some((x) => x.dni === c.dni && x.id !== c.id)) throw new ErrorDatos("DNI_REPETIDO", "Ya existe un cliente con ese DNI.");
       if (c.id) {
@@ -510,6 +510,7 @@ export function crearDatosSimulados(): Datos {
     },
     async agregarDocumento(d) {
       const s = leer();
+      exigirAdmin(s);
       const nuevo: Documento = { ...d, id: nuevoId(), creado_en: new Date().toISOString() };
       s.documentos.push(nuevo);
       guardar(s);
@@ -530,7 +531,7 @@ export function crearDatosSimulados(): Datos {
     async guardarMoto(m) {
       await pausa();
       const s = leer();
-      exigirSesion(s);
+      exigirAdmin(s);
       const placa = m.placa.trim().toUpperCase();
       if (!placa) throw new ErrorDatos("PLACA", "La placa es obligatoria.");
       if (s.motos.some((x) => x.placa === placa && x.id !== m.id)) throw new ErrorDatos("PLACA_REPETIDA", "Ya existe una moto con esa placa.");
@@ -622,7 +623,7 @@ export function crearDatosSimulados(): Datos {
     async crearContrato(args) {
       await pausa();
       const s = leer();
-      exigirSesion(s);
+      exigirAdmin(s);
       const moto = s.motos.find((m) => m.id === args.moto_id);
       if (!moto) throw new ErrorDatos("MOTO", "Elige una moto.");
       if (s.contratos.some((c) => c.moto_id === moto.id && c.estado === "activo"))

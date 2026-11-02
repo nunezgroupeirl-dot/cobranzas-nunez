@@ -13,9 +13,10 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 | Ruta | Qué hace | Quién |
 |---|---|---|
 | `/login` | Ingreso | Todos |
-| `/clientes` · `/clientes/nuevo` · `/clientes/ficha?id=` · `/clientes/editar?id=` | Lista con semáforo, alta con fotos, ficha completa | Dueño y cobradores |
-| `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` | Motos, contratos, cronograma, contrato para imprimir (PDF) y hojas firmadas escaneadas | Dueño y cobradores |
-| `/pagos` · `/pagos/nuevo` | Historial y registro de pagos con foto | Dueño y cobradores |
+| `/clientes` · `/clientes/nuevo` · `/clientes/ficha?id=` · `/clientes/editar?id=` | Lista con semáforo, alta con fotos, ficha completa | Dueño |
+| `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` | Motos, contratos, cronograma, contrato para imprimir (PDF) y hojas firmadas escaneadas | Dueño |
+| `/pagos/nuevo` | Registrar un pago con foto del comprobante | Dueño y cobradores |
+| `/pagos` | Historial de pagos (anular, filtrar por fechas) | Dueño |
 | `/morosos` | ¿Quién no paga? Copiar para WhatsApp y Excel | Dueño y cobradores |
 | `/panel` | Cobrado hoy y en la semana, deuda por empresa | Dueño |
 | `/reportes` | Excel de clientes y de pagos por fechas | Dueño |
@@ -36,7 +37,7 @@ Las reglas viven en la base de datos (`supabase/esquema.sql`). `src/lib/supabase
 
 ## Seguridad
 
-- **Un solo dueño.** Solo la cuenta `correo_dueno()` (en `esquema.sql`) puede ser administrador: anular pagos, cerrar contratos, crear usuarios, importar, configurar y ver panel y reportes. Lo garantiza la base de datos (función, disparador y restricción en la tabla), no solo la pantalla. Todo usuario nuevo es **cobrador**.
+- **Un solo dueño.** Solo la cuenta `correo_dueno()` (en `esquema.sql`) puede ser administrador: anular pagos, cerrar contratos, crear usuarios, importar, configurar y ver panel y reportes. Lo garantiza la base de datos (función, disparador y restricción en la tabla), no solo la pantalla. Todo usuario nuevo es **cobrador**: solo registra pagos y ve ¿Quién no paga?; no crea ni edita clientes, motos ni contratos (también lo impide la base de datos).
 - **RLS en todas las tablas.** El frontend solo lleva la llave pública (anon). Lo que cada usuario puede ver o cambiar lo decide la base de datos.
 - Pagos, contratos y cuotas **no se escriben directo**: solo con `registrar_pago`, `crear_contrato`, `anular_pago` y `cerrar_contrato`.
 - **El dueño tiene CRUD de todo:** empresas, cuentas, clientes, motos y contratos se pueden crear, editar y eliminar. Borrar algo con datos ligados (una empresa con clientes, una cuenta con pagos, una moto con contrato) lo impide la base de datos. Eliminar un cliente o un contrato pide escribir su DNI o placa y borra también sus pagos y fotos.

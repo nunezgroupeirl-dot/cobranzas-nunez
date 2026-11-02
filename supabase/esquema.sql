@@ -409,7 +409,7 @@ declare
   v_moto  public.motos;
   v_id    uuid;
 begin
-  if not public.es_staff() then
+  if not public.es_admin() then  -- solo el dueño crea contratos
     raise exception 'SIN_PERMISO' using errcode = '42501';
   end if;
   if not exists (select 1 from public.clientes where id = p_cliente_id) then
@@ -1213,15 +1213,16 @@ create policy editar on public.cuentas for update to authenticated using ((selec
 create policy borrar on public.cuentas for delete to authenticated using ((select public.es_admin()));
 
 -- Clientes y motos: el personal los crea y edita; solo el administrador borra
-create policy crear on public.clientes for insert to authenticated with check ((select public.es_staff()));
-create policy editar on public.clientes for update to authenticated using ((select public.es_staff())) with check ((select public.es_staff()));
+-- Clientes y motos: solo el dueño los crea y edita (el cobrador solo cobra y ve quién no paga)
+create policy crear on public.clientes for insert to authenticated with check ((select public.es_admin()));
+create policy editar on public.clientes for update to authenticated using ((select public.es_admin())) with check ((select public.es_admin()));
 create policy borrar on public.clientes for delete to authenticated using ((select public.es_admin()));
-create policy crear on public.motos for insert to authenticated with check ((select public.es_staff()));
-create policy editar on public.motos for update to authenticated using ((select public.es_staff())) with check ((select public.es_staff()));
+create policy crear on public.motos for insert to authenticated with check ((select public.es_admin()));
+create policy editar on public.motos for update to authenticated using ((select public.es_admin())) with check ((select public.es_admin()));
 create policy borrar on public.motos for delete to authenticated using ((select public.es_admin()));
 
--- Documentos: el personal los sube; los borra el administrador o quien los subió
-create policy crear on public.documentos for insert to authenticated with check ((select public.es_staff()));
+-- Documentos del cliente y contratos firmados: los sube el dueño
+create policy crear on public.documentos for insert to authenticated with check ((select public.es_admin()));
 create policy borrar on public.documentos for delete to authenticated
   using ((select public.es_admin()) or ((select public.es_staff()) and subido_por = (select auth.uid())));
 
@@ -1247,8 +1248,12 @@ drop policy if exists "cn borrar documentos" on storage.objects;
 create policy "cn leer fotos" on storage.objects for select to authenticated
   using (bucket_id in ('evidencias', 'documentos') and (select public.es_staff()));
 
+-- Comprobantes de pago: dueño y cobradores. Fotos y documentos del cliente: solo el dueño.
 create policy "cn subir fotos" on storage.objects for insert to authenticated
-  with check (bucket_id in ('evidencias', 'documentos') and (select public.es_staff()));
+  with check (
+    (bucket_id = 'evidencias' and (select public.es_staff()))
+    or (bucket_id = 'documentos' and (select public.es_admin()))
+  );
 
 -- Una evidencia solo se borra si quien la subió la descarta antes de quedar ligada a un pago
 create policy "cn borrar evidencias" on storage.objects for delete to authenticated

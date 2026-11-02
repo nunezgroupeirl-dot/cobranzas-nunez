@@ -1,14 +1,13 @@
 "use client";
 import { useMemo, useState } from "react";
-import { useSesion } from "@/components/layout/Sesion";
-import { useConEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, Campo, Cargando, TituloPagina, formatoSoles, hoyLima, sumarDias, useCarga } from "@/components/ui";
+import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
+import { useEmpresa } from "@/components/layout/empresa";
+import { Aviso, Campo, Cargando, TituloPagina, formatoSoles, hoyLima, sumarDias, useCarga } from "@/components/ui";
 import { HistorialPagos } from "./_componentes/HistorialPagos";
 
-export default function PaginaPagos() {
+function Historial() {
   const { datos } = useSesion();
   const empresa = useEmpresa();
-  const conEmpresa = useConEmpresa();
   const [desde, setDesde] = useState(() => sumarDias(hoyLima(), -6));
   const [hasta, setHasta] = useState(hoyLima);
   const [verAnulados, setVerAnulados] = useState(true);
@@ -41,13 +40,8 @@ export default function PaginaPagos() {
   return (
     <>
       <TituloPagina
-        titulo="Pagos"
-        sub={info ? `${lista.filter((p) => !p.anulado).length} pagos válidos · ${formatoSoles(total)}` : undefined}
-        accion={
-          <BotonEnlace href={conEmpresa("/pagos/nuevo")} tamano="grande">
-            + Registrar pago
-          </BotonEnlace>
-        }
+        titulo="Historial de pagos"
+        sub={info ? `Todo lo cobrado entre las fechas elegidas: ${lista.filter((p) => !p.anulado).length} pagos válidos · ${formatoSoles(total)}` : undefined}
       />
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Campo etiqueta="Desde" type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} />
@@ -60,5 +54,13 @@ export default function PaginaPagos() {
       {error && <Aviso tipo="error">{error}</Aviso>}
       {cargando && !info ? <Cargando /> : <HistorialPagos pagos={lista} cuentas={info?.cuentas ?? []} etiquetas={etiquetas} alCambiar={recargar} />}
     </>
+  );
+}
+
+export default function PaginaPagos() {
+  return (
+    <SoloAdmin>
+      <Historial />
+    </SoloAdmin>
   );
 }

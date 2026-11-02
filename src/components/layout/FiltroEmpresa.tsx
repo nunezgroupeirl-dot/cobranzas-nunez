@@ -24,7 +24,7 @@ export function FiltroEmpresa({ compacto = false }: { compacto?: boolean }) {
         value={actual}
         onChange={(e) => cambiar(e.target.value)}
         aria-label="Filtrar por empresa"
-        className="min-h-11 rounded-xl border border-borde bg-superficie px-3 font-semibold focus:border-marca focus:outline-none"
+        className={`min-h-11 rounded-xl border border-borde bg-superficie px-3 font-semibold focus:border-marca focus:outline-none ${compacto ? "w-24 truncate sm:w-auto" : ""}`}
       >
         <option value="">Todas</option>
         {empresas.map((e) => (

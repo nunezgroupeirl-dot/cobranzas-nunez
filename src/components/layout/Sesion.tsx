@@ -2,9 +2,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getDatos, type Datos } from "@/lib/supabase/datos";
-import type { Empresa, Perfil } from "@/types/database";
+import type { Empresa, Perfil, Rol } from "@/types/database";
 import { Cargando } from "@/components/ui/Tarjeta";
 import { mensajeDeError } from "@/components/ui/formato";
+import { INICIO_COBRADOR, rutaPermitida } from "./menu";
 
 interface ValorSesion {
   perfil: Perfil;
@@ -77,7 +78,26 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
       </div>
     );
   if (!contexto) return <Cargando texto="Verificando sesión…" />;
-  return <Contexto.Provider value={contexto}>{children}</Contexto.Provider>;
+  return (
+    <Contexto.Provider value={contexto}>
+      <GuardaRol rol={contexto.perfil.rol} ruta={ruta}>
+        {children}
+      </GuardaRol>
+    </Contexto.Provider>
+  );
+}
+
+/** El cobrador solo entra a "Registrar pago" y "¿Quién no paga?"; cualquier otra pantalla lo lleva a registrar pago. */
+function GuardaRol({ rol, ruta, children }: { rol: Rol; ruta: string; children: ReactNode }) {
+  const router = useRouter();
+  const permitida = rutaPermitida(rol, ruta.replace(/\/$/, "") || "/");
+  useEffect(() => {
+    // Mientras tanto se muestra "Cargando…": el cobrador nunca ve la pantalla bloqueada.
+    // react-doctor-disable-next-line nextjs-no-client-side-redirect
+    if (!permitida) router.replace(INICIO_COBRADOR);
+  }, [permitida, router]);
+  if (!permitida) return <Cargando />;
+  return <>{children}</>;
 }
 
 /** Envuelve contenido que solo puede ver el administrador. */
