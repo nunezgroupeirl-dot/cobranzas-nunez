@@ -1,8 +1,8 @@
 "use client";
 import { useDeferredValue, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { camposFaltantes, fechaFin, htmlContrato, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
-import { Aviso, Boton, mensajeDeError } from "@/components/ui";
+import { camposFaltantes, etiquetaCampo, fechaFin, htmlContrato, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
+import { Aviso, Boton, formatoFecha, mensajeDeError } from "@/components/ui";
 import type { Cliente, Contrato, Empresa, Moto } from "@/types/database";
 import { Avance } from "./Avance";
 import { PASOS, TOTAL_PASOS, pasoListo } from "./pasos";
@@ -39,6 +39,7 @@ export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales
   const problemas = (Object.keys(f) as (keyof CamposContrato)[]).filter((k) => problemaCampo(f, k));
   const completo = problemas.length === 0;
   const poner = (k: keyof CamposContrato, v: string) => setF((x) => ({ ...x, [k]: v }));
+  const problema = (k: keyof CamposContrato) => problemaCampo(f, k);
 
   const ir = (i: number) => {
     setPaso(i);
@@ -124,11 +125,36 @@ export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-4">
-        <Avance actual={paso} valores={f} alIr={ir} />
+        <Avance nombres={PASOS.map((p) => p.corto)} listos={PASOS.map((_, i) => pasoListo(i, f))} actual={paso} alIr={ir} />
         {paso < PASOS.length ? (
-          <PasoContrato paso={PASOS[paso]} valores={f} cuentas={cuentas} mostrarErrores={intentado.has(paso)} alCambiar={poner} />
+          <PasoContrato
+            paso={PASOS[paso]}
+            valores={f as unknown as Record<keyof CamposContrato, string>}
+            etiqueta={etiquetaCampo}
+            problema={problema}
+            cuentas={cuentas}
+            mostrarErrores={intentado.has(paso)}
+            alCambiar={poner}
+          />
         ) : (
-          <Revision valores={f} alEditar={(i) => { setIntentado((s) => new Set(s).add(i)); ir(i); }} />
+          <Revision
+            pasos={PASOS}
+            valores={f as unknown as Record<keyof CamposContrato, string>}
+            etiqueta={etiquetaCampo}
+            problema={problema}
+            extra={(i) =>
+              i === 3 && fechaFin(f) ? (
+                <div>
+                  <dt className="text-tenue">Termina el</dt>
+                  <dd className="font-semibold">{formatoFecha(fechaFin(f))}</dd>
+                </div>
+              ) : null
+            }
+            alEditar={(i) => {
+              setIntentado((s) => new Set(s).add(i));
+              ir(i);
+            }}
+          />
         )}
 
         <div className="sticky bottom-20 z-10 flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-3 shadow-lg md:bottom-4">

@@ -1,19 +1,17 @@
 "use client";
-import type { CamposContrato } from "@/components/reportes/ContratoImpreso";
-import { PASOS, pasoListo } from "./pasos";
 
-/** Barra de avance de la pasarela: cada paso con su número; los completos van con ✓. */
-export function Avance({ actual, valores, alIr }: { actual: number; valores: CamposContrato; alIr: (i: number) => void }) {
-  const nombres = [...PASOS.map((p) => p.corto), "Revisar"];
-  const listos = PASOS.filter((_, i) => pasoListo(i, valores)).length;
+/** Barra de avance de la pasarela: cada paso con su número; los completos van con ✓. El último es "Revisar". */
+export function Avance({ nombres, listos, actual, alIr }: { nombres: string[]; listos: boolean[]; actual: number; alIr: (i: number) => void }) {
+  const hechos = listos.filter(Boolean).length;
+  const todos = [...nombres, "Revisar"];
   return (
     <nav aria-label="Pasos del contrato" className="rounded-2xl border border-borde bg-superficie p-3">
-      <div className="mb-3 h-2 overflow-hidden rounded-full bg-fondo" role="progressbar" aria-valuemin={0} aria-valuemax={PASOS.length} aria-valuenow={listos}>
-        <div className="h-full rounded-full bg-marca transition-[width]" style={{ width: `${(listos / PASOS.length) * 100}%` }} />
+      <div className="mb-3 h-2 overflow-hidden rounded-full bg-fondo" role="progressbar" aria-valuemin={0} aria-valuemax={nombres.length} aria-valuenow={hechos}>
+        <div className="h-full rounded-full bg-marca transition-[width]" style={{ width: `${(hechos / nombres.length) * 100}%` }} />
       </div>
-      <ol className="grid grid-cols-5 gap-1">
-        {nombres.map((n, i) => {
-          const listo = i < PASOS.length ? pasoListo(i, valores) : listos === PASOS.length;
+      <ol className="grid gap-1" style={{ gridTemplateColumns: `repeat(${todos.length}, minmax(0, 1fr))` }}>
+        {todos.map((n, i) => {
+          const listo = i < nombres.length ? listos[i] : hechos === nombres.length;
           const esActual = i === actual;
           return (
             <li key={n}>

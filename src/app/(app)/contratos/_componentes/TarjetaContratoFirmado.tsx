@@ -90,7 +90,7 @@ function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: 
       }
     >
       <p className="mb-3 text-sm text-tenue">
-        1. Toca “Llenar contrato”, completa los datos y descarga el PDF (o imprime la plantilla en blanco para llenarla a mano). 2. Fírmenlo y pongan la huella. 3.
+        1. Imprime el contrato llenado (botón de arriba; si falta algo, se completa ahí mismo). 2. Fírmenlo y pongan la huella. 3.
         Escanéalo o tómale foto a cada hoja y súbelas aquí, en orden. Después podrás volver a imprimir el contrato firmado cuando quieras.
       </p>
       {paginas.length > 0 && (

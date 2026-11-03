@@ -1,25 +1,37 @@
 "use client";
-import { etiquetaCampo, fechaFin, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
+import type { ReactNode } from "react";
 import { Tarjeta, formatoFecha } from "@/components/ui";
-import { PASOS } from "./pasos";
+import type { Paso } from "./pasos";
 
-const mostrar = (f: CamposContrato, k: keyof CamposContrato) => {
-  const x = String(f[k] ?? "").trim();
+/** Cómo se lee un dato en la revisión (fechas y montos en formato del Perú). */
+function textoDato(k: string, x: string): string {
+  if (!x.trim()) return "—";
   if (k === "inicio" || k === "fecha_firma") return formatoFecha(x);
   if (k === "doc_tipo") return x === "CE" ? "Carné de Extranjería" : "DNI";
-  if (k === "renta" || k === "inicial") return `S/ ${Number(x).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (k === "renta" || k === "inicial" || k === "precio") return `S/ ${Number(x).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return x;
-};
+}
 
-/** Paso 5: todo lo que saldrá en el contrato, para revisarlo antes de imprimir. */
-export function Revision({ valores: f, alEditar }: { valores: CamposContrato; alEditar: (paso: number) => void }) {
+interface Props<K extends string> {
+  pasos: Paso<K>[];
+  valores: Record<K, string>;
+  etiqueta: (k: K) => string;
+  problema: (k: K) => string | null;
+  alEditar: (paso: number) => void;
+  /** datos calculados que se muestran al final de cada paso (ej.: "Termina el") */
+  extra?: (paso: number) => ReactNode;
+  titulo?: string;
+}
+
+/** Último paso: todo lo que saldrá en el contrato, para revisarlo antes de imprimir. */
+export function Revision<K extends string>({ pasos, valores, etiqueta, problema, alEditar, extra, titulo = "Revisa y descarga" }: Props<K>) {
   return (
-    <Tarjeta titulo="5. Revisa y descarga">
+    <Tarjeta titulo={`${pasos.length + 1}. ${titulo}`}>
       <p className="mb-4 text-sm text-tenue">
         Así saldrá el contrato. Si algo está mal, toca <b>Corregir</b>. En el papel solo quedarán en blanco <b>las firmas y las huellas</b>.
       </p>
       <div className="flex flex-col gap-4">
-        {PASOS.map((p, i) => (
+        {pasos.map((p, i) => (
           <section key={p.titulo} className="rounded-xl border border-borde p-3">
             <header className="mb-2 flex items-center justify-between gap-2">
               <h3 className="font-bold">{p.titulo}</h3>
@@ -29,20 +41,15 @@ export function Revision({ valores: f, alEditar }: { valores: CamposContrato; al
             </header>
             <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
               {p.campos.map((c) => {
-                const problema = problemaCampo(f, c.clave);
+                const mal = problema(c.clave);
                 return (
                   <div key={c.clave} className={c.ancho ? "sm:col-span-2" : ""}>
-                    <dt className="text-tenue">{etiquetaCampo(c.clave)}</dt>
-                    <dd className={problema ? "font-semibold text-rojo" : "font-semibold"}>{problema ?? mostrar(f, c.clave)}</dd>
+                    <dt className="text-tenue">{etiqueta(c.clave)}</dt>
+                    <dd className={mal ? "font-semibold text-rojo" : "font-semibold"}>{mal ?? textoDato(c.clave, String(valores[c.clave] ?? ""))}</dd>
                   </div>
                 );
               })}
-              {i === 3 && fechaFin(f) && (
-                <div>
-                  <dt className="text-tenue">Termina el</dt>
-                  <dd className="font-semibold">{formatoFecha(fechaFin(f))}</dd>
-                </div>
-              )}
+              {extra?.(i)}
             </dl>
           </section>
         ))}

@@ -2,8 +2,8 @@ import { problemaCampo, type CamposContrato } from "@/components/reportes/Contra
 
 type Clave = keyof CamposContrato;
 
-export interface CampoGuia {
-  clave: Clave;
+export interface CampoGuia<K extends string = Clave> {
+  clave: K;
   /** texto de ayuda bajo el campo */
   guia?: string;
   ejemplo?: string;
@@ -13,14 +13,16 @@ export interface CampoGuia {
   ancho?: boolean;
   mayusculas?: boolean;
   soloNumeros?: number; // largo máximo
+  /** no es obligatorio */
+  opcional?: boolean;
 }
 
-export interface Paso {
+export interface Paso<K extends string = Clave> {
   /** nombre corto para la barra de avance */
   corto: string;
   titulo: string;
   guia: string;
-  campos: CampoGuia[];
+  campos: CampoGuia<K>[];
 }
 
 /** Los 4 pasos de la pasarela, en el mismo orden en que aparecen en el contrato. Todo es obligatorio. */
