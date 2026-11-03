@@ -244,11 +244,18 @@ export type ErrorPago = "OPERACION_REPETIDA" | "IMAGEN_REPETIDA" | "MONTO_INVALI
 
 /** Un contrato activo tal como lo ve el cliente en la consulta pública. */
 export interface ContratoPublico {
-  placa: string;
+  placa: string | null;
   cuota: number;
-  deuda: number;
+  frecuencia: Frecuencia;
+  total: number; // todo el contrato
+  pagado: number;
+  saldo: number; // lo que le falta pagar en total
+  deuda: number; // lo vencido hoy
   semanas_atraso: number;
-  cuotas: Pick<Cuota, "numero" | "fecha_vencimiento" | "monto" | "monto_pagado" | "fecha_pago" | "estado">[];
+  proxima_fecha: string | null;
+  proxima_monto: number | null;
+  /** últimos pagos, del más nuevo al más antiguo, con el saldo que quedó después de cada uno */
+  pagos: { fecha: string; monto: number; saldo: number }[];
 }
 
 /** Consulta por DNI: nombre reservado ("Rosa Q. H.") y todos sus contratos activos. */

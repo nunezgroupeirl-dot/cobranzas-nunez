@@ -826,19 +826,30 @@ export function crearDatosSimulados(): Datos {
         contratos: activos.map((con) => {
           const cs = cuotasDe(s, con.id, hoy);
           const r = resumenCuotas(cs);
+          const total = cs.reduce((t, c) => t + c.monto, 0);
+          const pagado = cs.reduce((t, c) => t + c.monto_pagado, 0);
+          const proxima = cs.find((c) => c.estado === "pendiente");
+          const pagos = s.pagos
+            .filter((p) => p.contrato_id === con.id && !p.anulado)
+            .sort((a, b) => b.fecha_pago.localeCompare(a.fecha_pago) || b.creado_en.localeCompare(a.creado_en))
+            .slice(0, 12);
+          let despues = 0; // lo pagado después de cada pago
           return {
-            placa: s.motos.find((m) => m.id === con.moto_id)?.placa ?? "",
+            placa: s.motos.find((m) => m.id === con.moto_id)?.placa ?? null,
             cuota: con.monto_cuota,
+            frecuencia: con.frecuencia ?? "semanal",
+            total,
+            pagado,
+            saldo: total - pagado,
             deuda: r.deuda,
             semanas_atraso: r.semanas_atraso,
-            cuotas: cs.map(({ numero, fecha_vencimiento, monto, monto_pagado, fecha_pago, estado }) => ({
-              numero,
-              fecha_vencimiento,
-              monto,
-              monto_pagado,
-              fecha_pago,
-              estado,
-            })),
+            proxima_fecha: proxima?.fecha_vencimiento ?? null,
+            proxima_monto: proxima ? proxima.monto - proxima.monto_pagado : null,
+            pagos: pagos.map((p) => {
+              const saldo = total - pagado + despues;
+              despues += p.monto;
+              return { fecha: p.fecha_pago, monto: p.monto, saldo };
+            }),
           };
         }),
       };

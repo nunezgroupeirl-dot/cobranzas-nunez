@@ -1156,13 +1156,17 @@ as $$
   -- Un cliente puede tener varias motos: se devuelven TODOS sus contratos activos.
   -- El nombre sale reservado ("Rosa Q. H."): el cliente se reconoce y un extraño
   -- que pruebe DNIs al azar no obtiene el nombre completo.
+  -- El cliente NO ve su cronograma (eso es solo del dueño): ve lo que debe hoy, lo que le falta en total,
+  -- cuándo y cuánto es su próximo pago, y sus últimos pagos con el saldo que le quedó después de cada uno.
   with cliente as (
     select cl.id, cl.nombres
     from public.clientes cl
     where p_dni ~ '^\d{8,12}$' and cl.dni = p_dni
   ),
   contratos as (
-    select co.id, co.monto_cuota, co.creado_en, m.placa
+    select co.id, co.monto_cuota, co.frecuencia, co.creado_en, m.placa,
+           (select sum(cu.monto) from public.cuotas cu where cu.contrato_id = co.id) as total,
+           (select sum(cu.monto_pagado) from public.cuotas cu where cu.contrato_id = co.id) as pagado
     from cliente c
     join public.contratos co on co.cliente_id = c.id and co.estado = 'activo'
     join public.motos m on m.id = co.moto_id
@@ -1176,17 +1180,26 @@ as $$
       select jsonb_agg(jsonb_build_object(
         'placa', k.placa,
         'cuota', k.monto_cuota,
+        'frecuencia', k.frecuencia,
+        'total', coalesce(k.total, 0),
+        'pagado', coalesce(k.pagado, 0),
+        'saldo', coalesce(k.total, 0) - coalesce(k.pagado, 0),
         'deuda', coalesce((select sum(cu.monto - cu.monto_pagado) from public.cuotas cu where cu.contrato_id = k.id and cu.estado = 'vencida'), 0),
         'semanas_atraso', (select count(*) from public.cuotas cu where cu.contrato_id = k.id and cu.estado = 'vencida'),
-        'cuotas', coalesce((
-          select jsonb_agg(jsonb_build_object(
-                   'numero', cu.numero,
-                   'fecha_vencimiento', cu.fecha_vencimiento,
-                   'monto', cu.monto,
-                   'monto_pagado', cu.monto_pagado,
-                   'fecha_pago', cu.fecha_pago,
-                   'estado', cu.estado) order by cu.numero)
-          from public.cuotas cu where cu.contrato_id = k.id), '[]'::jsonb)
+        'proxima_fecha', (select min(cu.fecha_vencimiento) from public.cuotas cu where cu.contrato_id = k.id and cu.estado = 'pendiente'),
+        'proxima_monto', (select cu.monto - cu.monto_pagado from public.cuotas cu where cu.contrato_id = k.id and cu.estado = 'pendiente' order by cu.numero limit 1),
+        'pagos', coalesce((
+          select jsonb_agg(jsonb_build_object('fecha', x.fecha_pago, 'monto', x.monto, 'saldo', x.saldo) order by x.fecha_pago desc, x.creado_en desc)
+          from (
+            select p.fecha_pago, p.monto, p.creado_en,
+                   -- saldo que quedó después de este pago = saldo de hoy + lo pagado después de él
+                   (coalesce(k.total, 0) - coalesce(k.pagado, 0))
+                     + coalesce(sum(p.monto) over (order by p.fecha_pago desc, p.creado_en desc rows between unbounded preceding and 1 preceding), 0) as saldo
+            from public.pagos p
+            where p.contrato_id = k.id and not p.anulado
+            order by p.fecha_pago desc, p.creado_en desc
+            limit 12
+          ) x), '[]'::jsonb)
       ) order by k.creado_en)
       from contratos k
     )

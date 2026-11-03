@@ -29,7 +29,7 @@ export default function PaginaQr() {
           <Marca grande />
           <h1 className="text-6xl leading-tight font-bold">
             Consulta tu deuda
-            <br />y tu cronograma
+            <br />y tu próximo pago
           </h1>
         </header>
 

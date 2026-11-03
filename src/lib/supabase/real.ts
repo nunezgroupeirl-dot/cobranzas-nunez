@@ -416,9 +416,13 @@ export function crearDatosReales(): Datos {
         contratos: d.contratos.map((k) => ({
           ...k,
           cuota: num(k.cuota),
+          total: num(k.total),
+          pagado: num(k.pagado),
+          saldo: num(k.saldo),
           deuda: num(k.deuda),
           semanas_atraso: num(k.semanas_atraso),
-          cuotas: k.cuotas.map((c) => ({ ...c, monto: num(c.monto), monto_pagado: num(c.monto_pagado) })),
+          proxima_monto: k.proxima_monto == null ? null : num(k.proxima_monto),
+          pagos: (k.pagos ?? []).map((x) => ({ ...x, monto: num(x.monto), saldo: num(x.saldo) })),
         })),
       };
     },

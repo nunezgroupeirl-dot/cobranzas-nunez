@@ -9,7 +9,7 @@ export function Marca({ claro = false, grande = false, chico = false }: { claro?
       {/* en celulares angostos solo el logo, para que entren el buscador y el filtro */}
       <span className={`flex-col leading-none ${chico ? "hidden min-[400px]:flex" : "flex"}`} aria-label={NOMBRE_NEGOCIO}>
         <span
-          className={`font-semibold tracking-[0.18em] uppercase ${grande ? "text-sm md:text-base" : chico ? "text-[0.55rem]" : "text-[0.62rem]"} ${claro ? "text-white/60" : "text-tenue"}`}
+          className={`font-semibold tracking-[0.18em] uppercase ${grande ? "text-sm md:text-base" : chico ? "text-[0.55rem]" : "text-[0.62rem]"} ${claro ? "text-oro" : "text-tenue"}`}
           aria-hidden
         >
           Inversiones

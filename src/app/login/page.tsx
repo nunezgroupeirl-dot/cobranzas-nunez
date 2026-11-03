@@ -126,7 +126,7 @@ export default function PaginaLogin() {
           </span>
           <span className="flex-1">
             <span className="block font-bold">¿Eres cliente?</span>
-            <span className="block text-sm text-tenue">Consulta tu deuda y tu cronograma con tu DNI</span>
+            <span className="block text-sm text-tenue">Consulta tu deuda y tu próximo pago con tu DNI</span>
           </span>
           <span aria-hidden className="text-xl font-bold text-marca transition group-hover:translate-x-1">
             →

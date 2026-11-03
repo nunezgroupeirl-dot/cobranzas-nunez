@@ -1,54 +1,77 @@
 "use client";
 import { useState, type FormEvent } from "react";
-import { Cronograma } from "@/app/(app)/contratos/_componentes/Cronograma";
 import { Marca } from "@/components/layout/Marca";
 import { Aviso, Boton, EtiquetaSemaforo, Placa, formatoFecha, formatoSoles, hoyLima, mensajeDeError } from "@/components/ui";
 import { getDatos } from "@/lib/supabase/datos";
 import { colorPorSemanas } from "@/lib/supabase/reglas";
 import type { ConsultaPublica, ContratoPublico } from "@/types/database";
 
-/** Un contrato del cliente: lo que debe hoy y su cronograma. */
+/** Un contrato del cliente: lo que debe hoy, lo que le falta en total, su próximo pago y cómo baja su saldo. */
 function TarjetaContrato({ c }: { c: ContratoPublico }) {
-  const proxima = c.cuotas.find((q) => q.estado === "pendiente");
   const alDia = c.deuda === 0;
+  const avance = c.total > 0 ? Math.min(100, Math.round((c.pagado / c.total) * 100)) : 0;
   return (
     <section className="overflow-hidden rounded-2xl border border-borde bg-superficie">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-borde px-5 py-4">
         <Placa placa={c.placa} tamano="grande" />
         <EtiquetaSemaforo color={colorPorSemanas(c.semanas_atraso)} semanas={c.semanas_atraso} grande />
       </div>
-      <div className="grid gap-4 px-5 py-5 sm:grid-cols-[1.3fr_1fr]">
+
+      <div className="grid gap-4 px-5 py-5 sm:grid-cols-2">
         <div>
           <p className="text-sm font-semibold text-tenue">{alDia ? "Estás al día" : "Debes hoy"}</p>
           <p className={`num font-display text-5xl leading-tight font-bold ${alDia ? "text-verde" : "text-rojo"}`}>{formatoSoles(c.deuda)}</p>
-          {!alDia && (
-            <p className="mt-1 text-tenue">
-              {c.semanas_atraso === 1 ? "1 cuota vencida" : `${c.semanas_atraso} cuotas vencidas`}
-            </p>
+          {!alDia && <p className="mt-1 text-tenue">{c.semanas_atraso === 1 ? "1 cuota vencida" : `${c.semanas_atraso} cuotas vencidas`}</p>}
+        </div>
+        <div className="rounded-xl bg-fondo p-4">
+          <p className="text-sm font-semibold text-tenue">Tu próximo pago</p>
+          {c.proxima_fecha ? (
+            <>
+              <p className="num text-2xl font-bold">{formatoSoles(c.proxima_monto ?? c.cuota)}</p>
+              <p className="text-tenue">el {formatoFecha(c.proxima_fecha)}</p>
+            </>
+          ) : (
+            <p className="font-semibold">Ya no tienes cuotas por vencer.</p>
           )}
         </div>
-        <dl className="grid grid-cols-2 gap-3 self-center sm:grid-cols-1">
-          <div>
-            <dt className="text-sm text-tenue">Cuota semanal</dt>
-            <dd className="num font-semibold">{formatoSoles(c.cuota)}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-tenue">Próxima cuota</dt>
-            <dd className="font-semibold">{proxima ? formatoFecha(proxima.fecha_vencimiento) : "—"}</dd>
-          </div>
-        </dl>
       </div>
-      <details className="group border-t border-borde">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-5 font-semibold text-marca">
-          Ver mi cronograma
-          <span aria-hidden className="transition-transform group-open:rotate-180">
-            ▾
-          </span>
-        </summary>
-        <div className="px-5 pb-5">
-          <Cronograma cuotas={c.cuotas} />
+
+      <div className="border-t border-borde px-5 py-5">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-tenue">Te falta pagar en total</p>
+            <p className="num text-3xl font-bold">{formatoSoles(c.saldo)}</p>
+          </div>
+          <p className="num text-sm text-tenue">
+            Pagaste {formatoSoles(c.pagado)} de {formatoSoles(c.total)}
+          </p>
         </div>
-      </details>
+        <div className="mt-3 h-3 overflow-hidden rounded-full bg-fondo" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={avance} aria-label="Avance de tu contrato">
+          <div className="h-full rounded-full bg-marca" style={{ width: `${avance}%` }} />
+        </div>
+        <p className="mt-1 text-right text-sm font-semibold text-marca">{avance}% pagado</p>
+      </div>
+
+      {c.pagos.length > 0 && (
+        <div className="border-t border-borde px-5 py-5">
+          <p className="mb-2 font-semibold">Tus últimos pagos</p>
+          <ul className="flex flex-col divide-y divide-borde">
+            {c.pagos.map((p) => (
+              // el saldo después de cada pago es distinto en cada fila: sirve de clave
+              <li key={`${p.fecha}-${p.saldo}`} className="flex items-center justify-between gap-3 py-2.5">
+                <span>
+                  <span className="block font-semibold">{formatoFecha(p.fecha)}</span>
+                  <span className="num block text-sm text-tenue">Pagaste {formatoSoles(p.monto)}</span>
+                </span>
+                <span className="text-right">
+                  <span className="block text-xs text-tenue">Te quedó</span>
+                  <span className="num block font-bold">{formatoSoles(p.saldo)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
@@ -85,7 +108,7 @@ export default function PaginaConsulta() {
         <div className="mx-auto max-w-2xl">
           <Marca claro />
           <h1 className="mt-6 text-4xl font-bold sm:text-5xl">Consulta tu deuda</h1>
-          <p className="mt-2 text-lg text-white/75">Escribe tu DNI y mira cuánto debes y tu cronograma de cuotas.</p>
+          <p className="mt-2 text-lg text-white/75">Escribe tu DNI y mira cuánto debes, tu próximo pago y cómo va bajando tu deuda.</p>
         </div>
       </header>
 
