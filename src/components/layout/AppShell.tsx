@@ -44,10 +44,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh md:flex">
       {/* Menú lateral: tablet y escritorio */}
       <aside className="no-imprimir sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-borde bg-tinta text-white md:flex">
-        <div className="px-5 pt-6 pb-6">
+        <div className="shrink-0 px-5 pt-6 pb-6">
           <Marca claro />
         </div>
-        <nav className="flex flex-1 flex-col gap-1 px-3">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-2">
           {items.map((i) => (
             <Link
               key={i.href}
@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="border-t border-white/10 p-4">
+        <div className="shrink-0 border-t border-white/10 p-4">
           {datos.modoPrueba && <p className="mb-3 rounded-lg bg-amarillo-suave px-2.5 py-1.5 text-xs font-semibold text-amarillo">Modo prueba: datos falsos</p>}
           <p className="truncate font-semibold">{perfil.nombre}</p>
           <p className="text-sm text-white/60">{puestoDe(perfil)}</p>

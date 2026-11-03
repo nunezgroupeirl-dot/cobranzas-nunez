@@ -1373,6 +1373,9 @@ create policy "cn borrar documentos" on storage.objects for delete to authentica
 -- =============================================================================
 -- El público (anon) no ve tablas ni vistas: solo puede llamar a consulta_publica.
 revoke all on all tables in schema public from anon;
+-- La función "usuarios" (llave service_role) lee el perfil y le pone nombre y puesto.
+-- Los proyectos nuevos de Supabase no le dan estos permisos por defecto.
+grant select, update on table public.perfiles to service_role;
 revoke all on function public.recalcular_contrato(uuid) from public, anon, authenticated;
 revoke all on function public.al_crear_usuario() from public, anon, authenticated;
 revoke all on function public.registrar_auditoria() from public, anon, authenticated;
