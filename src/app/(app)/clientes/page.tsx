@@ -12,7 +12,7 @@ type Fila = EstadoCliente & { sin_contrato?: boolean };
 const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo"]);
 
 export default function PaginaClientes() {
-  const { datos } = useSesion();
+  const { datos, esAdmin } = useSesion();
   const router = useRouter();
   const empresa = useEmpresa();
   const conEmpresa = useConEmpresa();
@@ -83,9 +83,11 @@ export default function PaginaClientes() {
         titulo="Clientes"
         sub={filas ? `${visibles.length} de ${filas.length}` : undefined}
         accion={
-          <BotonEnlace href={conEmpresa("/clientes/nuevo")} tamano="grande">
-            + Nuevo cliente
-          </BotonEnlace>
+          esAdmin && (
+            <BotonEnlace href={conEmpresa("/clientes/nuevo")} tamano="grande">
+              + Nuevo cliente
+            </BotonEnlace>
+          )
         }
       />
 

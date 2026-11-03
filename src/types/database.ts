@@ -220,6 +220,8 @@ export interface FilaImportacion {
   cuotas_pagadas: number | null;
   ultimo_pago: string | null; // YYYY-MM-DD
   observaciones: string;
+  precio?: number | null; // precio de la moto (opcional)
+  inicial?: number | null; // inicial entregada (opcional)
 }
 
 export interface RegistrarPagoArgs {

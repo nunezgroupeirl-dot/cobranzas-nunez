@@ -908,6 +908,13 @@ begin
     where id = v_cliente.id;
   end if;
 
+  -- La misma fila importada dos veces: mismo cliente, misma 1.ª cuota, misma cuota y n.º de cuotas → se rechaza
+  if exists (select 1 from public.contratos
+             where cliente_id = v_cliente.id and estado = 'activo' and fecha_inicio = v_inicio
+               and monto_cuota = round(v_cuota, 2) and nro_cuotas = v_nro) then
+    raise exception 'Esta fila ya se importó (el cliente ya tiene ese mismo contrato).';
+  end if;
+
   -- Moto: por placa. Si la placa ya es de OTRO cliente con contrato activo, se crea sin placa y se avisa.
   if v_placa is not null then
     select * into v_moto from public.motos where placa = v_placa;
@@ -1376,6 +1383,7 @@ revoke all on all tables in schema public from anon;
 -- La función "usuarios" (llave service_role) lee el perfil y le pone nombre y puesto.
 -- Los proyectos nuevos de Supabase no le dan estos permisos por defecto.
 grant select, update on table public.perfiles to service_role;
+grant execute on function public.correo_dueno() to service_role; -- la usa la regla "solo el dueño es administrador"
 revoke all on function public.recalcular_contrato(uuid) from public, anon, authenticated;
 revoke all on function public.al_crear_usuario() from public, anon, authenticated;
 revoke all on function public.registrar_auditoria() from public, anon, authenticated;

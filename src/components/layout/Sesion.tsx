@@ -90,7 +90,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
 /** El cobrador solo entra a "Registrar pago" y "¿Quién no paga?"; cualquier otra pantalla lo lleva a registrar pago. */
 function GuardaRol({ perfil, ruta, children }: { perfil: Perfil; ruta: string; children: ReactNode }) {
   const router = useRouter();
-  const permitida = rutaPermitida(perfil.rol, ruta.replace(/\/$/, "") || "/");
+  const permitida = rutaPermitida(perfil, ruta.replace(/\/$/, "") || "/");
   const inicio = inicioPara(perfil);
   useEffect(() => {
     // Mientras tanto se muestra "Cargando…": el cobrador nunca ve la pantalla bloqueada.

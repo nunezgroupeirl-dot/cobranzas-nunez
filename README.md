@@ -13,7 +13,7 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 | Ruta | Qué hace | Quién |
 |---|---|---|
 | `/login` | Ingreso | Todos |
-| `/clientes` · `/clientes/nuevo` · `/clientes/ficha?id=` · `/clientes/editar?id=` | Lista con semáforo, alta con fotos, ficha completa | Dueño |
+| `/clientes` · `/clientes/nuevo` · `/clientes/ficha?id=` · `/clientes/editar?id=` | Lista con semáforo, alta con fotos, ficha completa. El **cajero de oficina** ve la lista y la ficha sin poder editar | Dueño (cajero: solo ver) |
 | `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` · `/contratos/documento?id=` | Motos, contratos (semanales, quincenales o mensuales), cronograma; **pasarela del contrato** (5 pasos, todo obligatorio: la plantilla sale llenada y solo quedan las firmas y huellas), plantilla en blanco, hojas firmadas escaneadas y su reimpresión | Dueño |
 | `/pendientes` | **Datos pendientes**: de cada contrato activo, qué le falta (DNI, celular, dirección, ubicación, fotos, placa, ficha técnica, contrato llenado o firmado, notas del cuaderno por revisar), con filtros, botones para completar y Excel | Dueño |
 | `/pagos/nuevo` | Registrar un pago con foto del comprobante. Pantalla de inicio del **cajero de oficina** | Dueño y trabajadores |
@@ -22,7 +22,7 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 | `/panel` | Cobrado hoy y en la semana, deuda por empresa | Dueño |
 | `/reportes` | Reporte mensual (resumen, pagos y clientes) y Excel de clientes y de pagos por fechas. Desde el día 1 de cada mes el dueño ve un aviso fijo hasta descargar el reporte del mes anterior | Dueño |
 | `/usuarios` | Crear trabajadores con su puesto (**cajero de oficina** o **cobrador de ruta**), nombre, correo y contraseña; cambiarles puesto, nombre o contraseña; desactivarlos; cambiar la contraseña propia | Dueño |
-| `/importar` | Cargar clientes desde la plantilla Excel | Dueño |
+| `/importar` | Cargar clientes desde la plantilla Excel (DNI y placa opcionales; frecuencia semanal, quincenal o mensual; precio e inicial opcionales). Una fila ya importada se rechaza sola | Dueño |
 | `/configuracion` | Agregar, editar y eliminar empresas y cuentas de cobro | Dueño |
 | `/consulta` · `/qr` | El cliente consulta su deuda con su DNI · hoja con el QR | Público |
 

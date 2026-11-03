@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Tabla, Tarjeta, TituloPagina, formatoFecha, formatoSoles, mensajeDeError, type Columna, Placa } from "@/components/ui";
+import { Aviso, Boton, Tabla, Tarjeta, TituloPagina, formatoFecha, formatoSoles, mensajeDeError, textoDocumento, type Columna, Placa } from "@/components/ui";
 import { descargarExcel } from "@/lib/exportar";
 import type { FilaImportacion } from "@/types/database";
 import { claveEmpresa } from "@/lib/texto";
@@ -18,13 +18,15 @@ const COLUMNAS: Record<keyof Omit<FilaImportacion, "fila">, string> = {
   placa: "PLACA",
   marca: "MARCA",
   color: "COLOR",
-  cuota: "CUOTA SEMANAL",
+  cuota: "CUOTA", // "CUOTA S/" o la antigua "CUOTA SEMANAL S/"
   nro_cuotas: "N DE CUOTAS",
   fecha_inicio: "FECHA 1 CUOTA",
   frecuencia: "FRECUENCIA",
   cuotas_pagadas: "CUOTAS YA PAGADAS",
   ultimo_pago: "FECHA ULTIMO PAGO",
   observaciones: "OBSERVACIONES",
+  precio: "PRECIO", // opcional
+  inicial: "INICIAL", // opcional
 };
 
 type Valor = string | number | boolean | Date | null;
@@ -70,7 +72,7 @@ function validar(f: FilaImportacion, empresas: Set<string>): string | null {
   if (!empresas.has(claveEmpresa(f.empresa))) return `La empresa "${f.empresa}" no existe. Revisa el nombre en Configuración.`;
   if (!f.nombres) return "Falta el nombre.";
   if (f.dni && !/^\d{8,12}$/.test(f.dni)) return "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).";
-  if (!f.cuota || f.cuota <= 0) return "Falta la cuota semanal.";
+  if (!f.cuota || f.cuota <= 0) return "Falta la cuota.";
   if (!f.nro_cuotas || !Number.isInteger(f.nro_cuotas) || f.nro_cuotas < 1) return "Falta el número de cuotas.";
   if (!f.fecha_inicio) return "Falta la fecha de la 1.ª cuota (formato día/mes/año).";
   if (f.cuotas_pagadas !== null && (f.cuotas_pagadas < 0 || f.cuotas_pagadas > f.nro_cuotas)) return "Las cuotas pagadas no pueden ser más que el número de cuotas.";
@@ -135,6 +137,8 @@ function Importar() {
           cuotas_pagadas: numero(valor(r, "cuotas_pagadas")),
           ultimo_pago: fecha(valor(r, "ultimo_pago")),
           observaciones: texto(valor(r, "observaciones")),
+          precio: numero(valor(r, "precio")),
+          inicial: numero(valor(r, "inicial")),
         };
         if (!d.nombres && !d.dni && !d.placa) return; // fila vacía
         if (/EJEMPLO/i.test(d.nombres) || /^EJEMPLO/i.test(d.observaciones)) {
@@ -226,7 +230,7 @@ function Importar() {
       celda: (f) => (
         <span>
           <span className="block font-semibold">{f.datos.nombres || "—"}</span>
-          <span className="num text-sm text-tenue">DNI {f.datos.dni || "—"}</span>
+          <span className="num text-sm text-tenue">{textoDocumento(f.datos.dni)}</span>
         </span>
       ),
     },
@@ -269,12 +273,16 @@ function Importar() {
               (hoja «Clientes»). Las filas de EJEMPLO se ignoran.
             </li>
             <li>Los nombres de la columna EMPRESA deben ser iguales a los de Configuración.</li>
-            <li>Cada fila crea el cliente (o usa el que ya existe por DNI), su moto y su contrato con las cuotas ya pagadas.</li>
+            <li>Cada fila crea el cliente (o usa el que ya existe por DNI o por nombre), su moto y su contrato con las cuotas ya pagadas. Si falta el DNI o la placa, igual se importa y queda en «Datos pendientes».</li>
             <li>Si importas el mismo archivo dos veces, las filas ya importadas se rechazan solas.</li>
           </ol>
           <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-marca p-6 text-center font-semibold text-marca hover:bg-marca-suave">
             {leyendo ? "Leyendo el archivo…" : archivo ? `Archivo: ${archivo} · elegir otro` : "Elegir archivo .xlsx"}
-            <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" disabled={importando} onChange={(e) => leer(e.target.files?.[0])} />
+            <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" disabled={importando} onChange={(e) => {
+                leer(e.target.files?.[0]);
+                e.target.value = ""; // así se puede volver a elegir el mismo archivo
+              }}
+            />
           </label>
           {error && (
             <div className="mt-3">

@@ -18,7 +18,7 @@ export function TarjetaSituacion({ estado, deudaTotal }: { estado?: EstadoClient
             <p className={`num text-3xl font-extrabold ${deudaTotal > 0 ? "text-rojo" : "text-verde"}`}>{formatoSoles(deudaTotal)}</p>
           </div>
           <dl className="grid grid-cols-2 gap-3">
-            <Dato etiqueta="Cuota semanal">{formatoSoles(estado.cuota)}</Dato>
+            <Dato etiqueta="Cuota">{formatoSoles(estado.cuota)}</Dato>
             <Dato etiqueta="Próxima cuota">{formatoFecha(estado.proxima_cuota)}</Dato>
             <Dato etiqueta="Último pago">{formatoFecha(estado.ultimo_pago)}</Dato>
             <Dato etiqueta="Empresa">{estado.empresa}</Dato>
@@ -52,7 +52,7 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
       <MapaCliente ubicacion={cliente.ubicacion} direccion={cliente.direccion} nombre={cliente.nombres} />
       <h3 className="mt-4 mb-2 font-bold">Fotos</h3>
       {documentos.length === 0 ? (
-        <p className="text-sm text-tenue">Sin fotos. Agrégalas desde “Editar”.</p>
+        <p className="text-sm text-tenue">Sin fotos todavía.</p>
       ) : (
         <div className="flex flex-wrap gap-3">
           {documentos.map((d) => (
@@ -75,10 +75,12 @@ interface PropsCronograma {
   contratoActivo: string | null;
   alElegir: (id: string) => void;
   cuotas: Cuota[] | null;
+  /** cajero de oficina: sin enlace al contrato */
+  soloLectura?: boolean;
 }
 
 /** Cronograma del contrato elegido, con selector si el cliente tiene varios. */
-export function TarjetaCronograma({ cliente, empresa, contratos, motos, contratoActivo, alElegir, cuotas }: PropsCronograma) {
+export function TarjetaCronograma({ cliente, empresa, contratos, motos, contratoActivo, alElegir, cuotas, soloLectura }: PropsCronograma) {
   const contrato = contratos.find((c) => c.id === contratoActivo);
   const moto = contrato ? motos.get(contrato.moto_id) : undefined;
   return (
@@ -104,7 +106,7 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
           {contrato && cuotas && moto && (
             <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} placa={moto.placa} empresa={empresa} contrato={contrato} cuotas={cuotas} />
           )}
-          {contrato && (
+          {contrato && soloLectura !== true && (
             <BotonEnlace href={`/contratos/ver?id=${contrato.id}`} variante="fantasma" tamano="chico">
               Ver contrato
             </BotonEnlace>

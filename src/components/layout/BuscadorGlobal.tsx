@@ -5,6 +5,7 @@ import { EtiquetaSemaforo, Placa, textoDocumento } from "@/components/ui";
 import { claveBusqueda, coincide, normalizar } from "@/lib/texto";
 import type { EstadoCliente } from "@/types/database";
 import { useSesion } from "./Sesion";
+import { veClientes } from "./menu";
 
 const MAXIMO = 8;
 /** Los datos de la búsqueda se reutilizan 1 minuto para que abrir y cerrar sea instantáneo. */
@@ -18,7 +19,8 @@ const esCampoDeTexto = (el: EventTarget | null) =>
  * Escribe nombre, DNI o placa; Enter abre la ficha y "Cobrar" va directo a registrar el pago.
  */
 export function BuscadorGlobal() {
-  const { datos, esAdmin } = useSesion();
+  const { datos, perfil } = useSesion();
+  const conFicha = veClientes(perfil);
   const router = useRouter();
   const dialogo = useRef<HTMLDialogElement>(null);
   const cache = useRef<{ en: number; filas: EstadoCliente[] } | null>(null);
@@ -85,8 +87,8 @@ export function BuscadorGlobal() {
     router.push(href);
   };
   const cobrar = (e: EstadoCliente) => ir(`/pagos/nuevo?contrato=${e.contrato_id}`);
-  // el cobrador no entra a la ficha: tocar al cliente lo lleva a cobrarle
-  const ficha = (e: EstadoCliente) => (esAdmin ? ir(`/clientes/ficha?id=${e.cliente_id}`) : cobrar(e));
+  // el cobrador de ruta no entra a la ficha: tocar al cliente lo lleva a cobrarle
+  const ficha = (e: EstadoCliente) => (conFicha ? ir(`/clientes/ficha?id=${e.cliente_id}`) : cobrar(e));
 
   const teclas = (ev: KeyboardEvent<HTMLInputElement>) => {
     if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
@@ -152,7 +154,7 @@ export function BuscadorGlobal() {
               )}
               {filas !== null && !texto && (
                 <li className="p-4 text-center text-sm text-tenue">
-                  {esAdmin ? (
+                  {conFicha ? (
                     <>
                       Escribe para buscar. <b>Enter</b> abre la ficha · <b>Alt + Enter</b> registra un pago.
                     </>

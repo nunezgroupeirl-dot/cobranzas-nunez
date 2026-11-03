@@ -706,7 +706,7 @@ export function crearDatosSimulados(): Datos {
       const placa = f.placa.trim().toUpperCase() || null;
       if (dni && !/^\d{8,12}$/.test(dni)) throw new ErrorDatos("DATOS", "DNI o Carné de Extranjería inválido.");
       if (!f.nombres.trim()) throw new ErrorDatos("DATOS", "Falta el nombre.");
-      if (!f.cuota || f.cuota <= 0) throw new ErrorDatos("DATOS", "Falta la cuota semanal.");
+      if (!f.cuota || f.cuota <= 0) throw new ErrorDatos("DATOS", "Falta la cuota.");
       if (!f.nro_cuotas) throw new ErrorDatos("DATOS", "Falta el número de cuotas.");
       if (!f.fecha_inicio) throw new ErrorDatos("DATOS", "Falta la fecha de la 1.ª cuota.");
       const pagadas = f.cuotas_pagadas ?? 0;
@@ -719,6 +719,8 @@ export function crearDatosSimulados(): Datos {
         cliente = { id: nuevoId(), empresa_id: empresa.id, nombres: f.nombres.trim(), dni, celular, direccion: f.direccion || null, referencia: f.referencia || null, creado_en: new Date().toISOString() };
         s.clientes.push(cliente);
       }
+      if (s.contratos.some((c) => c.cliente_id === cliente?.id && c.estado === "activo" && c.fecha_inicio === f.fecha_inicio && c.monto_cuota === f.cuota && c.nro_cuotas === f.nro_cuotas))
+        throw new ErrorDatos("DATOS", "Esta fila ya se importó (el cliente ya tiene ese mismo contrato).");
       let moto = placa ? s.motos.find((m) => m.placa === placa) : undefined;
       if (moto && s.contratos.some((c) => c.moto_id === moto?.id && c.estado === "activo" && c.cliente_id !== cliente?.id))
         throw new ErrorDatos("DATOS", `La placa ${placa} ya tiene un contrato activo (¿fila importada dos veces?).`);
@@ -736,8 +738,8 @@ export function crearDatosSimulados(): Datos {
         nro_cuotas: f.nro_cuotas,
         fecha_inicio: f.fecha_inicio,
         frecuencia: (["mensual", "quincenal"] as const).find((x) => x === f.frecuencia.toLowerCase()) ?? "semanal",
-        precio_total: null,
-        inicial: null,
+        precio_total: f.precio ?? null,
+        inicial: f.inicial ?? null,
         cuotas_pagadas_inicial: pagadas,
         observaciones: ["Importado de cuaderno", f.frecuencia.toLowerCase() === "diario" ? "Pagaba diario" : "", f.observaciones].filter(Boolean).join(" · "),
         estado: "activo",

@@ -11,7 +11,7 @@ import { TarjetaCronograma, TarjetaDatos, TarjetaSituacion } from "../_component
 
 export default function FichaCliente() {
   const id = useSearchParams().get("id") ?? "";
-  const { datos } = useSesion();
+  const { datos, esAdmin } = useSesion();
   const conEmpresa = useConEmpresa();
   const [contratoSel, setContratoSel] = useState<string | null>(null);
 
@@ -74,12 +74,12 @@ export default function FichaCliente() {
         accion={
           <>
             <EliminarCliente cliente={cliente} contratos={contratos.length} pagos={pagos.length} />
-            <BotonEnlace href={`/clientes/editar?id=${cliente.id}`} variante="secundario">
-              Editar
-            </BotonEnlace>
-            <BotonEnlace href={estado ? `/pagos/nuevo?contrato=${estado.contrato_id}` : `/contratos/nuevo?cliente=${cliente.id}`} tamano="grande">
-              {estado ? "Registrar pago" : "Crear contrato"}
-            </BotonEnlace>
+            {esAdmin && (
+              <BotonEnlace href={`/clientes/editar?id=${cliente.id}`} variante="secundario">
+                Editar
+              </BotonEnlace>
+            )}
+            <AccionPrincipal clienteId={cliente.id} contratoId={estado?.contrato_id} esAdmin={esAdmin} />
           </>
         }
       />
@@ -98,6 +98,7 @@ export default function FichaCliente() {
           contratoActivo={contratoActivo}
           alElegir={setContratoSel}
           cuotas={cuotas}
+          soloLectura={!esAdmin}
         />
       )}
 
@@ -111,4 +112,20 @@ export default function FichaCliente() {
 
 function DocumentoCliente({ dni }: { dni: string | null }) {
   return <span className={dni ? "num" : "font-semibold text-amarillo"}>{textoDocumento(dni)}</span>;
+}
+
+/** Con contrato activo: registrar pago (todos). Sin contrato: crear uno (solo el dueño). */
+function AccionPrincipal({ clienteId, contratoId, esAdmin }: { clienteId: string; contratoId?: string; esAdmin: boolean }) {
+  if (contratoId)
+    return (
+      <BotonEnlace href={`/pagos/nuevo?contrato=${contratoId}`} tamano="grande">
+        Registrar pago
+      </BotonEnlace>
+    );
+  if (!esAdmin) return null;
+  return (
+    <BotonEnlace href={`/contratos/nuevo?cliente=${clienteId}`} tamano="grande">
+      Crear contrato
+    </BotonEnlace>
+  );
 }

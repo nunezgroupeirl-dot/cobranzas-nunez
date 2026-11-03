@@ -5,12 +5,17 @@ import Link from "next/link";
 import { Marca } from "@/components/layout/Marca";
 import { getDatos } from "@/lib/supabase/datos";
 import { Aviso, Boton, Campo, Cargando, mensajeDeError } from "@/components/ui";
+import { inicioPara } from "@/components/layout/menu";
+import type { Perfil } from "@/types/database";
+
+/** Sin página pedida, cada uno entra a su pantalla de inicio (dueño: Clientes; cajero: Registrar pago; ruta: ¿Quién no paga?). */
+const destino = (p: Perfil, pedido: string | null) => pedido ?? inicioPara(p);
 
 function FormularioIngreso() {
   const router = useRouter();
   const pedido = useSearchParams().get("volver") ?? "";
   // solo rutas internas (evita redirigir a otro sitio)
-  const volver = pedido.startsWith("/") && !pedido.startsWith("//") ? pedido : "/clientes";
+  const pedidoValido = pedido.startsWith("/") && !pedido.startsWith("//") ? pedido : null;
   const [email, setEmail] = useState("");
   const [clave, setClave] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +35,7 @@ function FormularioIngreso() {
         if (!vigente) return;
         setModoPrueba(d.modoPrueba);
         // react-doctor-disable-next-line nextjs-no-client-side-redirect
-        if (haySesion) router.replace(volver);
+        if (haySesion) router.replace(destino(haySesion, pedidoValido));
         else setRevisando(false);
       } catch (e) {
         if (!vigente) return;
@@ -42,7 +47,7 @@ function FormularioIngreso() {
     return () => {
       vigente = false;
     };
-  }, [router, volver]);
+  }, [router, pedidoValido]);
 
   const ingresar = async (e: FormEvent) => {
     e.preventDefault();
@@ -50,8 +55,7 @@ function FormularioIngreso() {
     setError(null);
     try {
       const d = await getDatos();
-      await d.ingresar(email, clave);
-      router.replace(volver);
+      router.replace(destino(await d.ingresar(email, clave), pedidoValido));
     } catch (err) {
       setError(mensajeDeError(err));
       setEnviando(false);

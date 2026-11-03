@@ -362,6 +362,8 @@ export function crearDatosReales(): Datos {
           cuotas_pagadas: f.cuotas_pagadas,
           ultimo_pago: f.ultimo_pago,
           observaciones: f.observaciones,
+          precio: f.precio ?? null,
+          inicial: f.inicial ?? null,
         },
       });
       lanzar(r.error);
