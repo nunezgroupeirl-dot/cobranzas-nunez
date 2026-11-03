@@ -1,5 +1,5 @@
 // Edge Function "usuarios" · Cobranzas Núñez
-// Crea usuarios del sistema (siempre como cobrador). Solo la puede usar el dueño.
+// Crea cobradores y les cambia el nombre o la contraseña. Solo la puede usar el dueño.
 // Necesita la llave service_role, que Supabase inyecta sola en las Edge Functions
 // (nunca va en el frontend).
 //
@@ -34,10 +34,35 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
     const { data: esAdmin, error: errAdmin } = await comoUsuario.rpc("es_admin");
-    if (errAdmin || esAdmin !== true) return responder({ error: "Solo el administrador puede crear usuarios." }, 403);
+    if (errAdmin || esAdmin !== true) return responder({ error: "Solo el dueño puede administrar usuarios." }, 403);
 
-    // 2. Validar datos
     const cuerpo = await req.json().catch(() => ({}));
+    const admin = createClient(url, servicio, { auth: { persistSession: false, autoRefreshToken: false } });
+
+    // Editar a un trabajador: nombre y/o contraseña. La cuenta del dueño no se toca desde aquí.
+    if (cuerpo.accion === "editar") {
+      const id = String(cuerpo.id ?? "");
+      const { data: perfil } = await admin.from("perfiles").select("id, rol").eq("id", id).maybeSingle();
+      if (!perfil) return responder({ error: "El usuario no existe." }, 404);
+      if (perfil.rol === "administrador") return responder({ error: "La contraseña del dueño se cambia desde su propia sesión." }, 403);
+      const nombre = cuerpo.nombre === undefined ? null : String(cuerpo.nombre).trim();
+      const clave = cuerpo.clave === undefined ? null : String(cuerpo.clave);
+      if (nombre !== null && !nombre) return responder({ error: "Escribe el nombre." }, 400);
+      if (clave !== null && clave.length < 6) return responder({ error: "La contraseña debe tener al menos 6 caracteres." }, 400);
+      if (nombre === null && clave === null) return responder({ error: "No hay cambios." }, 400);
+      const { error: errAuth } = await admin.auth.admin.updateUserById(id, {
+        ...(clave !== null ? { password: clave } : {}),
+        ...(nombre !== null ? { user_metadata: { nombre } } : {}),
+      });
+      if (errAuth) return responder({ error: errAuth.message }, 400);
+      if (nombre !== null) {
+        const { error: errPerfil } = await admin.from("perfiles").update({ nombre }).eq("id", id);
+        if (errPerfil) return responder({ error: errPerfil.message }, 400);
+      }
+      return responder({ ok: true });
+    }
+
+    // 2. Crear: validar datos
     if (cuerpo.accion !== "crear") return responder({ error: "Acción no válida." }, 400);
 
     const nombre = String(cuerpo.nombre ?? "").trim();
@@ -52,7 +77,6 @@ Deno.serve(async (req) => {
     if (clave.length < 6) return responder({ error: "La contraseña debe tener al menos 6 caracteres." }, 400);
 
     // 3. Crear el usuario. El trigger al_crear_usuario crea su perfil activo con este rol.
-    const admin = createClient(url, servicio, { auth: { persistSession: false, autoRefreshToken: false } });
     const { error } = await admin.auth.admin.createUser({
       email,
       password: clave,
@@ -67,6 +91,6 @@ Deno.serve(async (req) => {
     }
     return responder({ ok: true });
   } catch (_e) {
-    return responder({ error: "No se pudo crear el usuario. Inténtalo otra vez." }, 500);
+    return responder({ error: "No se pudo completar la acción. Inténtalo otra vez." }, 500);
   }
 });

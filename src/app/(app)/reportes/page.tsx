@@ -1,35 +1,29 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
-import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, Campo, NOMBRE_MEDIO, Tarjeta, TituloPagina, formatoFecha, formatoFechaHora, hoyLima, mensajeDeError, sumarDias } from "@/components/ui";
+import { useEmpresa } from "@/components/layout/empresa";
+import { Aviso, Boton, Campo, Selector, Tarjeta, TituloPagina, hoyLima, mensajeDeError, sumarDias } from "@/components/ui";
 import { descargarExcel } from "@/lib/exportar";
+import { mesAnterior, nombreMes, sumarMeses } from "@/lib/letras";
+import { descargarReporteMensual, hojaClientes, hojaPagos } from "@/lib/reportes";
 
 function Reportes() {
   const { datos, empresas } = useSesion();
   const empresa = useEmpresa();
   const [desde, setDesde] = useState(() => sumarDias(hoyLima(), -30));
   const [hasta, setHasta] = useState(hoyLima);
-  const [ocupado, setOcupado] = useState<"" | "clientes" | "pagos">("");
+  const [ocupado, setOcupado] = useState<"" | "clientes" | "pagos" | "mes">("");
+  const [mes, setMes] = useState(() => mesAnterior(hoyLima()));
+  const meses = useMemo(() => Array.from({ length: 12 }, (_, i) => sumarMeses(mesAnterior(hoyLima()), -i)), []);
   const [aviso, setAviso] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
   const sufijo = empresa ? `_${(empresas.find((e) => e.id === empresa)?.nombre ?? "empresa").replace(/\s+/g, "-")}` : "";
 
   const excelClientes = async () => {
     setOcupado("clientes");
     try {
-      const [estados, clientes] = await Promise.all([datos.estadoClientes(), datos.clientes()]);
-      const filas = filtrarPorEmpresa(estados, empresa).map((e) => {
-        const c = clientes.find((x) => x.id === e.cliente_id);
-        return [e.cliente, e.dni, e.celular, c?.direccion, e.placa, e.empresa, e.cuota, e.semanas_atraso, e.color, e.deuda, formatoFecha(e.ultimo_pago), formatoFecha(e.proxima_cuota)];
-      });
-      descargarExcel(`clientes${sufijo}_${hoyLima()}`, [
-        {
-          nombre: "Clientes",
-          columnas: ["Cliente", "DNI", "Celular", "Dirección", "Placa", "Empresa", "Cuota", "Semanas de atraso", "Color", "Deuda vencida", "Último pago", "Próxima cuota"],
-          filas,
-        },
-      ]);
-      setAviso({ tipo: "exito", texto: `Excel con ${filas.length} clientes descargado.` });
+      const hoja = await hojaClientes(datos, empresa);
+      descargarExcel(`clientes${sufijo}_${hoyLima()}`, [hoja]);
+      setAviso({ tipo: "exito", texto: `Excel con ${hoja.filas.length} clientes descargado.` });
     } catch (e) {
       setAviso({ tipo: "error", texto: mensajeDeError(e) });
     } finally {
@@ -44,33 +38,21 @@ function Reportes() {
     }
     setOcupado("pagos");
     try {
-      const [pagos, contratos, clientes, motos, cuentas] = await Promise.all([datos.pagos({ desde, hasta }), datos.contratos(), datos.clientes(), datos.motos(), datos.cuentas()]);
-      const filas = pagos
-        .map((p) => ({ p, con: contratos.find((c) => c.id === p.contrato_id) }))
-        .filter(({ con }) => !empresa || con?.empresa_id === empresa)
-        .map(({ p, con }) => [
-          formatoFecha(p.fecha_pago),
-          clientes.find((c) => c.id === con?.cliente_id)?.nombres,
-          clientes.find((c) => c.id === con?.cliente_id)?.dni,
-          motos.find((m) => m.id === con?.moto_id)?.placa,
-          empresas.find((e) => e.id === con?.empresa_id)?.nombre,
-          p.monto,
-          NOMBRE_MEDIO[p.medio],
-          cuentas.find((c) => c.id === p.cuenta_id)?.nombre,
-          p.nro_operacion,
-          p.registrado_por_nombre,
-          formatoFechaHora(p.creado_en),
-          p.anulado ? "ANULADO" : "Válido",
-          p.motivo_anulacion,
-        ]);
-      descargarExcel(`pagos${sufijo}_${desde}_a_${hasta}`, [
-        {
-          nombre: "Pagos",
-          columnas: ["Fecha de pago", "Cliente", "DNI", "Placa", "Empresa", "Monto", "Medio", "Cuenta destino", "N.º operación", "Registró", "Registrado el", "Estado", "Motivo de anulación"],
-          filas,
-        },
-      ]);
-      setAviso({ tipo: "exito", texto: `Excel con ${filas.length} pagos descargado.` });
+      const hoja = await hojaPagos(datos, empresas, desde, hasta, empresa);
+      descargarExcel(`pagos${sufijo}_${desde}_a_${hasta}`, [hoja]);
+      setAviso({ tipo: "exito", texto: `Excel con ${hoja.filas.length} pagos descargado.` });
+    } catch (e) {
+      setAviso({ tipo: "error", texto: mensajeDeError(e) });
+    } finally {
+      setOcupado("");
+    }
+  };
+
+  const excelMes = async () => {
+    setOcupado("mes");
+    try {
+      const n = await descargarReporteMensual(datos, empresas, mes);
+      setAviso({ tipo: "exito", texto: `Reporte de ${nombreMes(mes)} descargado (${n} pagos).` });
     } catch (e) {
       setAviso({ tipo: "error", texto: mensajeDeError(e) });
     } finally {
@@ -88,6 +70,22 @@ function Reportes() {
           </Aviso>
         </div>
       )}
+      <Tarjeta className="mb-4" titulo="Reporte mensual">
+        <p className="mb-4 text-tenue">
+          Un Excel con el resumen por empresa, todos los pagos del mes y el estado de los clientes. Descárgalo cada mes y guárdalo: es tu respaldo. Las 4 empresas juntas.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <Selector
+            etiqueta="Mes"
+            opciones={meses.map((m) => ({ valor: m, texto: nombreMes(m) }))}
+            value={mes}
+            onChange={(e) => setMes(e.target.value)}
+          />
+          <Boton tamano="grande" onClick={excelMes} cargando={ocupado === "mes"}>
+            Descargar reporte mensual
+          </Boton>
+        </div>
+      </Tarjeta>
       <div className="grid gap-4 lg:grid-cols-2">
         <Tarjeta titulo="Clientes">
           <p className="mb-4 text-tenue">Todos los contratos activos con su color, deuda y fechas.</p>

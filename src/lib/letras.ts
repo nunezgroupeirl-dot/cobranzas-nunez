@@ -60,3 +60,13 @@ export function sumarMeses(f: string, meses: number): string {
   const ultimo = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate();
   return `${anio}-${String(mes + 1).padStart(2, "0")}-${String(Math.min(d, ultimo)).padStart(2, "0")}`;
 }
+
+/** "2026-11-03" → "2026-10-01" (primer día del mes anterior) */
+export const mesAnterior = (f: string) => sumarMeses(`${f.slice(0, 7)}-01`, -1);
+/** "2026-10-01" → "2026-11-01" */
+export const siguienteMes = (mes: string) => sumarMeses(`${mes.slice(0, 7)}-01`, 1);
+/** "2026-10-01" → "octubre 2026" */
+export function nombreMes(mes: string): string {
+  const [a, m] = mes.split("-").map(Number);
+  return `${MESES[m - 1]} ${a}`;
+}

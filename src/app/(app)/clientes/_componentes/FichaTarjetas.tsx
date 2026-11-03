@@ -4,6 +4,7 @@ import { BotonEnlace, Cargando, Dato, EtiquetaSemaforo, NOMBRE_DOCUMENTO, NOMBRE
 import type { Cliente, Contrato, Cuota, Documento, EstadoCliente, Moto } from "@/types/database";
 import { Cronograma } from "../../contratos/_componentes/Cronograma";
 import { Foto } from "./Foto";
+import { MapaCliente } from "./MapaCliente";
 
 /** Semáforo, deuda y próxima cuota del contrato elegido. */
 export function TarjetaSituacion({ estado, deudaTotal }: { estado?: EstadoCliente; deudaTotal: number }) {
@@ -47,6 +48,8 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
           <Dato etiqueta="Referencia">{cliente.referencia}</Dato>
         </div>
       </dl>
+      <h3 className="mt-4 mb-2 font-bold">Ubicación</h3>
+      <MapaCliente ubicacion={cliente.ubicacion} direccion={cliente.direccion} nombre={cliente.nombres} />
       <h3 className="mt-4 mb-2 font-bold">Fotos</h3>
       {documentos.length === 0 ? (
         <p className="text-sm text-tenue">Sin fotos. Agrégalas desde “Editar”.</p>

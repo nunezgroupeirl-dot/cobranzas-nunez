@@ -32,7 +32,7 @@ function validar(b: Borrador): Record<string, string> {
   else if (b.fecha > hoyLima()) e.fecha = "La fecha no puede ser futura.";
   if (conCuenta && !b.cuentaId) e.cuenta = "Elige la cuenta donde llegó el dinero.";
   if (conCuenta && !b.nroOp.trim()) e.nro = "Escribe el número de operación.";
-  if (!b.foto) e.foto = "La foto es obligatoria.";
+  if (!b.foto) e.foto = b.medio === "efectivo" ? "Tómale una foto al cliente al recibir el dinero." : "La foto del comprobante es obligatoria.";
   return e;
 }
 
@@ -190,7 +190,17 @@ export default function RegistrarPago() {
                 </div>
               </div>
               <div className="sm:col-span-2">
-                <OpcionesBoton etiqueta="Medio de pago" opciones={OPCIONES_MEDIO} valor={medio} alCambiar={(v) => setMedio(v as MedioPago)} obligatorio />
+                <OpcionesBoton
+                  etiqueta="Medio de pago"
+                  opciones={OPCIONES_MEDIO}
+                  valor={medio}
+                  alCambiar={(v) => {
+                    // efectivo pide foto del cliente y los demás una captura: al cambiar entre ellos se vuelve a pedir la foto
+                    if ((v === "efectivo") !== (medio === "efectivo")) cambiarFoto(null);
+                    setMedio(v as MedioPago);
+                  }}
+                  obligatorio
+                />
               </div>
               {medio !== "efectivo" && (
                 <>

@@ -14,13 +14,13 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 |---|---|---|
 | `/login` | Ingreso | Todos |
 | `/clientes` · `/clientes/nuevo` · `/clientes/ficha?id=` · `/clientes/editar?id=` | Lista con semáforo, alta con fotos, ficha completa | Dueño |
-| `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` | Motos, contratos, cronograma, contrato para imprimir (PDF) y hojas firmadas escaneadas | Dueño |
+| `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` · `/contratos/documento?id=` | Motos, contratos, cronograma; contrato llenado en la página (PDF listo para firmar), plantilla en blanco, hojas firmadas escaneadas y su reimpresión | Dueño |
 | `/pagos/nuevo` | Registrar un pago con foto del comprobante | Dueño y cobradores |
 | `/pagos` | Historial de pagos (anular, filtrar por fechas) | Dueño |
 | `/morosos` | ¿Quién no paga? Copiar para WhatsApp y Excel | Dueño y cobradores |
 | `/panel` | Cobrado hoy y en la semana, deuda por empresa | Dueño |
-| `/reportes` | Excel de clientes y de pagos por fechas | Dueño |
-| `/usuarios` | Crear y desactivar cobradores | Dueño |
+| `/reportes` | Reporte mensual (resumen, pagos y clientes) y Excel de clientes y de pagos por fechas. Desde el día 1 de cada mes el dueño ve un aviso fijo hasta descargar el reporte del mes anterior | Dueño |
+| `/usuarios` | Crear cobradores (nombre, correo y contraseña), cambiarles el nombre o la contraseña, desactivarlos; cambiar la contraseña propia | Dueño |
 | `/importar` | Cargar clientes desde la plantilla Excel | Dueño |
 | `/configuracion` | Agregar, editar y eliminar empresas y cuentas de cobro | Dueño |
 | `/consulta` · `/qr` | El cliente consulta su deuda con su DNI · hoja con el QR | Público |
@@ -29,11 +29,15 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 
 - **Semáforo:** verde al día · amarillo 1 a 3 semanas de atraso · rojo 4 o más.
 - Cada pago se aplica a la **cuota pendiente más antigua** y guarda la fecha real de pago.
-- Todo pago lleva **foto**. No se acepta un **n.º de operación** ni una **imagen** ya registrados.
+- Todo pago lleva **foto**: captura o voucher si es Yape, Plin o banco; si es **efectivo**, una foto del cliente tomada con la cámara al recibir el dinero. No se acepta un **n.º de operación** ni una **imagen** ya registrados.
 - Sin intereses ni mora: la cuota es fija. Un contrato pagado completo pasa a **terminado**.
 - Lo registrado hasta las **10:00 p.m.** (hora de Lima) cuenta para ese día.
 
 Las reglas viven en la base de datos (`supabase/esquema.sql`). `src/lib/supabase/reglas.ts` es una copia solo para el modo de prueba.
+
+## Ubicación de los clientes
+
+Cada cliente tiene dirección escrita y, opcional, su ubicación en Google Maps: al editar el cliente se toca “Usar mi ubicación” estando en su casa, o se pega el enlace de Google Maps que él mismo comparta por WhatsApp. La ficha muestra el mapa y “¿Quién no paga?” tiene el botón **Cómo llegar**. No usa llave de Google.
 
 ## Seguridad
 

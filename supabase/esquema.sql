@@ -96,6 +96,10 @@ create table if not exists public.clientes (
   creado_en   timestamptz not null default now()
 );
 create index if not exists clientes_empresa_idx on public.clientes (empresa_id);
+-- Ubicación para encontrar al cliente: enlace de Google Maps o coordenadas "lat,lng"
+alter table public.clientes add column if not exists ubicacion text;
+alter table public.clientes drop constraint if exists clientes_ubicacion_check;
+alter table public.clientes add constraint clientes_ubicacion_check check (ubicacion is null or length(ubicacion) <= 500);
 alter table public.clientes drop constraint if exists clientes_dni_check;
 alter table public.clientes add constraint clientes_dni_check check (dni ~ '^\d{8,12}$');
 
@@ -227,6 +231,19 @@ create table if not exists public.auditoria (
   creado_en    timestamptz not null default now()
 );
 create index if not exists auditoria_fecha_idx on public.auditoria (creado_en desc);
+
+-- Reporte mensual: el dueño ve un aviso fijo hasta descargar el reporte del mes anterior
+create table if not exists public.reportes_mensuales (
+  mes             date primary key check (extract(day from mes) = 1),
+  descargado_en   timestamptz not null default now(),
+  descargado_por  uuid default auth.uid() references public.perfiles (id) on delete set null
+);
+create index if not exists reportes_mensuales_por_idx on public.reportes_mensuales (descargado_por);
+revoke all on table public.reportes_mensuales from anon;
+grant select, insert on table public.reportes_mensuales to authenticated;
+
+-- Datos del contrato impreso llenados en la página (para volver a imprimirlo igual)
+alter table public.contratos add column if not exists documento jsonb;
 
 
 -- =============================================================================
@@ -726,6 +743,27 @@ begin
 end;
 $$;
 
+-- Guarda los datos del contrato impreso llenados en la página (solo el dueño)
+create or replace function public.guardar_documento_contrato(p_contrato_id uuid, p_documento jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  if p_documento is null or jsonb_typeof(p_documento) <> 'object' or length(p_documento::text) > 20000 then
+    raise exception 'Datos del contrato no válidos.';
+  end if;
+  update public.contratos set documento = p_documento where id = p_contrato_id;
+  if not found then
+    raise exception 'El contrato no existe.';
+  end if;
+end;
+$$;
+
 -- Eliminar un cliente con TODO lo suyo: contratos, cuotas, pagos, fotos y sus motos libres.
 -- Devuelve las fotos a borrar del almacenamiento: {"evidencias": [...], "documentos": [...]}.
 create or replace function public.eliminar_cliente(p_cliente_id uuid)
@@ -913,7 +951,9 @@ select
     else 'rojo'
   end                                    as color,
   greatest(u.fecha, co.ultimo_pago_inicial) as ultimo_pago,
-  r.proxima_cuota
+  r.proxima_cuota,
+  cl.direccion,
+  cl.ubicacion                           -- para que el cobrador lo encuentre
 from public.contratos co
 join public.clientes cl on cl.id = co.cliente_id
 join public.motos m on m.id = co.moto_id
@@ -1177,6 +1217,7 @@ alter table public.cuotas_base enable row level security;
 alter table public.pagos       enable row level security;
 alter table public.pago_cuota  enable row level security;
 alter table public.auditoria   enable row level security;
+alter table public.reportes_mensuales enable row level security;
 
 do $$
 declare r record;
@@ -1185,7 +1226,7 @@ begin
   for r in
     select policyname, tablename from pg_policies
     where schemaname = 'public'
-      and tablename in ('empresas', 'cuentas', 'perfiles', 'clientes', 'documentos', 'motos', 'contratos', 'cuotas_base', 'pagos', 'pago_cuota', 'auditoria')
+      and tablename in ('empresas', 'cuentas', 'perfiles', 'clientes', 'documentos', 'motos', 'contratos', 'cuotas_base', 'pagos', 'pago_cuota', 'auditoria', 'reportes_mensuales')
   loop
     execute format('drop policy %I on public.%I', r.policyname, r.tablename);
   end loop;
@@ -1203,6 +1244,8 @@ create policy leer on public.cuotas_base for select to authenticated using ((sel
 create policy leer on public.pagos       for select to authenticated using ((select public.es_staff()));
 create policy leer on public.pago_cuota  for select to authenticated using ((select public.es_staff()));
 create policy leer on public.auditoria   for select to authenticated using ((select public.es_admin()));
+create policy leer on public.reportes_mensuales for select to authenticated using ((select public.es_admin()));
+create policy crear on public.reportes_mensuales for insert to authenticated with check ((select public.es_admin()));
 
 -- Empresas y cuentas: solo el administrador las crea o cambia
 create policy crear on public.empresas for insert to authenticated with check ((select public.es_admin()));
@@ -1297,6 +1340,8 @@ grant execute on function public.importar_cliente(jsonb) to authenticated;
 revoke all on function public.generar_cuotas(uuid) from public, anon, authenticated;
 revoke all on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text) from public, anon;
 revoke all on function public.eliminar_contrato(uuid) from public, anon;
+revoke all on function public.guardar_documento_contrato(uuid, jsonb) from public, anon;
+grant execute on function public.guardar_documento_contrato(uuid, jsonb) to authenticated;
 revoke all on function public.eliminar_cliente(uuid) from public, anon;
 grant execute on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text) to authenticated;
 grant execute on function public.eliminar_contrato(uuid) to authenticated;

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { enlaceRuta } from "@/lib/mapa";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
@@ -38,14 +39,32 @@ export default function PaginaMorosos() {
     {
       clave: "cliente",
       titulo: "Cliente",
-      celda: (m) =>
-        esAdmin ? (
-          <Link href={`/clientes/ficha?id=${m.cliente_id}`} className="font-semibold hover:text-marca hover:underline" onClick={(e) => e.stopPropagation()}>
-            {m.cliente}
-          </Link>
+      celda: (m) => (
+        <span className="flex flex-col">
+          {esAdmin ? (
+            <Link href={`/clientes/ficha?id=${m.cliente_id}`} className="font-semibold hover:text-marca hover:underline" onClick={(e) => e.stopPropagation()}>
+              {m.cliente}
+            </Link>
+          ) : (
+            <span className="font-semibold">{m.cliente}</span>
+          )}
+          {m.direccion && <span className="text-sm text-tenue">{m.direccion}</span>}
+        </span>
+      ),
+    },
+    {
+      clave: "mapa",
+      titulo: "Ubicación",
+      celda: (m) => {
+        const ruta = enlaceRuta(m.ubicacion, m.direccion);
+        return ruta ? (
+          <a href={ruta} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-marca-suave px-2 py-1 text-sm font-bold whitespace-nowrap text-marca-oscura">
+            📍 Cómo llegar
+          </a>
         ) : (
-          <span className="font-semibold">{m.cliente}</span>
-        ),
+          "—"
+        );
+      },
     },
     {
       clave: "celular",

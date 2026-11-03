@@ -3,6 +3,7 @@ import { useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
 import { Aviso, Boton, Campo, Cargando, Modal, Tabla, TituloPagina, mensajeDeError, useCarga, type Columna } from "@/components/ui";
 import type { Perfil } from "@/types/database";
+import { ModalEditarUsuario } from "./_componentes/ModalEditarUsuario";
 
 function Usuarios() {
   const { datos, perfil: yo } = useSesion();
@@ -12,6 +13,7 @@ function Usuarios() {
   const [errForm, setErrForm] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Perfil | "yo" | null>(null);
 
   const crear = async () => {
     if (!f.nombre.trim() || !/^\S+@\S+\.\S+$/.test(f.email) || f.clave.length < 6) {
@@ -72,6 +74,9 @@ function Usuarios() {
         // La cuenta del dueño no se desactiva ni cambia de rol (lo exige la base de datos)
         u.id === yo.id || u.rol === "administrador" ? null : (
           <div className="flex flex-wrap justify-end gap-1">
+            <Boton variante="secundario" tamano="chico" onClick={() => setEditando(u)}>
+              Editar
+            </Boton>
             <Boton
               variante={u.activo ? "fantasma" : "secundario"}
               tamano="chico"
@@ -92,9 +97,14 @@ function Usuarios() {
         titulo="Usuarios"
         sub="Solo el dueño administra el sistema. Cada trabajador entra con su propio usuario de cobrador."
         accion={
-          <Boton tamano="grande" onClick={() => setAbierto(true)}>
-            + Nuevo cobrador
-          </Boton>
+          <>
+            <Boton variante="secundario" tamano="grande" onClick={() => setEditando("yo")}>
+              Cambiar mi contraseña
+            </Boton>
+            <Boton tamano="grande" onClick={() => setAbierto(true)}>
+              + Nuevo cobrador
+            </Boton>
+          </>
         }
       />
       {aviso && (
@@ -127,6 +137,18 @@ function Usuarios() {
         </div>
       )}
 
+      {editando && (
+        <ModalEditarUsuario
+          usuario={editando}
+          alCerrar={() => setEditando(null)}
+          alGuardar={(texto) => {
+            setEditando(null);
+            setAviso({ tipo: "exito", texto });
+            recargar();
+          }}
+        />
+      )}
+
       <Modal
         abierto={abierto}
         titulo="Nuevo cobrador"
@@ -144,8 +166,8 @@ function Usuarios() {
       >
         <div className="flex flex-col gap-4">
           {errForm && <Aviso tipo="error">{errForm}</Aviso>}
-          <Campo etiqueta="Nombre" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} obligatorio />
-          <Campo etiqueta="Correo" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} obligatorio autoComplete="off" />
+          <Campo etiqueta="Nombre" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} obligatorio ayuda="Así aparece en el sistema y en los pagos que registre." />
+          <Campo etiqueta="Correo" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} obligatorio autoComplete="off" ayuda="Con este correo inicia sesión." />
           <Campo etiqueta="Contraseña inicial" type="text" value={f.clave} onChange={(e) => setF({ ...f, clave: e.target.value })} obligatorio ayuda="Mínimo 6 caracteres." autoComplete="new-password" />
           <p className="text-sm text-tenue">
             El cobrador ve clientes, cronogramas y morosos, y registra pagos. No ve el panel de dinero ni los reportes, no anula pagos ni cierra contratos.

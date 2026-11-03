@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Tarjeta, mensajeDeError, useCarga } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Tarjeta, mensajeDeError, useCarga } from "@/components/ui";
 import { CALIDAD_HOJA, subirDocumento } from "@/lib/fotos";
 import type { Cliente, Contrato, Empresa, Moto } from "@/types/database";
 import { Foto } from "../../clientes/_componentes/Foto";
 import { BotonPlantillaContrato } from "./BotonPlantillaContrato";
-import { ModalImprimirContrato } from "./ModalImprimirContrato";
+import { imprimirHojas } from "./imprimirHojas";
 
 interface Props {
   contrato: Contrato;
@@ -15,21 +15,21 @@ interface Props {
   empresa: Empresa | null;
 }
 
-/** Contrato en papel: se imprime desde aquí y, ya firmado, se escanea y se suben sus páginas. */
+/** Contrato en papel: se llena en la página y se imprime; ya firmado, se escanea, se suben sus hojas y se puede volver a imprimir. */
 export function TarjetaContratoFirmado({ contrato, cliente, moto, empresa }: Props) {
   if (!cliente || !moto || !empresa) return null;
-  return <Contenido contrato={contrato} cliente={cliente} moto={moto} empresa={empresa} />;
+  return <Contenido contrato={contrato} cliente={cliente} placa={moto.placa} />;
 }
 
-function Contenido({ contrato, cliente, moto, empresa }: { contrato: Contrato; cliente: Cliente; moto: Moto; empresa: Empresa }) {
+function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: Cliente; placa: string }) {
   const { datos } = useSesion();
-  const [imprimiendo, setImprimiendo] = useState(false);
   const [subiendo, setSubiendo] = useState<string | null>(null);
+  const [imprimiendo, setImprimiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { datos: info, recargar } = useCarga(async () => {
-    const [docs, cuentas] = await Promise.all([datos.documentos(cliente.id), datos.cuentas()]);
-    return { paginas: docs.filter((d) => d.contrato_id === contrato.id), cuentas };
+    const docs = await datos.documentos(cliente.id);
+    return { paginas: docs.filter((d) => d.contrato_id === contrato.id) };
   }, [datos, cliente.id, contrato.id]);
   const paginas = info?.paginas ?? [];
 
@@ -54,6 +54,18 @@ function Contenido({ contrato, cliente, moto, empresa }: { contrato: Contrato; c
     }
   };
 
+  const imprimirFirmado = async () => {
+    setError(null);
+    setImprimiendo(true);
+    try {
+      await imprimirHojas(datos, paginas.map((p) => p.ruta), `Contrato firmado ${placa} - ${cliente.nombres}`);
+    } catch (e) {
+      setError(mensajeDeError(e));
+    } finally {
+      setImprimiendo(false);
+    }
+  };
+
   const quitar = async (id: string, n: number) => {
     if (!confirm(`¿Quitar la página ${n} del contrato firmado?`)) return;
     try {
@@ -71,15 +83,15 @@ function Contenido({ contrato, cliente, moto, empresa }: { contrato: Contrato; c
       accion={
         <div className="flex flex-wrap gap-2">
           <BotonPlantillaContrato />
-          <Boton variante="secundario" tamano="chico" onClick={() => setImprimiendo(true)}>
-            Con los datos (PDF)
-          </Boton>
+          <BotonEnlace href={`/contratos/documento?id=${contrato.id}`} tamano="chico">
+            {contrato.documento ? "Editar e imprimir contrato" : "Llenar contrato"}
+          </BotonEnlace>
         </div>
       }
     >
       <p className="mb-3 text-sm text-tenue">
-        1. Imprime la plantilla en blanco para llenarla a mano, o el contrato ya lleno con los datos del sistema. 2. Fírmenlo y pongan la huella. 3. Escanéalo o
-        tómale foto a cada hoja y súbelas aquí, en orden.
+        1. Toca “Llenar contrato”, completa los datos y descarga el PDF (o imprime la plantilla en blanco para llenarla a mano). 2. Fírmenlo y pongan la huella. 3.
+        Escanéalo o tómale foto a cada hoja y súbelas aquí, en orden. Después podrás volver a imprimir el contrato firmado cuando quieras.
       </p>
       {paginas.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-3">
@@ -95,6 +107,12 @@ function Contenido({ contrato, cliente, moto, empresa }: { contrato: Contrato; c
             </figure>
           ))}
         </div>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+      {paginas.length > 0 && (
+        <Boton tamano="grande" cargando={imprimiendo} onClick={imprimirFirmado}>
+          🖨 Imprimir contrato firmado
+        </Boton>
       )}
       <label
         className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-marca px-5 font-semibold text-marca hover:bg-marca-suave ${subiendo ? "pointer-events-none opacity-60" : ""}`}
@@ -113,14 +131,12 @@ function Contenido({ contrato, cliente, moto, empresa }: { contrato: Contrato; c
           }}
         />
       </label>
+      </div>
       <p className="mt-2 text-xs text-tenue">Fotos o escaneos en JPG o PNG. Puedes elegir varias hojas a la vez.</p>
       {error && (
         <div className="mt-3">
           <Aviso tipo="error">{error}</Aviso>
         </div>
-      )}
-      {imprimiendo && (
-        <ModalImprimirContrato contrato={contrato} cliente={cliente} moto={moto} empresa={empresa} cuentas={info?.cuentas ?? []} alCerrar={() => setImprimiendo(false)} />
       )}
     </Tarjeta>
   );

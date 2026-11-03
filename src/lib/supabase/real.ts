@@ -27,6 +27,8 @@ import type {
 import { supabaseNavegador } from "./cliente";
 import { crearAlmacen } from "./almacen";
 import { ErrorDatos, type Datos } from "./datos";
+import { fechaOperativaLima } from "./reglas";
+import { mesAnterior, siguienteMes } from "@/lib/letras";
 
 /** Códigos que lanza la base de datos y que la pantalla traduce (ver MENSAJE_ERROR) */
 const CODIGOS = ["OPERACION_REPETIDA", "IMAGEN_REPETIDA", "MONTO_INVALIDO", "SIN_FOTO", "SIN_PERMISO"];
@@ -89,6 +91,22 @@ type PagoConPerfil = Omit<Pago, "registrado_por_nombre"> & { perfil: { nombre: s
 export function crearDatosReales(): Datos {
   const sb = supabaseNavegador();
   const almacen = crearAlmacen(sb); // fotos: Worker con R2 o Supabase Storage
+  /** Llama a la Edge Function "usuarios"; su mensaje de error en español viene en el cuerpo de la respuesta. */
+  const funcionUsuarios = async (cuerpo: Record<string, unknown>, porDefecto: string) => {
+    const { data, error } = await sb.functions.invoke("usuarios", { body: cuerpo });
+    if (error) {
+      let mensaje = porDefecto;
+      const contexto = (error as { context?: Response }).context;
+      if (contexto && typeof contexto.json === "function") {
+        const respuesta = await contexto.json().catch(() => null);
+        if (respuesta?.error) mensaje = String(respuesta.error);
+      } else if (/Failed to send|fetch/i.test(error.message)) {
+        mensaje = "No se pudo conectar con la función de usuarios. ¿Está desplegada en Supabase?";
+      }
+      throw new ErrorDatos("USUARIO", mensaje);
+    }
+    if (data?.error) throw new ErrorDatos("USUARIO", String(data.error));
+  };
 
   /** Borra una fila; si otra tabla la usa (llave foránea), explica qué hacer. */
   const borrarFila = async (tabla: string, id: string, enUso: string) => {
@@ -190,6 +208,23 @@ export function crearDatosReales(): Datos {
       lanzar(r.error);
       const f = ((r.data ?? []) as { bytes: number; archivos: number }[])[0];
       return { bytes: num(f?.bytes), archivos: num(f?.archivos) };
+    },
+    async reportePendiente() {
+      const mes = mesAnterior(fechaOperativaLima());
+      const [pagos, hecho] = await Promise.all([
+        sb.from("pagos").select("id").gte("fecha_pago", mes).lt("fecha_pago", siguienteMes(mes)).limit(1),
+        sb.from("reportes_mensuales").select("mes").eq("mes", mes).maybeSingle(),
+      ]);
+      lanzar(pagos.error);
+      lanzar(hecho.error);
+      return (pagos.data ?? []).length > 0 && !hecho.data ? mes : null;
+    },
+    async marcarReporteDescargado(mes) {
+      const r = await sb.from("reportes_mensuales").upsert({ mes }, { onConflict: "mes", ignoreDuplicates: true });
+      lanzar(r.error);
+    },
+    async guardarDocumentoContrato(id, documento) {
+      lanzar((await sb.rpc("guardar_documento_contrato", { p_contrato_id: id, p_documento: documento })).error);
     },
     async cobranzaSemanal(semanas = 8) {
       const r = await sb.rpc("cobranza_semanal", { p_semanas: semanas });
@@ -386,20 +421,15 @@ export function crearDatosReales(): Datos {
       return todas<Perfil>((a, b) => sb.from("perfiles").select("id, nombre, email, rol, activo").order("nombre").range(a, b));
     },
     async crearUsuario(u) {
-      const { data, error } = await sb.functions.invoke("usuarios", { body: { accion: "crear", ...u } });
-      if (error) {
-        // El mensaje en español viene en el cuerpo de la respuesta de la Edge Function
-        let mensaje = "No se pudo crear el usuario.";
-        const contexto = (error as { context?: Response }).context;
-        if (contexto && typeof contexto.json === "function") {
-          const cuerpo = await contexto.json().catch(() => null);
-          if (cuerpo?.error) mensaje = String(cuerpo.error);
-        } else if (/Failed to send|fetch/i.test(error.message)) {
-          mensaje = "No se pudo conectar con la función de usuarios. ¿Está desplegada en Supabase?";
-        }
-        throw new ErrorDatos("USUARIO", mensaje);
-      }
-      if (data?.error) throw new ErrorDatos("USUARIO", String(data.error));
+      await funcionUsuarios({ accion: "crear", ...u }, "No se pudo crear el usuario.");
+    },
+    async editarUsuario(id, cambios) {
+      await funcionUsuarios({ accion: "editar", id, ...cambios }, "No se pudo guardar el cambio.");
+    },
+    async cambiarMiClave(clave) {
+      if (clave.length < 6) throw new ErrorDatos("CLAVE", "La contraseña debe tener al menos 6 caracteres.");
+      const { error } = await sb.auth.updateUser({ password: clave });
+      if (error) throw new ErrorDatos("CLAVE", /different|same/i.test(error.message) ? "La nueva contraseña debe ser distinta de la actual." : error.message);
     },
     async actualizarUsuario(id, cambios) {
       lanzar((await sb.rpc("actualizar_usuario", { p_id: id, p_rol: cambios.rol ?? null, p_activo: cambios.activo ?? null })).error);

@@ -76,6 +76,10 @@ export interface Datos {
   resumenEmpresas(): Promise<ResumenEmpresa[]>;
   /** Cobrado vs esperado de las últimas semanas, por empresa (solo el dueño). */
   cobranzaSemanal(semanas?: number): Promise<CobranzaSemana[]>;
+  /** Primer día del mes anterior ("2026-10-01") si tuvo pagos y su reporte aún no se descarga; si no, null. */
+  reportePendiente(): Promise<string | null>;
+  marcarReporteDescargado(mes: string): Promise<void>;
+  guardarDocumentoContrato(id: string, documento: Record<string, string>): Promise<void>;
   /** Espacio que ocupan las fotos en Supabase Storage (solo el dueño). */
   usoFotos(): Promise<{ bytes: number; archivos: number }>;
   // clientes
@@ -112,6 +116,10 @@ export interface Datos {
   usuarios(): Promise<Perfil[]>;
   crearUsuario(u: NuevoUsuario): Promise<void>;
   actualizarUsuario(id: string, cambios: Partial<Pick<Perfil, "rol" | "activo">>): Promise<void>;
+  /** Nombre y/o contraseña de un trabajador (solo el dueño). */
+  editarUsuario(id: string, cambios: { nombre?: string; clave?: string }): Promise<void>;
+  /** Contraseña de la persona que tiene la sesión abierta. */
+  cambiarMiClave(clave: string): Promise<void>;
   // archivos
   subirArchivo(bucket: Bucket, ruta: string, archivo: Blob): Promise<void>;
   borrarArchivo(bucket: Bucket, ruta: string): Promise<void>;

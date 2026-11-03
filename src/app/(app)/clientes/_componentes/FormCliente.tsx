@@ -5,7 +5,9 @@ import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, Tarjeta, esDocumentoValido, mensajeDeError } from "@/components/ui";
 import { subirDocumento } from "@/lib/fotos";
+import { ubicacionValida } from "@/lib/mapa";
 import type { Cliente, Documento, TipoDocumento } from "@/types/database";
+import { CampoUbicacion } from "./CampoUbicacion";
 import { FotosPorTipo } from "./FotosPorTipo";
 
 
@@ -20,6 +22,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
     celular: cliente?.celular ?? "",
     direccion: cliente?.direccion ?? "",
     referencia: cliente?.referencia ?? "",
+    ubicacion: cliente?.ubicacion ?? "",
     empresa_id: cliente?.empresa_id ?? empresaFiltro ?? empresas[0]?.id ?? "",
   });
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -41,6 +44,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
     if (!esDocumentoValido(f.dni)) e.dni = "El DNI tiene 8 números (Carné de Extranjería: 9 a 12).";
     if (f.celular && !/^9\d{8}$/.test(f.celular)) e.celular = "El celular debe tener 9 números y empezar con 9.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
+    if (!ubicacionValida(f.ubicacion)) e.ubicacion = "Pega un enlace de Google Maps o coordenadas como -12.0464,-77.0428.";
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -65,6 +69,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         celular: f.celular || null,
         direccion: f.direccion.trim() || null,
         referencia: f.referencia.trim() || null,
+        ubicacion: f.ubicacion.trim() || null,
       });
       // Una foto por tipo (máximo 6): se suben a la vez (cada una se comprime, sube y registra por su cuenta)
       await Promise.all(
@@ -110,6 +115,9 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
           />
           <Selector etiqueta="Empresa" opciones={opcionesEmpresa} value={f.empresa_id} onChange={(e) => poner("empresa_id", e.target.value)} error={errores.empresa_id} obligatorio vacio="Elige…" />
           <Campo etiqueta="Dirección" value={f.direccion} onChange={(e) => poner("direccion", e.target.value)} />
+          <div className="sm:col-span-2">
+            <CampoUbicacion valor={f.ubicacion} direccion={f.direccion} error={errores.ubicacion} alCambiar={(v) => poner("ubicacion", v)} />
+          </div>
           <div className="sm:col-span-2">
             <AreaTexto etiqueta="Referencia" value={f.referencia} onChange={(e) => poner("referencia", e.target.value)} ayuda="Cómo llegar, a quién preguntar, etc." />
           </div>

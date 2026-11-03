@@ -35,6 +35,7 @@ import {
   validarPago,
 } from "./reglas";
 import { claveEmpresa, nombreReservado } from "@/lib/texto";
+import { mesAnterior, siguienteMes } from "@/lib/letras";
 
 const CLAVE_ESTADO = "cn_simulado_v3";
 const CLAVE_SESION = "cn_simulado_sesion";
@@ -60,6 +61,7 @@ interface Estado {
   contratos: Contrato[];
   cuotas: CuotaBase[];
   pagos: Pago[];
+  reportes?: string[]; // meses con reporte descargado
 }
 
 const nuevoId = () =>
@@ -288,6 +290,8 @@ function estadoClientes(s: Estado): EstadoCliente[] {
         color: r.color,
         ultimo_pago: ultimo ?? null,
         proxima_cuota: r.proxima_cuota,
+        direccion: cli?.direccion ?? null,
+        ubicacion: cli?.ubicacion ?? null,
       };
     });
 }
@@ -444,6 +448,27 @@ export function crearDatosSimulados(): Datos {
       exigirAdmin(s);
       const archivos = s.documentos.length + s.pagos.length;
       return { bytes: archivos * 120 * 1024, archivos };
+    },
+    async reportePendiente() {
+      const s = leer();
+      const mes = mesAnterior(fechaOperativaLima());
+      const hubo = s.pagos.some((p) => p.fecha_pago >= mes && p.fecha_pago < siguienteMes(mes));
+      return hubo && !(s.reportes ?? []).includes(mes) ? mes : null;
+    },
+    async marcarReporteDescargado(mes) {
+      const s = leer();
+      exigirAdmin(s);
+      s.reportes = [...new Set([...(s.reportes ?? []), mes])];
+      guardar(s);
+    },
+    async guardarDocumentoContrato(id, documento) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      const c = s.contratos.find((x) => x.id === id);
+      if (!c) throw new ErrorDatos("NO_EXISTE", "El contrato no existe.");
+      c.documento = documento;
+      guardar(s);
     },
     async cobranzaSemanal(semanas = 8) {
       await pausa();
@@ -830,6 +855,28 @@ export function crearDatosSimulados(): Datos {
       // Igual que en la base: solo el dueño es administrador; todo usuario nuevo es cobrador.
       if (u.rol === "administrador") throw new ErrorDatos("UN_SOLO_DUENO", "Solo el dueño puede ser administrador.");
       s.perfiles.push({ id: nuevoId(), nombre: u.nombre, email: u.email.trim(), rol: "cobrador", activo: true, clave: u.clave });
+      guardar(s);
+    },
+    async editarUsuario(id, cambios) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      const p = s.perfiles.find((x) => x.id === id);
+      if (!p) throw new ErrorDatos("NO_EXISTE", "El usuario no existe.");
+      if (p.rol === "administrador") throw new ErrorDatos("SIN_PERMISO", "La contraseña del dueño se cambia desde su propia sesión.");
+      if (cambios.nombre !== undefined && !cambios.nombre.trim()) throw new ErrorDatos("DATOS", "Escribe el nombre.");
+      if (cambios.clave !== undefined && cambios.clave.length < 6) throw new ErrorDatos("CLAVE", "La contraseña debe tener al menos 6 caracteres.");
+      if (cambios.nombre !== undefined) p.nombre = cambios.nombre.trim();
+      if (cambios.clave !== undefined) p.clave = cambios.clave;
+      guardar(s);
+    },
+    async cambiarMiClave(clave) {
+      await pausa();
+      const s = leer();
+      const yo = exigirSesion(s);
+      if (clave.length < 6) throw new ErrorDatos("CLAVE", "La contraseña debe tener al menos 6 caracteres.");
+      const p = s.perfiles.find((x) => x.id === yo.id);
+      if (p) p.clave = clave;
       guardar(s);
     },
     async actualizarUsuario(id, cambios) {

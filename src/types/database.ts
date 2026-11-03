@@ -46,6 +46,7 @@ export interface Cliente {
   celular: string | null;
   direccion: string | null;
   referencia: string | null;
+  ubicacion?: string | null; // enlace de Google Maps o "lat,lng"
   creado_en: string;
 }
 
@@ -91,6 +92,7 @@ export interface Contrato {
   estado: "activo" | "terminado" | "anulado"; // anulado = cerrado por el administrador
   cerrado_motivo: string | null;
   creado_en: string;
+  documento?: Record<string, string> | null; // datos del contrato impreso llenados en la página
 }
 
 export type EstadoCuota = "pagada_a_tiempo" | "pagada_con_atraso" | "vencida" | "pendiente";
@@ -141,6 +143,8 @@ export interface EstadoCliente {
   color: Color;
   ultimo_pago: string | null;
   proxima_cuota: string | null;
+  direccion?: string | null;
+  ubicacion?: string | null;
 }
 
 /** v_morosos: igual a v_estado_cliente, solo con atraso, de más a menos semanas */

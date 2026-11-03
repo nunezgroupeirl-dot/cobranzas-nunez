@@ -7,6 +7,7 @@ import { useConEmpresa } from "./empresa";
 import { Marca } from "./Marca";
 import { FiltroEmpresa } from "./FiltroEmpresa";
 import { menuPara, type ItemMenu } from "./menu";
+import { RecordatorioReporte } from "./RecordatorioReporte";
 import { useSesion } from "./Sesion";
 
 function Icono({ d, className = "size-6" }: { d: string; className?: string }) {
@@ -82,7 +83,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <FiltroEmpresa compacto />
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-28 sm:px-6 md:pb-10">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-28 sm:px-6 md:pb-10">
+          <RecordatorioReporte />
+          {children}
+        </main>
       </div>
 
       {/* Menú inferior: celular */}
