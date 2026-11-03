@@ -84,7 +84,7 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
   return (
     <Tarjeta
       className="mt-4"
-      titulo={moto ? `Cronograma · ${moto.placa} (${moto.marca} ${moto.tipo})` : "Cronograma"}
+      titulo={moto ? `Cronograma · ${moto.placa ?? "sin placa"} (${moto.marca} ${moto.tipo})` : "Cronograma"}
       accion={
         <div className="flex flex-wrap items-center gap-2">
           {contratos.length > 1 && (

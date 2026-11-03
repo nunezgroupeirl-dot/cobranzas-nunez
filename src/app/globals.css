@@ -5,23 +5,25 @@
   --font-sans: "Barlow", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   --font-display: "Barlow Semi Condensed", "Barlow", "Segoe UI", system-ui, sans-serif;
 
-  /* Asfalto claro de fondo; el petróleo es el único color de acción.
-     Verde, ámbar y rojo se reservan para el semáforo del cliente. */
-  --color-fondo: #eef1f2;
+  /* Colores del logo de Inversiones Núñez & Asociados: negro y dorado.
+     El dorado oscuro es el único color de acción (botones, enlaces); el dorado claro solo va sobre negro.
+     Verde, ámbar y rojo quedan SOLO para el semáforo del cliente (al día / atrasado / moroso). */
+  --color-fondo: #f6f3ec;
   --color-superficie: #ffffff;
-  --color-borde: #d5dcdf;
-  --color-tinta: #17252b;
-  --color-tenue: #56656b;
+  --color-borde: #e2dccd;
+  --color-tinta: #141414;
+  --color-tenue: #5f5a50;
 
-  --color-marca: #0e6b6f;
-  --color-marca-oscura: #0a5155;
-  --color-marca-suave: #dcecec;
+  --color-marca: #8a6514;
+  --color-marca-oscura: #6b4e10;
+  --color-marca-suave: #f4ead3;
+  --color-oro: #d4af37;
 
-  --color-verde: #1f8a4c;
+  --color-verde: #1f7a45;
   --color-verde-suave: #ddf3e5;
-  --color-amarillo: #b57900;
-  --color-amarillo-suave: #fdf0cf;
-  --color-rojo: #c0362c;
+  --color-amarillo: #a64b07;
+  --color-amarillo-suave: #fdecd3;
+  --color-rojo: #b3322a;
   --color-rojo-suave: #fbe1de;
 }
 

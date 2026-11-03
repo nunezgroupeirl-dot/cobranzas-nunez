@@ -1,4 +1,4 @@
-import type { CamposContrato } from "@/components/reportes/ContratoImpreso";
+import { problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
 
 type Clave = keyof CamposContrato;
 
@@ -16,14 +16,17 @@ export interface CampoGuia {
 }
 
 export interface Paso {
+  /** nombre corto para la barra de avance */
+  corto: string;
   titulo: string;
   guia: string;
   campos: CampoGuia[];
 }
 
-/** Los 4 pasos del llenado, en el mismo orden en que aparecen en el contrato. */
+/** Los 4 pasos de la pasarela, en el mismo orden en que aparecen en el contrato. Todo es obligatorio. */
 export const PASOS: Paso[] = [
   {
+    corto: "Empresa",
     titulo: "1. El arrendador (la empresa)",
     guia: "La empresa dueña de la moto y quien firma por ella. Tal como figura en la ficha RUC.",
     campos: [
@@ -35,6 +38,7 @@ export const PASOS: Paso[] = [
     ],
   },
   {
+    corto: "Cliente",
     titulo: "2. El arrendatario (el cliente)",
     guia: "Quien recibe la moto. Copia el nombre y el número tal como están en su documento.",
     campos: [
@@ -52,6 +56,7 @@ export const PASOS: Paso[] = [
     ],
   },
   {
+    corto: "Vehículo",
     titulo: "3. El vehículo",
     guia: "Cópialo de la tarjeta de propiedad de la moto.",
     campos: [
@@ -77,24 +82,33 @@ export const PASOS: Paso[] = [
     ],
   },
   {
+    corto: "Plazo y renta",
     titulo: "4. Plazo, renta y firma",
     guia: "Lo acordado con el cliente. El monto se escribe solo en letras en el contrato.",
     campos: [
       { clave: "plazo_meses", soloNumeros: 3, ejemplo: "12" },
       { clave: "inicio", tipo: "fecha" },
-      { clave: "renta", tipo: "numero", guia: "En soles, por día o por semana según la frecuencia.", ejemplo: "57.80" },
+      { clave: "renta", tipo: "numero", guia: "En soles, lo que paga en cada depósito (por día, semana, quincena o mes).", ejemplo: "57.80" },
       {
         clave: "frecuencia",
         tipo: "opciones",
         opciones: [
-          { valor: "SEMANAL", texto: "Semanal" },
           { valor: "DIARIA", texto: "Diaria" },
+          { valor: "SEMANAL", texto: "Semanal" },
+          { valor: "QUINCENAL", texto: "Quincenal" },
+          { valor: "MENSUAL", texto: "Mensual" },
         ],
       },
-      { clave: "cuenta", ancho: true, guia: "Elige una cuenta de la empresa o escríbela.", ejemplo: "BCP 1944202917005" },
-      { clave: "inicial", tipo: "numero", guia: "En soles.", ejemplo: "7000" },
+      { clave: "cuenta", ancho: true, guia: "Banco y número. Elige una cuenta de la empresa o escríbela.", ejemplo: "BCP 1944202917005" },
+      { clave: "inicial", tipo: "numero", guia: "En soles. Escribe 0 si no dejó inicial.", ejemplo: "7000" },
       { clave: "ciudad", ejemplo: "Lima" },
       { clave: "fecha_firma", tipo: "fecha" },
     ],
   },
 ];
+
+/** El paso 5 es "Revisar y descargar" */
+export const TOTAL_PASOS = PASOS.length + 1;
+
+/** ¿Este paso (0 a 3) ya tiene todo bien? */
+export const pasoListo = (i: number, f: CamposContrato) => PASOS[i].campos.every((c) => !problemaCampo(f, c.clave));

@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, Cargando, Placa, nombreDocumento, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { Aviso, BotonEnlace, Cargando, Placa, textoDocumento, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
 import { HistorialPagos } from "../../pagos/_componentes/HistorialPagos";
 import { EliminarCliente } from "../_componentes/EliminarCliente";
 import { TarjetaCronograma, TarjetaDatos, TarjetaSituacion } from "../_componentes/FichaTarjetas";
@@ -68,9 +68,7 @@ export default function FichaCliente() {
         sub={
           <span className="flex flex-wrap items-center gap-3">
             {estado && <Placa placa={estado.placa} tamano="grande" />}
-            <span className="num">
-              {nombreDocumento(cliente.dni)} {cliente.dni}
-            </span>
+            <DocumentoCliente dni={cliente.dni} />
           </span>
         }
         accion={
@@ -109,4 +107,8 @@ export default function FichaCliente() {
 
     </>
   );
+}
+
+function DocumentoCliente({ dni }: { dni: string | null }) {
+  return <span className={dni ? "num" : "font-semibold text-amarillo"}>{textoDocumento(dni)}</span>;
 }

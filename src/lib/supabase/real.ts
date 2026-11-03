@@ -250,6 +250,9 @@ export function crearDatosReales(): Datos {
     async documentos(clienteId) {
       return todas<Documento>((a, b) => sb.from("documentos").select("id, cliente_id, tipo, ruta, contrato_id, creado_en").eq("cliente_id", clienteId).order("creado_en").range(a, b));
     },
+    async resumenDocumentos() {
+      return todas<Pick<Documento, "cliente_id" | "tipo" | "contrato_id">>((a, b) => sb.from("documentos").select("cliente_id, tipo, contrato_id").order("id").range(a, b));
+    },
     async agregarDocumento(d) {
       return fila<Documento>(await sb.from("documentos").insert(d).select("id, cliente_id, tipo, ruta, contrato_id, creado_en").single()) as Documento;
     },
@@ -267,7 +270,7 @@ export function crearDatosReales(): Datos {
     },
     async guardarMoto(m) {
       const { id, ...resto } = m;
-      const datos = { ...resto, placa: resto.placa.trim().toUpperCase() };
+      const datos = { ...resto, placa: resto.placa?.trim().toUpperCase() || null };
       const r = id
         ? await sb.from("motos").update(datos).eq("id", id).select(COLUMNAS_MOTO).single()
         : await sb.from("motos").insert(datos).select(COLUMNAS_MOTO).single();
@@ -326,6 +329,8 @@ export function crearDatosReales(): Datos {
         p_fecha_inicio: args.fecha_inicio,
         p_precio_total: args.precio_total ?? null,
         p_inicial: args.inicial ?? null,
+        // semanal es el valor por defecto en la base: solo se manda cuando es otra
+        ...(args.frecuencia && args.frecuencia !== "semanal" ? { p_frecuencia: args.frecuencia } : {}),
       });
       lanzar(r.error);
       return String(r.data);
@@ -418,7 +423,7 @@ export function crearDatosReales(): Datos {
 
     /* ---------------- usuarios ---------------- */
     async usuarios() {
-      return todas<Perfil>((a, b) => sb.from("perfiles").select("id, nombre, email, rol, activo").order("nombre").range(a, b));
+      return todas<Perfil>((a, b) => sb.from("perfiles").select("*").order("nombre").range(a, b));
     },
     async crearUsuario(u) {
       await funcionUsuarios({ accion: "crear", ...u }, "No se pudo crear el usuario.");

@@ -17,9 +17,11 @@ interface Props {
   alCancelar?: () => void;
   /** Solo el dueño: borra la moto si no tiene contratos. */
   alEliminar?: () => void;
+  /** Muestra la ficha técnica abierta (desde "Datos pendientes"). */
+  abrirFicha?: boolean;
 }
 
-export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancelar, alEliminar }: Props) {
+export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancelar, alEliminar, abrirFicha }: Props) {
   const { datos, empresas } = useSesion();
   const filtro = useEmpresa();
   const [f, setF] = useState({
@@ -39,7 +41,7 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
 
   const guardar = async () => {
     const e: Record<string, string> = {};
-    if (!/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(f.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
+    if (f.placa.trim() && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(f.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
     if (!f.marca.trim()) e.marca = "Escribe la marca.";
     if (!f.color.trim()) e.color = "Escribe el color.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
@@ -83,7 +85,7 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
           value={f.placa}
           onChange={(e) => poner("placa", e.target.value.toUpperCase())}
           error={errores.placa}
-          obligatorio
+          ayuda={f.placa ? undefined : "Si aún no tiene placa, déjala vacía: saldrá en “Datos pendientes”."}
           className="font-display text-lg font-bold tracking-[0.06em] uppercase"
           autoCapitalize="characters"
         />
@@ -107,7 +109,7 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
           ))}
         </datalist>
       </div>
-      <CamposFichaTecnica valores={ficha} alCambiar={(k, v) => setFicha((x) => ({ ...x, [k]: v }))} />
+      <CamposFichaTecnica abierta={abrirFicha} valores={ficha} alCambiar={(k, v) => setFicha((x) => ({ ...x, [k]: v }))} />
       {errores.anio && <Aviso tipo="error">{errores.anio}</Aviso>}
       <div className="flex flex-wrap justify-end gap-2">
         {alEliminar && (

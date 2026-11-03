@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Campo, Modal, mensajeDeError } from "@/components/ui";
-import type { Perfil } from "@/types/database";
+import { Aviso, Boton, Campo, DETALLE_PUESTO, Modal, NOMBRE_PUESTO, OpcionesBoton, mensajeDeError } from "@/components/ui";
+import type { Perfil, Puesto } from "@/types/database";
 
 interface Props {
   /** El trabajador a editar, o "yo" para la contraseña del propio dueño. */
@@ -17,6 +17,7 @@ export function ModalEditarUsuario({ usuario, alCerrar, alGuardar }: Props) {
   const propio = usuario === "yo";
   const [nombre, setNombre] = useState(propio ? "" : usuario.nombre);
   const [clave, setClave] = useState("");
+  const [puesto, setPuesto] = useState<Puesto | "">(propio ? "" : (usuario.puesto ?? ""));
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
@@ -32,9 +33,14 @@ export function ModalEditarUsuario({ usuario, alCerrar, alGuardar }: Props) {
         alGuardar("Tu contraseña se cambió. Úsala la próxima vez que ingreses.");
       } else {
         const cambioNombre = nombre.trim() !== usuario.nombre;
-        if (!cambioNombre && !clave) return alCerrar();
-        await datos.editarUsuario(usuario.id, { ...(cambioNombre ? { nombre: nombre.trim() } : {}), ...(clave ? { clave } : {}) });
-        alGuardar(clave ? `Listo. Dale a ${nombre.trim()} su nueva contraseña en persona.` : "Nombre actualizado.");
+        const cambioPuesto = puesto !== "" && puesto !== (usuario.puesto ?? "");
+        if (!cambioNombre && !clave && !cambioPuesto) return alCerrar();
+        await datos.editarUsuario(usuario.id, {
+          ...(cambioNombre ? { nombre: nombre.trim() } : {}),
+          ...(clave ? { clave } : {}),
+          ...(cambioPuesto && puesto ? { puesto } : {}),
+        });
+        alGuardar(clave ? `Listo. Dale a ${nombre.trim()} su nueva contraseña en persona.` : "Cambios guardados.");
       }
     } catch (e) {
       setError(mensajeDeError(e));
@@ -62,6 +68,13 @@ export function ModalEditarUsuario({ usuario, alCerrar, alGuardar }: Props) {
       <div className="flex flex-col gap-4">
         {!propio && (
           <>
+            <OpcionesBoton
+              etiqueta="Puesto"
+              valor={puesto}
+              alCambiar={(v) => setPuesto(v as Puesto)}
+              opciones={(["oficina", "ruta"] as const).map((p) => ({ valor: p, texto: NOMBRE_PUESTO[p] }))}
+            />
+            {puesto && <p className="-mt-2 text-sm text-tenue">{DETALLE_PUESTO[puesto]}</p>}
             <Campo etiqueta="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} obligatorio ayuda="Es el nombre que aparece en el sistema y en los pagos que registra." />
             <Campo etiqueta="Correo para ingresar" value={usuario.email} disabled ayuda="El correo no se cambia. Si hace falta otro, crea un usuario nuevo." />
           </>

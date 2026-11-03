@@ -1,4 +1,4 @@
-import { Aviso, Dato, EtiquetaSemaforo, NOMBRE_ESTADO_CONTRATO, Tarjeta, formatoFecha, formatoSoles } from "@/components/ui";
+import { Aviso, Dato, EtiquetaSemaforo, NOMBRE_ESTADO_CONTRATO, Tarjeta, formatoFecha, formatoSoles, nombreCuota } from "@/components/ui";
 import type { Contrato, Cuota, EstadoCliente, Moto } from "@/types/database";
 
 interface Props {
@@ -22,7 +22,7 @@ export function ResumenContrato({ contrato, cuotas, estado, moto }: Props) {
         <Dato etiqueta="Estado">
           {estado ? <EtiquetaSemaforo color={estado.color} semanas={estado.semanas_atraso} /> : <span>{NOMBRE_ESTADO_CONTRATO[contrato.estado]}</span>}
         </Dato>
-        <Dato etiqueta="Cuota">{formatoSoles(contrato.monto_cuota)}</Dato>
+        <Dato etiqueta={nombreCuota(contrato.frecuencia)}>{formatoSoles(contrato.monto_cuota)}</Dato>
         <Dato etiqueta="Deuda vencida">{formatoSoles(estado?.deuda ?? 0)}</Dato>
         <Dato etiqueta="Pagado">{formatoSoles(pagado)}</Dato>
         <Dato etiqueta="Total contrato">{formatoSoles(total)}</Dato>

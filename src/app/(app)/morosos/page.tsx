@@ -76,7 +76,7 @@ export default function PaginaMorosos() {
               {m.celular}
             </a>
             <a
-              href={enlaceWhatsApp(`Hola ${m.cliente.split(" ")[0]}, le recordamos que tiene ${m.semanas_atraso} semana(s) de atraso (${formatoSoles(m.deuda)}) de la moto ${m.placa}.`, m.celular)}
+              href={enlaceWhatsApp(`Hola ${m.cliente.split(" ")[0]}, le recordamos que tiene ${m.semanas_atraso} semana(s) de atraso (${formatoSoles(m.deuda)}) de la moto${m.placa ? ` ${m.placa}` : ""}.`, m.celular)}
               target="_blank"
               rel="noreferrer"
               className="rounded-lg bg-verde-suave px-2 py-1 text-sm font-bold text-verde"

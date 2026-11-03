@@ -72,7 +72,7 @@ export default function VerContrato() {
             {cliente && moto && (
               <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} placa={moto.placa} empresa={empresa} contrato={contrato} cuotas={cuotas} />
             )}
-            <AccionesDuenoContrato contrato={contrato} placa={moto?.placa} clienteId={cliente?.id} alCambiar={recargar} />
+            <AccionesDuenoContrato contrato={contrato} placa={moto?.placa ?? undefined} clienteId={cliente?.id} alCambiar={recargar} />
             {activo && esAdmin && (
               <Boton variante="secundario" tamano="grande" onClick={() => setCerrando(true)}>
                 Cerrar contrato
@@ -93,7 +93,7 @@ export default function VerContrato() {
       </Tarjeta>
       <ModalCerrarContrato
         contratoId={contrato.id}
-        placa={moto?.placa}
+        placa={moto?.placa ?? undefined}
         abierto={cerrando}
         alCerrar={() => setCerrando(false)}
         alTerminar={() => {

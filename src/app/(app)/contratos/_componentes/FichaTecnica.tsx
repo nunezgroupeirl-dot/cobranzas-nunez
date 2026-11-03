@@ -14,10 +14,10 @@ const ETIQUETAS: Record<keyof FichaTecnica, { texto: string; ejemplo: string }> 
 };
 
 /** Datos de la tarjeta de propiedad que salen en el contrato impreso. Todos opcionales. */
-export function CamposFichaTecnica({ valores, alCambiar }: { valores: FichaTecnica; alCambiar: (k: keyof FichaTecnica, v: string) => void }) {
+export function CamposFichaTecnica({ valores, alCambiar, abierta = false }: { valores: FichaTecnica; alCambiar: (k: keyof FichaTecnica, v: string) => void; abierta?: boolean }) {
   const completos = CAMPOS_FICHA.filter((k) => valores[k].trim()).length;
   return (
-    <details className="rounded-xl border border-borde p-3" open={completos > 0}>
+    <details className="rounded-xl border border-borde p-3" open={abierta || completos > 0}>
       <summary className="cursor-pointer font-semibold">
         Datos para el contrato <span className="font-normal text-tenue">(tarjeta de propiedad · {completos} de {CAMPOS_FICHA.length})</span>
       </summary>

@@ -69,8 +69,7 @@ function validar(f: FilaImportacion, empresas: Set<string>): string | null {
   if (!f.empresa) return "Falta la empresa.";
   if (!empresas.has(claveEmpresa(f.empresa))) return `La empresa "${f.empresa}" no existe. Revisa el nombre en Configuración.`;
   if (!f.nombres) return "Falta el nombre.";
-  if (!/^\d{8,12}$/.test(f.dni)) return "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).";
-  if (!f.placa) return "Falta la placa.";
+  if (f.dni && !/^\d{8,12}$/.test(f.dni)) return "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).";
   if (!f.cuota || f.cuota <= 0) return "Falta la cuota semanal.";
   if (!f.nro_cuotas || !Number.isInteger(f.nro_cuotas) || f.nro_cuotas < 1) return "Falta el número de cuotas.";
   if (!f.fecha_inicio) return "Falta la fecha de la 1.ª cuota (formato día/mes/año).";
@@ -110,7 +109,7 @@ function Importar() {
       for (const [clave, nombre] of Object.entries(COLUMNAS) as [keyof typeof COLUMNAS, string][]) {
         indice[clave] = encabezados.findIndex((h) => h === nombre || h.startsWith(`${nombre} `));
       }
-      const faltan = (["empresa", "nombres", "dni", "placa", "cuota"] as const).filter((c) => indice[c] < 0);
+      const faltan = (["empresa", "nombres", "cuota"] as const).filter((c) => indice[c] < 0);
       if (faltan.length) throw new Error(`No es la plantilla de clientes: faltan las columnas ${faltan.map((c) => COLUMNAS[c]).join(", ")}.`);
 
       const valor = (r: Valor[], c: keyof typeof COLUMNAS): Valor => (indice[c] >= 0 ? (r[indice[c]] ?? null) : null);
@@ -148,9 +147,9 @@ function Importar() {
 
       // DNI + placa repetidos dentro del mismo archivo
       const placas = new Map<string, number>();
-      vista.forEach((v) => placas.set(v.datos.placa, (placas.get(v.datos.placa) ?? 0) + 1));
+      vista.forEach((v) => v.datos.placa && placas.set(v.datos.placa, (placas.get(v.datos.placa) ?? 0) + 1));
       vista.forEach((v) => {
-        if (v.estado === "lista" && (placas.get(v.datos.placa) ?? 0) > 1) {
+        if (v.estado === "lista" && v.datos.placa && (placas.get(v.datos.placa) ?? 0) > 1) {
           v.estado = "error";
           v.mensaje = `La placa ${v.datos.placa} está repetida en el archivo.`;
         }

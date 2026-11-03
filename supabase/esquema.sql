@@ -83,13 +83,19 @@ create table if not exists public.perfiles (
   creado_en  timestamptz not null default now()
 );
 
+-- Puesto del cobrador: "oficina" (caja, cobra en la oficina) o "ruta" (cobrador de ruta, puerta a puerta).
+-- Mismos permisos; solo cambia la pantalla con la que empieza. Lo pone el dueño (función "usuarios").
+alter table public.perfiles add column if not exists puesto text;
+alter table public.perfiles drop constraint if exists perfiles_puesto_check;
+alter table public.perfiles add constraint perfiles_puesto_check check (puesto is null or puesto in ('oficina', 'ruta'));
+
 -- (La regla "solo el dueño es administrador" se agrega más abajo, cuando ya existe correo_dueno().)
 
 create table if not exists public.clientes (
   id          uuid primary key default gen_random_uuid(),
   empresa_id  uuid not null references public.empresas (id) on delete restrict,
   nombres     text not null check (length(trim(nombres)) > 0),
-  dni         text not null unique,  -- DNI (8 números) o Carné de Extranjería (9 a 12)
+  dni         text unique,  -- DNI (8 números) o Carné de Extranjería (9 a 12); vacío = pendiente (cuadernos)
   celular     text check (celular is null or celular ~ '^9\d{8}$'),
   direccion   text,
   referencia  text,
@@ -100,8 +106,9 @@ create index if not exists clientes_empresa_idx on public.clientes (empresa_id);
 alter table public.clientes add column if not exists ubicacion text;
 alter table public.clientes drop constraint if exists clientes_ubicacion_check;
 alter table public.clientes add constraint clientes_ubicacion_check check (ubicacion is null or length(ubicacion) <= 500);
+alter table public.clientes alter column dni drop not null;
 alter table public.clientes drop constraint if exists clientes_dni_check;
-alter table public.clientes add constraint clientes_dni_check check (dni ~ '^\d{8,12}$');
+alter table public.clientes add constraint clientes_dni_check check (dni is null or dni ~ '^\d{8,12}$');
 
 -- Fotos y documentos del cliente (las imágenes viven en el bucket "documentos")
 create table if not exists public.documentos (
@@ -118,13 +125,16 @@ create table if not exists public.motos (
   id          uuid primary key default gen_random_uuid(),
   cliente_id  uuid references public.clientes (id) on delete set null,
   empresa_id  uuid not null references public.empresas (id) on delete restrict,
-  placa       text not null unique check (length(placa) > 0 and placa = upper(trim(placa))),
+  placa       text unique,  -- vacía = pendiente (moto pasada del cuaderno sin placa)
   tipo        text not null default 'Otro',
   marca       text not null default '',
   color       text not null default '',
   creado_en   timestamptz not null default now()
 );
 create index if not exists motos_cliente_idx on public.motos (cliente_id);
+alter table public.motos alter column placa drop not null;
+alter table public.motos drop constraint if exists motos_placa_check;
+alter table public.motos add constraint motos_placa_check check (placa is null or (length(placa) > 0 and placa = upper(trim(placa))));
 -- Ficha técnica (sale en el contrato impreso)
 alter table public.motos add column if not exists modelo text;
 alter table public.motos add column if not exists anio integer;
@@ -160,11 +170,18 @@ create table if not exists public.contratos (
 create index if not exists contratos_cliente_idx on public.contratos (cliente_id);
 create index if not exists contratos_empresa_idx on public.contratos (empresa_id);
 create index if not exists contratos_estado_idx on public.contratos (estado);
+-- Cada cuánto paga: semanal (lo normal), quincenal o mensual. El cronograma sale según esto.
+alter table public.contratos add column if not exists frecuencia text not null default 'semanal';
+alter table public.contratos drop constraint if exists contratos_frecuencia_check;
+alter table public.contratos add constraint contratos_frecuencia_check check (frecuencia in ('semanal', 'quincenal', 'mensual'));
 -- Páginas del contrato firmado y escaneado (documentos de tipo "contrato")
 alter table public.documentos add column if not exists contrato_id uuid references public.contratos (id) on delete cascade;
 create index if not exists documentos_contrato_idx on public.documentos (contrato_id);
 -- Una moto solo puede tener un contrato activo
-create unique index if not exists contratos_moto_activa_uq on public.contratos (moto_id) where estado = 'activo';
+-- Una moto puede tener 2 préstamos activos del MISMO cliente (préstamo 2 sobre la misma moto);
+-- que no sea de otro cliente lo controla crear_contrato.
+drop index if exists public.contratos_moto_activa_uq;
+create index if not exists contratos_moto_idx on public.contratos (moto_id);
 
 -- Cronograma. monto_pagado y fecha_pago los calcula recalcular_contrato(): nunca se editan a mano.
 -- El estado (vencida / pendiente / pagada) se calcula en la vista "cuotas".
@@ -398,13 +415,21 @@ language sql
 security definer
 set search_path = ''
 as $$
+  -- semanal: cada 7 días · mensual: el mismo día de cada mes · quincenal: 2 por mes (el día de inicio y 15 días después)
   insert into public.cuotas_base (contrato_id, numero, fecha_vencimiento, monto)
-  select c.id, n, c.fecha_inicio + (n - 1) * 7, c.monto_cuota
+  select c.id, n,
+    case c.frecuencia
+      when 'mensual' then (c.fecha_inicio + make_interval(months => n - 1))::date
+      when 'quincenal' then (c.fecha_inicio + make_interval(months => (n - 1) / 2))::date + case when n % 2 = 0 then 15 else 0 end
+      else c.fecha_inicio + (n - 1) * 7
+    end,
+    c.monto_cuota
   from public.contratos c, generate_series(1, c.nro_cuotas) as n
   where c.id = p_contrato_id;
 $$;
 
--- Crea el contrato y genera todas sus cuotas semanales
+-- Crea el contrato y genera todas sus cuotas (semanales, quincenales o mensuales)
+drop function if exists public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text);
 create or replace function public.crear_contrato(
   p_cliente_id      uuid,
   p_moto_id         uuid,
@@ -415,7 +440,8 @@ create or replace function public.crear_contrato(
   p_inicial         numeric default null,
   p_cuotas_pagadas  integer default 0,
   p_ultimo_pago     date default null,
-  p_observaciones   text default null
+  p_observaciones   text default null,
+  p_frecuencia      text default 'semanal'
 )
 returns uuid
 language plpgsql
@@ -440,11 +466,15 @@ begin
   if v_moto.cliente_id is not null and v_moto.cliente_id <> p_cliente_id then
     raise exception 'Esa moto está asignada a otro cliente.';
   end if;
-  if exists (select 1 from public.contratos where moto_id = p_moto_id and estado = 'activo') then
-    raise exception 'Esa moto ya tiene un contrato activo.';
+  -- Un segundo préstamo sobre la misma moto solo puede ser del mismo cliente
+  if exists (select 1 from public.contratos where moto_id = p_moto_id and estado = 'activo' and cliente_id <> p_cliente_id) then
+    raise exception 'Esa moto ya tiene un contrato activo de otro cliente.';
   end if;
   if p_monto_cuota is null or p_monto_cuota <= 0 then
-    raise exception 'La cuota semanal debe ser mayor a 0.';
+    raise exception 'La cuota debe ser mayor a 0.';
+  end if;
+  if coalesce(p_frecuencia, 'semanal') not in ('semanal', 'quincenal', 'mensual') then
+    raise exception 'Frecuencia no válida.';
   end if;
   if p_nro_cuotas is null or p_nro_cuotas < 1 or p_nro_cuotas > 260 then
     raise exception 'El número de cuotas debe estar entre 1 y 260.';
@@ -458,10 +488,11 @@ begin
 
   insert into public.contratos (
     cliente_id, moto_id, empresa_id, monto_cuota, nro_cuotas, fecha_inicio,
-    precio_total, inicial, cuotas_pagadas_inicial, ultimo_pago_inicial, observaciones
+    precio_total, inicial, cuotas_pagadas_inicial, ultimo_pago_inicial, observaciones, frecuencia
   ) values (
     p_cliente_id, p_moto_id, v_moto.empresa_id, round(p_monto_cuota, 2), p_nro_cuotas, p_fecha_inicio,
-    p_precio_total, p_inicial, coalesce(p_cuotas_pagadas, 0), p_ultimo_pago, nullif(trim(p_observaciones), '')
+    p_precio_total, p_inicial, coalesce(p_cuotas_pagadas, 0), p_ultimo_pago, nullif(trim(p_observaciones), ''),
+    coalesce(p_frecuencia, 'semanal')
   )
   returning id into v_id;
 
@@ -625,8 +656,10 @@ begin
   set estado = 'anulado', cerrado_motivo = trim(p_motivo), cerrado_en = now()
   where id = p_contrato_id;
 
-  -- La moto queda libre para un nuevo contrato
-  update public.motos set cliente_id = null where id = v_contrato.moto_id;
+  -- La moto queda libre para un nuevo contrato, salvo que tenga otro préstamo activo
+  update public.motos set cliente_id = null
+  where id = v_contrato.moto_id
+    and not exists (select 1 from public.contratos where moto_id = v_contrato.moto_id and estado = 'activo' and id <> v_contrato.id);
 end;
 $$;
 
@@ -691,7 +724,10 @@ begin
     raise exception 'El contrato está cerrado: no se puede editar.';
   end if;
   if p_monto_cuota is null or p_monto_cuota <= 0 then
-    raise exception 'La cuota semanal debe ser mayor a 0.';
+    raise exception 'La cuota debe ser mayor a 0.';
+  end if;
+  if coalesce(p_frecuencia, 'semanal') not in ('semanal', 'quincenal', 'mensual') then
+    raise exception 'Frecuencia no válida.';
   end if;
   if p_nro_cuotas is null or p_nro_cuotas < 1 or p_nro_cuotas > 260 then
     raise exception 'El número de cuotas debe estar entre 1 y 260.';
@@ -815,18 +851,25 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+-- Una fila de la plantilla (cuaderno) = un contrato. DNI y placa pueden faltar: quedan pendientes
+-- y salen en la pantalla "Datos pendientes" para completarlos después.
 declare
   v_empresa   uuid;
   v_cliente   public.clientes;
   v_moto      public.motos;
-  v_dni       text := regexp_replace(coalesce(p_fila ->> 'dni', ''), '\D', '', 'g');
-  v_placa     text := upper(trim(coalesce(p_fila ->> 'placa', '')));
+  v_id        uuid;
+  v_dni       text := nullif(regexp_replace(coalesce(p_fila ->> 'dni', ''), '\D', '', 'g'), '');
+  v_nombres   text := regexp_replace(trim(coalesce(p_fila ->> 'nombres', '')), '\s+', ' ', 'g');
+  v_placa     text := nullif(upper(trim(coalesce(p_fila ->> 'placa', ''))), '');
   v_celular   text := nullif(regexp_replace(coalesce(p_fila ->> 'celular', ''), '\D', '', 'g'), '');
   v_cuota     numeric := nullif(p_fila ->> 'cuota', '')::numeric;
   v_nro       integer := nullif(p_fila ->> 'nro_cuotas', '')::integer;
   v_inicio    date := nullif(p_fila ->> 'fecha_inicio', '')::date;
   v_pagadas   integer := coalesce(nullif(p_fila ->> 'cuotas_pagadas', '')::integer, 0);
   v_ultimo    date := nullif(p_fila ->> 'ultimo_pago', '')::date;
+  v_frec      text := case lower(coalesce(p_fila ->> 'frecuencia', ''))
+                        when 'mensual' then 'mensual' when 'quincenal' then 'quincenal' else 'semanal' end;
+  v_nota      text;
 begin
   if not public.es_admin() then
     raise exception 'SIN_PERMISO' using errcode = '42501';
@@ -836,50 +879,62 @@ begin
   if v_empresa is null then
     raise exception 'La empresa "%" no existe en el sistema. Revisa el nombre en Configuración.', p_fila ->> 'empresa';
   end if;
-  if v_dni !~ '^\d{8,12}$' then raise exception 'DNI o Carné de Extranjería inválido.'; end if;
-  if v_placa = '' then raise exception 'Falta la placa.'; end if;
-  if coalesce(trim(p_fila ->> 'nombres'), '') = '' then raise exception 'Falta el nombre.'; end if;
+  if v_dni is not null and v_dni !~ '^\d{8,12}$' then raise exception 'DNI o Carné de Extranjería inválido.'; end if;
+  if v_nombres = '' then raise exception 'Falta el nombre.'; end if;
   if v_celular is not null and v_celular !~ '^9\d{8}$' then v_celular := null; end if;
-  if v_cuota is null or v_cuota <= 0 then raise exception 'Falta la cuota semanal.'; end if;
+  if v_cuota is null or v_cuota <= 0 then raise exception 'Falta la cuota.'; end if;
   if v_nro is null then raise exception 'Falta el número de cuotas.'; end if;
   if v_inicio is null then raise exception 'Falta la fecha de la 1.ª cuota.'; end if;
 
-  -- Cliente (si ya existe por DNI, se reutiliza y se completan datos vacíos)
-  select * into v_cliente from public.clientes where dni = v_dni;
-  if not found then
+  -- Cliente: por DNI; sin DNI, por nombre (el mismo cliente con 2 motos va en 2 filas)
+  if v_dni is not null then
+    select * into v_cliente from public.clientes where dni = v_dni;
+  end if;
+  if v_cliente.id is null then
+    select * into v_cliente from public.clientes
+    where lower(nombres) = lower(v_nombres) and (v_dni is null or dni is null)
+    order by creado_en limit 1;
+  end if;
+  if v_cliente.id is null then
     insert into public.clientes (empresa_id, nombres, dni, celular, direccion, referencia)
-    values (v_empresa, trim(p_fila ->> 'nombres'), v_dni, v_celular,
-            nullif(trim(p_fila ->> 'direccion'), ''), nullif(trim(p_fila ->> 'referencia'), ''))
+    values (v_empresa, v_nombres, v_dni, v_celular, nullif(trim(p_fila ->> 'direccion'), ''), nullif(trim(p_fila ->> 'referencia'), ''))
     returning * into v_cliente;
   else
     update public.clientes
-    set celular = coalesce(celular, v_celular),
+    set dni = coalesce(dni, v_dni),
+        celular = coalesce(celular, v_celular),
         direccion = coalesce(direccion, nullif(trim(p_fila ->> 'direccion'), '')),
         referencia = coalesce(referencia, nullif(trim(p_fila ->> 'referencia'), ''))
     where id = v_cliente.id;
   end if;
 
-  -- Moto (si ya existe por placa, se reutiliza)
-  select * into v_moto from public.motos where placa = v_placa;
-  if not found then
+  -- Moto: por placa. Si la placa ya es de OTRO cliente con contrato activo, se crea sin placa y se avisa.
+  if v_placa is not null then
+    select * into v_moto from public.motos where placa = v_placa;
+    if v_moto.id is not null and exists (select 1 from public.contratos where moto_id = v_moto.id and estado = 'activo' and cliente_id <> v_cliente.id) then
+      v_nota := format('Placa %s anotada en el cuaderno, pero ya es de otro cliente: revisar.', v_placa);
+      v_moto := null;
+      v_placa := null;
+    end if;
+  end if;
+  if v_moto.id is null then
     insert into public.motos (cliente_id, empresa_id, placa, tipo, marca, color)
     values (v_cliente.id, v_empresa, v_placa,
             coalesce(nullif(trim(p_fila ->> 'tipo'), ''), 'Otro'),
             coalesce(trim(p_fila ->> 'marca'), ''), coalesce(trim(p_fila ->> 'color'), ''))
     returning * into v_moto;
-  elsif exists (select 1 from public.contratos where moto_id = v_moto.id and estado = 'activo') then
-    raise exception 'La placa % ya tiene un contrato activo (¿fila importada dos veces?).', v_placa;
   elsif v_moto.cliente_id is distinct from v_cliente.id then
     update public.motos set cliente_id = v_cliente.id where id = v_moto.id;
   end if;
 
-  return public.crear_contrato(
-    v_cliente.id, v_moto.id, v_cuota, v_nro, v_inicio, null, null, v_pagadas, v_ultimo,
-    concat_ws(' · ',
-      nullif('Importado de cuaderno', ''),
-      case when lower(coalesce(p_fila ->> 'frecuencia', '')) = 'diario' then 'Pagaba diario' end,
-      nullif(trim(p_fila ->> 'observaciones'), ''))
+  v_id := public.crear_contrato(
+    v_cliente.id, v_moto.id, v_cuota, v_nro, v_inicio,
+    nullif(p_fila ->> 'precio', '')::numeric, nullif(p_fila ->> 'inicial', '')::numeric,
+    least(v_pagadas, v_nro), v_ultimo,
+    concat_ws(' · ', 'Importado de cuaderno', nullif(trim(p_fila ->> 'hoja'), ''), v_nota, nullif(trim(p_fila ->> 'observaciones'), '')),
+    v_frec
   );
+  return v_id;
 end;
 $$;
 
@@ -1322,7 +1377,7 @@ revoke all on function public.recalcular_contrato(uuid) from public, anon, authe
 revoke all on function public.al_crear_usuario() from public, anon, authenticated;
 revoke all on function public.registrar_auditoria() from public, anon, authenticated;
 
-revoke all on function public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text) from public, anon;
+revoke all on function public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text, text) from public, anon;
 revoke all on function public.registrar_pago(uuid, numeric, date, public.medio_pago, uuid, text, text, text) from public, anon;
 revoke all on function public.anular_pago(uuid, text) from public, anon;
 revoke all on function public.cerrar_contrato(uuid, text) from public, anon;
@@ -1331,7 +1386,7 @@ revoke all on function public.importar_cliente(jsonb) from public, anon;
 revoke all on function public.es_staff() from public, anon;
 revoke all on function public.es_admin() from public, anon;
 
-grant execute on function public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text) to authenticated;
+grant execute on function public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text, text) to authenticated;
 grant execute on function public.registrar_pago(uuid, numeric, date, public.medio_pago, uuid, text, text, text) to authenticated;
 grant execute on function public.anular_pago(uuid, text) to authenticated;
 grant execute on function public.cerrar_contrato(uuid, text) to authenticated;

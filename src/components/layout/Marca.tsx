@@ -18,7 +18,7 @@ export function Marca({ claro = false, grande = false, chico = false }: { claro?
           className={`font-display font-bold whitespace-nowrap ${grande ? "mt-1 text-4xl md:text-6xl" : chico ? "mt-0.5 text-[1.05rem]" : "mt-0.5 text-[1.3rem]"} ${claro ? "text-white" : "text-tinta"}`}
           aria-hidden
         >
-          Núñez <span className={claro ? "text-[#d8b45a]" : "text-marca"}>&amp;</span> Asociados
+          Núñez <span className={claro ? "text-oro" : "text-marca"}>&amp;</span> Asociados
         </span>
       </span>
     </span>

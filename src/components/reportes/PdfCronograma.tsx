@@ -1,14 +1,14 @@
 "use client";
 import type { Contrato, Cuota } from "@/types/database";
-import { NOMBRE_ESTADO_CUOTA, formatoFecha, formatoSoles, hoyLima, nombreDocumento } from "@/components/ui/formato";
+import { NOMBRE_ESTADO_CUOTA, formatoFecha, formatoSoles, hoyLima, nombreCuota, nombreDocumento } from "@/components/ui/formato";
 import { clasesBoton } from "@/components/ui/estilos";
 
 interface Props {
   cliente: string;
-  dni: string;
-  placa: string;
+  dni: string | null;
+  placa: string | null;
   empresa: string;
-  contrato: Pick<Contrato, "monto_cuota" | "nro_cuotas" | "fecha_inicio">;
+  contrato: Pick<Contrato, "monto_cuota" | "nro_cuotas" | "fecha_inicio" | "frecuencia">;
   cuotas: Pick<Cuota, "numero" | "fecha_vencimiento" | "monto" | "monto_pagado" | "fecha_pago" | "estado">[];
 }
 
@@ -16,7 +16,7 @@ const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const COLOR: Record<Cuota["estado"], string> = {
   pagada_a_tiempo: "#ddf3e5",
-  pagada_con_atraso: "#fdf0cf",
+  pagada_con_atraso: "#fdecd3",
   vencida: "#fbe1de",
   pendiente: "#ffffff",
 };
@@ -33,7 +33,7 @@ function htmlCronograma({ cliente, dni, placa, empresa, contrato, cuotas }: Prop
         <td>${NOMBRE_ESTADO_CUOTA[c.estado]}</td></tr>`,
     )
     .join("");
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cronograma ${esc(placa)} - ${esc(cliente)}</title>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cronograma ${esc(placa ?? "sin placa")} - ${esc(cliente)}</title>
 <style>
 @page{size:A4;margin:14mm}
 body{font-family:Segoe UI,system-ui,sans-serif;color:#1d2a2f;font-size:11pt;margin:0}
@@ -49,8 +49,8 @@ footer{margin-top:10px;color:#5d6a6e;font-size:8.5pt}
 <header><div><div class="t">Inversiones Núñez &amp; Asociados · ${esc(empresa)}</div><h1>Cronograma de pagos</h1></div>
 <div style="text-align:right"><div class="t">Emitido</div><b>${formatoFecha(hoyLima())}</b></div></header>
 <section class="datos">
-<div><span>Cliente</span><b>${esc(cliente)}</b></div><div><span>${nombreDocumento(dni)}</span><b>${esc(dni)}</b></div>
-<div><span>Placa</span><b>${esc(placa)}</b></div><div><span>Cuota semanal</span><b>${formatoSoles(contrato.monto_cuota)}</b></div>
+<div><span>Cliente</span><b>${esc(cliente)}</b></div><div><span>${nombreDocumento(dni)}</span><b>${esc(dni ?? "Falta")}</b></div>
+<div><span>Placa</span><b>${esc(placa ?? "Sin placa")}</b></div><div><span>${nombreCuota(contrato.frecuencia)}</span><b>${formatoSoles(contrato.monto_cuota)}</b></div>
 <div><span>N.º de cuotas</span><b>${contrato.nro_cuotas}</b></div><div><span>Total del contrato</span><b>${formatoSoles(total)}</b></div>
 <div><span>Pagado</span><b>${formatoSoles(pagado)}</b></div><div><span>Deuda vencida</span><b style="color:#c0362c">${formatoSoles(vencido)}</b></div>
 </section>

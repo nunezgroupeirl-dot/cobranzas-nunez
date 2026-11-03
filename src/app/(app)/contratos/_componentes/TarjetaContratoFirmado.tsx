@@ -21,7 +21,7 @@ export function TarjetaContratoFirmado({ contrato, cliente, moto, empresa }: Pro
   return <Contenido contrato={contrato} cliente={cliente} placa={moto.placa} />;
 }
 
-function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: Cliente; placa: string }) {
+function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: Cliente; placa: string | null }) {
   const { datos } = useSesion();
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [imprimiendo, setImprimiendo] = useState(false);
@@ -58,7 +58,7 @@ function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: 
     setError(null);
     setImprimiendo(true);
     try {
-      await imprimirHojas(datos, paginas.map((p) => p.ruta), `Contrato firmado ${placa} - ${cliente.nombres}`);
+      await imprimirHojas(datos, paginas.map((p) => p.ruta), `Contrato firmado ${placa ?? "sin placa"} - ${cliente.nombres}`);
     } catch (e) {
       setError(mensajeDeError(e));
     } finally {

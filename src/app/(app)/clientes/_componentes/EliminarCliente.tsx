@@ -21,7 +21,7 @@ export function EliminarCliente({ cliente, contratos, pagos }: { cliente: Client
       <ModalEliminar
         abierto={abierto}
         titulo="Eliminar cliente"
-        confirmarCon={cliente.dni}
+        confirmarCon={cliente.dni ?? undefined}
         alCerrar={() => setAbierto(false)}
         alEliminar={async () => {
           await datos.eliminarCliente(cliente.id);

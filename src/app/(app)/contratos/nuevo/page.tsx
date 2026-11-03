@@ -2,8 +2,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Campo, Cargando, Tarjeta, TituloPagina, formatoFecha, formatoSoles, hoyLima, mensajeDeError, sumarDias, useCarga, Placa, nombreDocumento } from "@/components/ui";
-import type { Moto } from "@/types/database";
+import { Aviso, Boton, Campo, Cargando, Selector, Tarjeta, TituloPagina, formatoFecha, formatoSoles, hoyLima, mensajeDeError, sumarDias, useCarga, Placa, textoDocumento, nombreCuota } from "@/components/ui";
+import type { Frecuencia, Moto } from "@/types/database";
+import { fechaCuota } from "@/lib/supabase/reglas";
 import { claveBusqueda, coincide, normalizar } from "../../clientes/_componentes/buscar";
 import { FormMoto } from "../_componentes/FormMoto";
 
@@ -22,6 +23,7 @@ export default function NuevoContrato() {
   const [busca, setBusca] = useState("");
   const [motoId, setMotoId] = useState<string | null>(null);
   const [motoNueva, setMotoNueva] = useState(false);
+  const [frecuencia, setFrecuencia] = useState<Frecuencia>("semanal");
   const [cuota, setCuota] = useState("");
   const [nroCuotas, setNroCuotas] = useState("52");
   const [inicio, setInicio] = useState(() => sumarDias(hoyLima(), 7));
@@ -53,7 +55,7 @@ export default function NuevoContrato() {
     const e: Record<string, string> = {};
     if (!clienteId) e.cliente = "Elige el cliente.";
     if (!motoId) e.moto = "Elige o registra la moto.";
-    if (!(montoCuota > 0)) e.cuota = "Escribe la cuota semanal.";
+    if (!(montoCuota > 0)) e.cuota = "Escribe el monto de la cuota.";
     if (!Number.isInteger(n) || n <= 0 || n > 260) e.nro = "Número de cuotas entre 1 y 260.";
     if (!inicio) e.inicio = "Elige la fecha de la primera cuota.";
     if (precio && !(Number(precio) >= 0)) e.precio = "Escribe un monto válido.";
@@ -71,6 +73,7 @@ export default function NuevoContrato() {
         fecha_inicio: inicio,
         precio_total: precio ? Number(precio) : null,
         inicial: inicial ? Number(inicial) : null,
+        frecuencia,
       });
       router.push(`/contratos/ver?id=${id}&nuevo=1`);
     } catch (err) {
@@ -101,7 +104,7 @@ export default function NuevoContrato() {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-marca-suave p-4">
               <div>
                 <p className="text-lg font-bold">{cliente.nombres}</p>
-                <p className="text-tenue">{nombreDocumento(cliente.dni)} {cliente.dni}</p>
+                <p className="text-tenue">{textoDocumento(cliente.dni)}</p>
               </div>
               <Boton variante="secundario" tamano="chico" onClick={() => { setClienteId(null); setMotoId(null); }}>
                 Cambiar
@@ -151,8 +154,18 @@ export default function NuevoContrato() {
         </Tarjeta>
 
         <Tarjeta titulo="3. Cuotas">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Campo etiqueta="Cuota semanal (S/)" type="number" inputMode="decimal" min="0" step="0.01" value={cuota} onChange={(e) => setCuota(e.target.value)} error={errores.cuota} obligatorio />
+          <div className="grid gap-4 sm:grid-cols-4">
+            <Selector
+              etiqueta="Se paga"
+              value={frecuencia}
+              onChange={(e) => setFrecuencia(e.target.value as Frecuencia)}
+              opciones={[
+                { valor: "semanal", texto: "Cada semana" },
+                { valor: "quincenal", texto: "Cada quincena" },
+                { valor: "mensual", texto: "Cada mes" },
+              ]}
+            />
+            <Campo etiqueta={`${nombreCuota(frecuencia)} (S/)`} type="number" inputMode="decimal" min="0" step="0.01" value={cuota} onChange={(e) => setCuota(e.target.value)} error={errores.cuota} obligatorio />
             <Campo etiqueta="Número de cuotas" type="number" inputMode="numeric" min="1" value={nroCuotas} onChange={(e) => setNroCuotas(e.target.value)} error={errores.nro} obligatorio />
             <Campo etiqueta="Fecha de la 1.ª cuota" type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} error={errores.inicio} obligatorio />
           </div>
@@ -162,7 +175,7 @@ export default function NuevoContrato() {
           </div>
           {valido && inicio && (
             <p className="mt-4 rounded-xl bg-fondo p-4">
-              {n} cuotas de <b>{formatoSoles(montoCuota)}</b> cada semana, del <b>{formatoFecha(inicio)}</b> al <b>{formatoFecha(sumarDias(inicio, (n - 1) * 7))}</b>. Total{" "}
+              {n} cuotas de <b>{formatoSoles(montoCuota)}</b> { { semanal: "cada semana", quincenal: "cada quincena", mensual: "cada mes" }[frecuencia] }, del <b>{formatoFecha(inicio)}</b> al <b>{formatoFecha(fechaCuota(inicio, n - 1, frecuencia))}</b>. Total{" "}
               <b>{formatoSoles(montoCuota * n)}</b>.
             </p>
           )}

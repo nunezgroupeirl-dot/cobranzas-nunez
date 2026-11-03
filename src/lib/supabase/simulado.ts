@@ -86,7 +86,8 @@ function semilla(): Estado {
   );
   const perfiles: PerfilConClave[] = [
     { id: "usr-admin", nombre: "Andrés (prueba)", email: "admin@prueba.pe", rol: "administrador", activo: true, clave: "admin123" },
-    { id: "usr-cobrador", nombre: "Adrián (prueba)", email: "cobrador@prueba.pe", rol: "cobrador", activo: true, clave: "cobrador123" },
+    { id: "usr-cobrador", nombre: "Adrián (prueba)", email: "cobrador@prueba.pe", rol: "cobrador", puesto: "oficina", activo: true, clave: "cobrador123" },
+    { id: "usr-ruta", nombre: "Luis (prueba)", email: "ruta@prueba.pe", rol: "cobrador", puesto: "ruta", activo: true, clave: "ruta123" },
   ];
 
   const personas: [string, string, string, string, number, number, number][] = [
@@ -516,8 +517,8 @@ export function crearDatosSimulados(): Datos {
       await pausa();
       const s = leer();
       exigirAdmin(s);
-      if (!/^\d{8,12}$/.test(c.dni)) throw new ErrorDatos("DNI_INVALIDO", "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).");
-      if (s.clientes.some((x) => x.dni === c.dni && x.id !== c.id)) throw new ErrorDatos("DNI_REPETIDO", "Ya existe un cliente con ese DNI.");
+      if (c.dni && !/^\d{8,12}$/.test(c.dni)) throw new ErrorDatos("DNI_INVALIDO", "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).");
+      if (c.dni && s.clientes.some((x) => x.dni === c.dni && x.id !== c.id)) throw new ErrorDatos("DNI_REPETIDO", "Ya existe un cliente con ese DNI.");
       if (c.id) {
         const i = s.clientes.findIndex((x) => x.id === c.id);
         if (i < 0) throw new ErrorDatos("NO_EXISTE", "El cliente no existe.");
@@ -532,6 +533,9 @@ export function crearDatosSimulados(): Datos {
     },
     async documentos(clienteId) {
       return leer().documentos.filter((d) => d.cliente_id === clienteId);
+    },
+    async resumenDocumentos() {
+      return leer().documentos.map(({ cliente_id, tipo, contrato_id }) => ({ cliente_id, tipo, contrato_id }));
     },
     async agregarDocumento(d) {
       const s = leer();
@@ -557,9 +561,8 @@ export function crearDatosSimulados(): Datos {
       await pausa();
       const s = leer();
       exigirAdmin(s);
-      const placa = m.placa.trim().toUpperCase();
-      if (!placa) throw new ErrorDatos("PLACA", "La placa es obligatoria.");
-      if (s.motos.some((x) => x.placa === placa && x.id !== m.id)) throw new ErrorDatos("PLACA_REPETIDA", "Ya existe una moto con esa placa.");
+      const placa = m.placa?.trim().toUpperCase() || null;
+      if (placa && s.motos.some((x) => x.placa === placa && x.id !== m.id)) throw new ErrorDatos("PLACA_REPETIDA", "Ya existe una moto con esa placa.");
       if (m.id) {
         const i = s.motos.findIndex((x) => x.id === m.id);
         s.motos[i] = { ...s.motos[i], ...m, placa, id: m.id };
@@ -651,8 +654,8 @@ export function crearDatosSimulados(): Datos {
       exigirAdmin(s);
       const moto = s.motos.find((m) => m.id === args.moto_id);
       if (!moto) throw new ErrorDatos("MOTO", "Elige una moto.");
-      if (s.contratos.some((c) => c.moto_id === moto.id && c.estado === "activo"))
-        throw new ErrorDatos("MOTO_OCUPADA", "Esa moto ya tiene un contrato activo.");
+      if (s.contratos.some((c) => c.moto_id === moto.id && c.estado === "activo" && c.cliente_id !== args.cliente_id))
+        throw new ErrorDatos("MOTO_OCUPADA", "Esa moto ya tiene un contrato activo de otro cliente.");
       if (!(args.monto_cuota > 0) || !(args.nro_cuotas > 0)) throw new ErrorDatos("DATOS", "Revisa la cuota y el número de cuotas.");
       const contrato: Contrato = {
         id: nuevoId(),
@@ -662,6 +665,7 @@ export function crearDatosSimulados(): Datos {
         monto_cuota: args.monto_cuota,
         nro_cuotas: args.nro_cuotas,
         fecha_inicio: args.fecha_inicio,
+        frecuencia: args.frecuencia ?? "semanal",
         precio_total: args.precio_total ?? null,
         inicial: args.inicial ?? null,
         cuotas_pagadas_inicial: 0,
@@ -698,10 +702,9 @@ export function crearDatosSimulados(): Datos {
       exigirAdmin(s);
       const empresa = s.empresas.find((e) => claveEmpresa(e.nombre) === claveEmpresa(f.empresa));
       if (!empresa) throw new ErrorDatos("DATOS", `La empresa "${f.empresa}" no existe en el sistema. Revisa el nombre en Configuración.`);
-      const dni = f.dni.replace(/\D/g, "");
-      const placa = f.placa.trim().toUpperCase();
-      if (!/^\d{8,12}$/.test(dni)) throw new ErrorDatos("DATOS", "DNI o Carné de Extranjería inválido.");
-      if (!placa) throw new ErrorDatos("DATOS", "Falta la placa.");
+      const dni = f.dni.replace(/\D/g, "") || null;
+      const placa = f.placa.trim().toUpperCase() || null;
+      if (dni && !/^\d{8,12}$/.test(dni)) throw new ErrorDatos("DATOS", "DNI o Carné de Extranjería inválido.");
       if (!f.nombres.trim()) throw new ErrorDatos("DATOS", "Falta el nombre.");
       if (!f.cuota || f.cuota <= 0) throw new ErrorDatos("DATOS", "Falta la cuota semanal.");
       if (!f.nro_cuotas) throw new ErrorDatos("DATOS", "Falta el número de cuotas.");
@@ -710,13 +713,14 @@ export function crearDatosSimulados(): Datos {
       if (pagadas < 0 || pagadas > f.nro_cuotas) throw new ErrorDatos("DATOS", "Las cuotas ya pagadas no pueden ser más que el número de cuotas.");
       const celular = /^9\d{8}$/.test(f.celular) ? f.celular : null;
 
-      let cliente = s.clientes.find((c) => c.dni === dni);
+      // por DNI; sin DNI, por nombre (el mismo cliente con 2 motos va en 2 filas)
+      let cliente = dni ? s.clientes.find((c) => c.dni === dni) : s.clientes.find((c) => !c.dni && c.nombres.toLowerCase() === f.nombres.trim().toLowerCase());
       if (!cliente) {
         cliente = { id: nuevoId(), empresa_id: empresa.id, nombres: f.nombres.trim(), dni, celular, direccion: f.direccion || null, referencia: f.referencia || null, creado_en: new Date().toISOString() };
         s.clientes.push(cliente);
       }
-      let moto = s.motos.find((m) => m.placa === placa);
-      if (moto && s.contratos.some((c) => c.moto_id === moto?.id && c.estado === "activo"))
+      let moto = placa ? s.motos.find((m) => m.placa === placa) : undefined;
+      if (moto && s.contratos.some((c) => c.moto_id === moto?.id && c.estado === "activo" && c.cliente_id !== cliente?.id))
         throw new ErrorDatos("DATOS", `La placa ${placa} ya tiene un contrato activo (¿fila importada dos veces?).`);
       if (!moto) {
         moto = { id: nuevoId(), cliente_id: cliente.id, empresa_id: empresa.id, placa, tipo: f.tipo || "Otro", marca: f.marca, color: f.color };
@@ -731,6 +735,7 @@ export function crearDatosSimulados(): Datos {
         monto_cuota: f.cuota,
         nro_cuotas: f.nro_cuotas,
         fecha_inicio: f.fecha_inicio,
+        frecuencia: (["mensual", "quincenal"] as const).find((x) => x === f.frecuencia.toLowerCase()) ?? "semanal",
         precio_total: null,
         inicial: null,
         cuotas_pagadas_inicial: pagadas,
@@ -854,7 +859,7 @@ export function crearDatosSimulados(): Datos {
       if (u.clave.length < 6) throw new ErrorDatos("CLAVE", "La contraseña debe tener al menos 6 caracteres.");
       // Igual que en la base: solo el dueño es administrador; todo usuario nuevo es cobrador.
       if (u.rol === "administrador") throw new ErrorDatos("UN_SOLO_DUENO", "Solo el dueño puede ser administrador.");
-      s.perfiles.push({ id: nuevoId(), nombre: u.nombre, email: u.email.trim(), rol: "cobrador", activo: true, clave: u.clave });
+      s.perfiles.push({ id: nuevoId(), nombre: u.nombre, email: u.email.trim(), rol: "cobrador", puesto: u.puesto, activo: true, clave: u.clave });
       guardar(s);
     },
     async editarUsuario(id, cambios) {
@@ -868,6 +873,7 @@ export function crearDatosSimulados(): Datos {
       if (cambios.clave !== undefined && cambios.clave.length < 6) throw new ErrorDatos("CLAVE", "La contraseña debe tener al menos 6 caracteres.");
       if (cambios.nombre !== undefined) p.nombre = cambios.nombre.trim();
       if (cambios.clave !== undefined) p.clave = cambios.clave;
+      if (cambios.puesto !== undefined) p.puesto = cambios.puesto;
       guardar(s);
     },
     async cambiarMiClave(clave) {

@@ -26,6 +26,7 @@ import type {
   RegistrarPagoResultado,
   ResumenEmpresa,
   CobranzaSemana,
+  Puesto,
   Rol,
   EditarContratoArgs,
 } from "@/types/database";
@@ -51,6 +52,7 @@ export interface NuevoUsuario {
   email: string;
   clave: string;
   rol: Rol;
+  puesto: Puesto;
 }
 
 export interface Datos {
@@ -87,6 +89,8 @@ export interface Datos {
   cliente(id: string): Promise<Cliente | null>;
   guardarCliente(c: NuevoCliente): Promise<Cliente>;
   documentos(clienteId: string): Promise<Documento[]>;
+  /** Qué fotos tiene cada cliente (sin las rutas): para la pantalla "Datos pendientes". */
+  resumenDocumentos(): Promise<Pick<Documento, "cliente_id" | "tipo" | "contrato_id">[]>;
   agregarDocumento(d: Omit<Documento, "id" | "creado_en">): Promise<Documento>;
   borrarDocumento(id: string): Promise<void>;
   // motos y contratos
@@ -117,7 +121,7 @@ export interface Datos {
   crearUsuario(u: NuevoUsuario): Promise<void>;
   actualizarUsuario(id: string, cambios: Partial<Pick<Perfil, "rol" | "activo">>): Promise<void>;
   /** Nombre y/o contraseña de un trabajador (solo el dueño). */
-  editarUsuario(id: string, cambios: { nombre?: string; clave?: string }): Promise<void>;
+  editarUsuario(id: string, cambios: { nombre?: string; clave?: string; puesto?: Puesto }): Promise<void>;
   /** Contraseña de la persona que tiene la sesión abierta. */
   cambiarMiClave(clave: string): Promise<void>;
   // archivos

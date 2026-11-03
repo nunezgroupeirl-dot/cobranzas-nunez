@@ -11,7 +11,7 @@ export default function PaginaQr() {
   useEffect(() => {
     const destino = `${window.location.origin}/consulta`;
     setUrl(destino);
-    QRCode.toDataURL(destino, { width: 900, margin: 1, errorCorrectionLevel: "H", color: { dark: "#17252b", light: "#ffffff" } })
+    QRCode.toDataURL(destino, { width: 900, margin: 1, errorCorrectionLevel: "H", color: { dark: "#141414", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(null));
   }, []);

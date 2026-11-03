@@ -72,7 +72,8 @@ function FormularioIngreso() {
         <div className="rounded-2xl bg-amarillo-suave p-4 text-sm">
           <p className="font-bold text-amarillo">Modo prueba (sin base de datos)</p>
           <p className="mt-1">Dueño: admin@prueba.pe / admin123</p>
-          <p>Cobrador: cobrador@prueba.pe / cobrador123</p>
+          <p>Cajero de oficina: cobrador@prueba.pe / cobrador123</p>
+          <p>Cobrador de ruta: ruta@prueba.pe / ruta123</p>
         </div>
       )}
     </form>

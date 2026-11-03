@@ -56,7 +56,7 @@ export default function PaginaContratos() {
     () =>
       filtrarPorEmpresa(info?.motos ?? [], empresa)
         .filter((m) => coincide(mapas.claveMoto.get(m.id) ?? "", q))
-        .sort((a, b) => a.placa.localeCompare(b.placa)),
+        .sort((a, b) => (a.placa ?? "~").localeCompare(b.placa ?? "~")),
     [info, mapas, empresa, q],
   );
 
@@ -141,7 +141,7 @@ export default function PaginaContratos() {
               esAdmin && editando !== "nueva"
                 ? async () => {
                     const m = editando;
-                    if (!confirm(`¿Eliminar la moto ${m.placa}? Solo se puede si no tiene contratos.`)) return;
+                    if (!confirm(`¿Eliminar la moto ${m.placa ?? "sin placa"}? Solo se puede si no tiene contratos.`)) return;
                     setEditando(null);
                     try {
                       await datos.eliminarMoto(m.id);

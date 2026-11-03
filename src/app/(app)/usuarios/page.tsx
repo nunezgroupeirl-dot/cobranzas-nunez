@@ -1,32 +1,33 @@
 "use client";
 import { useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
-import { Aviso, Boton, Campo, Cargando, Modal, Tabla, TituloPagina, mensajeDeError, useCarga, type Columna } from "@/components/ui";
-import type { Perfil } from "@/types/database";
+import { Aviso, Boton, Campo, Cargando, DETALLE_PUESTO, Modal, NOMBRE_PUESTO, OpcionesBoton, Tabla, TituloPagina, mensajeDeError, useCarga, type Columna } from "@/components/ui";
+import type { Perfil, Puesto } from "@/types/database";
 import { ModalEditarUsuario } from "./_componentes/ModalEditarUsuario";
 
 function Usuarios() {
   const { datos, perfil: yo } = useSesion();
   const { datos: usuarios, cargando, error, recargar } = useCarga(() => datos.usuarios(), [datos]);
   const [abierto, setAbierto] = useState(false);
-  const [f, setF] = useState({ nombre: "", email: "", clave: "" });
+  const [f, setF] = useState<{ nombre: string; email: string; clave: string; puesto: Puesto | "" }>({ nombre: "", email: "", clave: "", puesto: "" });
   const [errForm, setErrForm] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [editando, setEditando] = useState<Perfil | "yo" | null>(null);
 
   const crear = async () => {
-    if (!f.nombre.trim() || !/^\S+@\S+\.\S+$/.test(f.email) || f.clave.length < 6) {
-      setErrForm("Completa nombre, un correo válido y una contraseña de al menos 6 caracteres.");
+    if (!f.nombre.trim() || !/^\S+@\S+\.\S+$/.test(f.email) || f.clave.length < 6 || !f.puesto) {
+      setErrForm("Elige el puesto y completa nombre, un correo válido y una contraseña de al menos 6 caracteres.");
       return;
     }
+    const puesto = f.puesto;
     setOcupado("crear");
     setErrForm(null);
     try {
-      await datos.crearUsuario({ ...f, rol: "cobrador", nombre: f.nombre.trim(), email: f.email.trim() });
+      await datos.crearUsuario({ ...f, puesto, rol: "cobrador", nombre: f.nombre.trim(), email: f.email.trim() });
       setAbierto(false);
-      setAviso({ tipo: "exito", texto: `Cobrador ${f.email} creado. Dale su contraseña en persona.` });
-      setF({ nombre: "", email: "", clave: "" });
+      setAviso({ tipo: "exito", texto: `${NOMBRE_PUESTO[puesto]} ${f.email} creado. Dale su contraseña en persona.` });
+      setF({ nombre: "", email: "", clave: "", puesto: "" });
       recargar();
     } catch (e) {
       setErrForm(mensajeDeError(e));
@@ -54,12 +55,12 @@ function Usuarios() {
     { clave: "email", titulo: "Correo", celda: (u) => u.email },
     {
       clave: "rol",
-      titulo: "Rol",
+      titulo: "Puesto",
       celda: (u) =>
         u.rol === "administrador" ? (
           <span className="rounded-full bg-marca-suave px-2.5 py-0.5 text-sm font-semibold text-marca-oscura">Dueño</span>
         ) : (
-          <span>Cobrador</span>
+          <span>{u.puesto ? NOMBRE_PUESTO[u.puesto] : <span className="text-amarillo">Cobrador · falta elegir puesto</span>}</span>
         ),
     },
     {
@@ -95,14 +96,14 @@ function Usuarios() {
     <>
       <TituloPagina
         titulo="Usuarios"
-        sub="Solo el dueño administra el sistema. Cada trabajador entra con su propio usuario de cobrador."
+        sub="Solo el dueño administra el sistema. Cada trabajador entra con su propio usuario: el cajero de oficina o el cobrador de ruta."
         accion={
           <>
             <Boton variante="secundario" tamano="grande" onClick={() => setEditando("yo")}>
               Cambiar mi contraseña
             </Boton>
             <Boton tamano="grande" onClick={() => setAbierto(true)}>
-              + Nuevo cobrador
+              + Nuevo trabajador
             </Boton>
           </>
         }
@@ -151,7 +152,7 @@ function Usuarios() {
 
       <Modal
         abierto={abierto}
-        titulo="Nuevo cobrador"
+        titulo="Nuevo trabajador"
         alCerrar={() => setAbierto(false)}
         pie={
           <>
@@ -159,18 +160,26 @@ function Usuarios() {
               Cancelar
             </Boton>
             <Boton onClick={crear} cargando={ocupado === "crear"}>
-              Crear cobrador
+              Crear usuario
             </Boton>
           </>
         }
       >
         <div className="flex flex-col gap-4">
           {errForm && <Aviso tipo="error">{errForm}</Aviso>}
+          <OpcionesBoton
+            etiqueta="Puesto"
+            obligatorio
+            valor={f.puesto}
+            alCambiar={(v) => setF({ ...f, puesto: v as Puesto })}
+            opciones={(["oficina", "ruta"] as const).map((p) => ({ valor: p, texto: NOMBRE_PUESTO[p] }))}
+          />
+          {f.puesto && <p className="-mt-2 text-sm text-tenue">{DETALLE_PUESTO[f.puesto]}</p>}
           <Campo etiqueta="Nombre" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} obligatorio ayuda="Así aparece en el sistema y en los pagos que registre." />
           <Campo etiqueta="Correo" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} obligatorio autoComplete="off" ayuda="Con este correo inicia sesión." />
           <Campo etiqueta="Contraseña inicial" type="text" value={f.clave} onChange={(e) => setF({ ...f, clave: e.target.value })} obligatorio ayuda="Mínimo 6 caracteres." autoComplete="new-password" />
           <p className="text-sm text-tenue">
-            El cobrador ve clientes, cronogramas y morosos, y registra pagos. No ve el panel de dinero ni los reportes, no anula pagos ni cierra contratos.
+            Los dos solo registran pagos y ven quién no paga. No ven el panel de dinero ni los reportes, no crean contratos, no anulan pagos.
           </p>
         </div>
       </Modal>

@@ -9,6 +9,8 @@ import { FiltroEmpresa } from "./FiltroEmpresa";
 import { menuPara, type ItemMenu } from "./menu";
 import { RecordatorioReporte } from "./RecordatorioReporte";
 import { useSesion } from "./Sesion";
+import { NOMBRE_PUESTO } from "@/components/ui/formato";
+import type { Perfil } from "@/types/database";
 
 function Icono({ d, className = "size-6" }: { d: string; className?: string }) {
   return (
@@ -18,7 +20,7 @@ function Icono({ d, className = "size-6" }: { d: string; className?: string }) {
   );
 }
 
-const NOMBRE_ROL = { administrador: "Dueño", cobrador: "Cobrador" } as const;
+const puestoDe = (p: Perfil) => (p.rol === "administrador" ? "Dueño" : p.puesto ? NOMBRE_PUESTO[p.puesto] : "Cobrador");
 
 function activo(rutaActual: string, items: ItemMenu[]): string | null {
   const ruta = rutaActual.length > 1 ? rutaActual.replace(/\/$/, "") : rutaActual;
@@ -30,7 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { perfil, datos, salir } = useSesion();
   const ruta = usePathname();
   const conEmpresa = useConEmpresa();
-  const items = menuPara(perfil.rol);
+  const items = menuPara(perfil);
   const actual = activo(ruta, items);
   const [masAbierto, setMasAbierto] = useState(false);
 
@@ -53,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-current={actual === i.href ? "page" : undefined}
               className={`relative flex min-h-12 items-center gap-3 rounded-xl px-3 font-medium transition-colors ${
                 actual === i.href
-                  ? "bg-white/10 text-white before:absolute before:inset-y-2.5 before:left-0 before:w-1 before:rounded-full before:bg-[#5fc2c2]"
+                  ? "bg-white/10 text-white before:absolute before:inset-y-2.5 before:left-0 before:w-1 before:rounded-full before:bg-oro"
                   : "text-white/70 hover:bg-white/5 hover:text-white"
               }`}
             >
@@ -65,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="border-t border-white/10 p-4">
           {datos.modoPrueba && <p className="mb-3 rounded-lg bg-amarillo-suave px-2.5 py-1.5 text-xs font-semibold text-amarillo">Modo prueba: datos falsos</p>}
           <p className="truncate font-semibold">{perfil.nombre}</p>
-          <p className="text-sm text-white/60">{NOMBRE_ROL[perfil.rol]}</p>
+          <p className="text-sm text-white/60">{puestoDe(perfil)}</p>
           <button onClick={salir} className="mt-3 min-h-11 w-full rounded-xl border border-white/20 font-semibold hover:bg-white/10">
             Cerrar sesión
           </button>

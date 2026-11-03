@@ -41,7 +41,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
   const validar = () => {
     const e: Record<string, string> = {};
     if (!f.nombres.trim()) e.nombres = "Escribe el nombre completo.";
-    if (!esDocumentoValido(f.dni)) e.dni = "El DNI tiene 8 números (Carné de Extranjería: 9 a 12).";
+    if (f.dni && !esDocumentoValido(f.dni)) e.dni = "El DNI tiene 8 números (Carné de Extranjería: 9 a 12).";
     if (f.celular && !/^9\d{8}$/.test(f.celular)) e.celular = "El celular debe tener 9 números y empezar con 9.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     if (!ubicacionValida(f.ubicacion)) e.ubicacion = "Pega un enlace de Google Maps o coordenadas como -12.0464,-77.0428.";
@@ -65,7 +65,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         id: cliente?.id,
         empresa_id: f.empresa_id,
         nombres: f.nombres.trim(),
-        dni: f.dni,
+        dni: f.dni || null,
         celular: f.celular || null,
         direccion: f.direccion.trim() || null,
         referencia: f.referencia.trim() || null,
@@ -103,7 +103,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
             value={f.dni}
             onChange={(e) => poner("dni", e.target.value.replace(/\D/g, ""))}
             error={errores.dni}
-            obligatorio
+            ayuda={f.dni ? undefined : "Si aún no lo tienes, déjalo vacío: saldrá en “Datos pendientes”."}
           />
           <Campo
             etiqueta="Celular"

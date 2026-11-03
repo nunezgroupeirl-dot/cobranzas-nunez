@@ -5,6 +5,9 @@
  */
 
 export type Rol = "administrador" | "cobrador";
+/** Los cobradores trabajan en la oficina (caja) o en la calle (ruta). Mismos permisos, distinta pantalla de inicio. */
+export type Puesto = "oficina" | "ruta";
+export type Frecuencia = "semanal" | "quincenal" | "mensual";
 export type Color = "verde" | "amarillo" | "rojo";
 export type MedioPago = "yape" | "plin" | "banco" | "agente" | "efectivo";
 export type TipoDocumento = "cliente" | "dni" | "moto" | "fachada" | "recibo" | "otro" | "contrato";
@@ -35,6 +38,7 @@ export interface Perfil {
   nombre: string;
   email: string;
   rol: Rol;
+  puesto?: Puesto | null; // solo cobradores
   activo: boolean;
 }
 
@@ -42,7 +46,7 @@ export interface Cliente {
   id: string;
   empresa_id: string;
   nombres: string;
-  dni: string; // DNI (8 números) o Carné de Extranjería (9 a 12)
+  dni: string | null; // DNI (8 números) o Carné de Extranjería (9 a 12); null = falta (importado del cuaderno)
   celular: string | null;
   direccion: string | null;
   referencia: string | null;
@@ -63,7 +67,7 @@ export interface Moto {
   id: string;
   cliente_id: string | null;
   empresa_id: string;
-  placa: string;
+  placa: string | null; // null = falta (importado del cuaderno)
   tipo: string; // "Lineal", "Scooter", "Trimoto", "Otro"
   marca: string;
   color: string;
@@ -85,6 +89,7 @@ export interface Contrato {
   monto_cuota: number;
   nro_cuotas: number;
   fecha_inicio: string; // fecha de la primera cuota (YYYY-MM-DD)
+  frecuencia?: Frecuencia; // cada cuánto se paga (por defecto semanal)
   precio_total: number | null; // precio de la moto
   inicial: number | null; // cuota inicial entregada
   cuotas_pagadas_inicial: number; // cuotas que ya estaban pagadas al pasar del cuaderno
@@ -132,8 +137,8 @@ export interface EstadoCliente {
   contrato_id: string;
   cliente_id: string;
   cliente: string;
-  dni: string;
-  placa: string;
+  dni: string | null;
+  placa: string | null;
   celular: string | null;
   empresa_id: string;
   empresa: string;
@@ -181,6 +186,7 @@ export interface CrearContratoArgs {
   fecha_inicio: string;
   precio_total?: number | null;
   inicial?: number | null;
+  frecuencia?: Frecuencia;
 }
 
 /** Datos editables de un contrato (solo el dueño). Al guardar se rehace el cronograma. */

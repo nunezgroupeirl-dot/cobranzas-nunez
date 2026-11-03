@@ -32,11 +32,21 @@ export function inicioSemana(fecha: string): string {
 export const aCentimos = (n: number) => Math.round(n * 100);
 export const deCentimos = (c: number) => c / 100;
 
-export function generarCuotas(contrato: Pick<Contrato, "id" | "monto_cuota" | "nro_cuotas" | "fecha_inicio">): Omit<Cuota, "id">[] {
+/** Fecha de la cuota i (desde 0), igual que generar_cuotas en la base: semanal cada 7 días, mensual el mismo día, quincenal 2 por mes. */
+export function fechaCuota(inicio: string, i: number, frecuencia: Contrato["frecuencia"] = "semanal"): string {
+  if (frecuencia === "semanal" || !frecuencia) return sumarDias(inicio, i * 7);
+  const meses = frecuencia === "mensual" ? i : Math.floor(i / 2);
+  const [a, m, d] = inicio.split("-").map(Number);
+  const fin = new Date(Date.UTC(a, m - 1 + meses + 1, 0)).getUTCDate(); // último día de ese mes (como make_interval)
+  const base = new Date(Date.UTC(a, m - 1 + meses, Math.min(d, fin))).toISOString().slice(0, 10);
+  return frecuencia === "quincenal" && i % 2 === 1 ? sumarDias(base, 15) : base;
+}
+
+export function generarCuotas(contrato: Pick<Contrato, "id" | "monto_cuota" | "nro_cuotas" | "fecha_inicio" | "frecuencia">): Omit<Cuota, "id">[] {
   return Array.from({ length: contrato.nro_cuotas }, (_, i) => ({
     contrato_id: contrato.id,
     numero: i + 1,
-    fecha_vencimiento: sumarDias(contrato.fecha_inicio, i * 7),
+    fecha_vencimiento: fechaCuota(contrato.fecha_inicio, i, contrato.frecuencia),
     monto: contrato.monto_cuota,
     monto_pagado: 0,
     fecha_pago: null,

@@ -48,7 +48,18 @@ export const NOMBRE_DOCUMENTO: Record<TipoDocumento, string> = {
 
 /** DNI (8 números) o Carné de Extranjería (9 a 12). */
 export const esDocumentoValido = (n: string) => /^\d{8,12}$/.test(n);
-export const nombreDocumento = (n: string) => (n.length === 8 ? "DNI" : "C.E.");
+export const nombreDocumento = (n: string | null | undefined) => (!n || n.length === 8 ? "DNI" : "C.E.");
+/** Los 2 puestos de trabajador (mismos permisos, distinta pantalla de inicio) */
+export const NOMBRE_PUESTO = { oficina: "Cajero de oficina", ruta: "Cobrador de ruta" } as const;
+export const DETALLE_PUESTO = {
+  oficina: "Cobra en la oficina: empieza en “Registrar pago”.",
+  ruta: "Cobra puerta a puerta: empieza en “¿Quién no paga?”, con dirección y mapa de cada cliente.",
+} as const;
+
+/** "Cuota semanal" / "Cuota quincenal" / "Cuota mensual" */
+export const nombreCuota = (f: string | null | undefined) => `Cuota ${f === "mensual" || f === "quincenal" ? f : "semanal"}`;
+/** "DNI 12345678", "C.E. 001234567" o "Sin DNI" (clientes del cuaderno que aún no lo tienen) */
+export const textoDocumento = (n: string | null | undefined) => (n ? `${nombreDocumento(n)} ${n}` : "Sin DNI");
 
 /** Mensajes en palabras simples para los errores de la base de datos */
 export const MENSAJE_ERROR: Record<string, string> = {
@@ -82,7 +93,7 @@ export function sumarDias(fecha: string, dias: number): string {
 }
 
 /** Colores del semáforo para bordes y acentos (los mismos de globals.css) */
-export const COLOR_HEX: Record<Color, string> = { verde: "#1f8a4c", amarillo: "#b57900", rojo: "#c0362c" };
+export const COLOR_HEX: Record<Color, string> = { verde: "#1f7a45", amarillo: "#a64b07", rojo: "#b3322a" };
 
 export function textoSemaforo(color: Color, semanas: number) {
   if (color === "verde" || semanas <= 0) return "Al día";

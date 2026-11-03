@@ -40,7 +40,7 @@ function DocumentoContrato() {
       </Link>
       <TituloPagina
         titulo="Llenar contrato"
-        sub={`${info.cliente.nombres} · ${info.moto.placa}. Completa los 4 pasos; lo que falte saldrá con una raya para llenarlo a mano.`}
+        sub={`${info.cliente.nombres} · ${info.moto.placa ?? "sin placa"}. Paso a paso, todos los datos del contrato: en el papel solo quedan las firmas y las huellas.`}
       />
       <FormularioContrato key={info.contrato.id} {...info} />
     </>

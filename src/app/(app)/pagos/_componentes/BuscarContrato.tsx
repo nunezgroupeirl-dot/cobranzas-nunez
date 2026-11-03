@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { EtiquetaSemaforo, TituloPagina, Placa, nombreDocumento } from "@/components/ui";
+import { EtiquetaSemaforo, TituloPagina, Placa, textoDocumento } from "@/components/ui";
 import type { EstadoCliente } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "../../clientes/_componentes/buscar";
 
@@ -48,7 +48,7 @@ export function BuscarContrato({ estados, alElegir }: { estados: EstadoCliente[]
               <span>
                 <span className="block font-bold">{e.cliente}</span>
                 <span className="text-sm text-tenue">
-                  <Placa placa={e.placa} tamano="chico" /> · {nombreDocumento(e.dni)} {e.dni}
+                  <Placa placa={e.placa} tamano="chico" /> · {textoDocumento(e.dni)}
                 </span>
               </span>
               <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} />
