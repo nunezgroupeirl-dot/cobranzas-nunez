@@ -22,7 +22,7 @@ export function CamposEmpresa({ empresa, alCambiar, error }: { empresa: FormEmpr
         etiqueta="Representante (gerente)"
         value={empresa.representante ?? ""}
         onChange={(e) => alCambiar({ ...empresa, representante: e.target.value })}
-        placeholder="Andrés Alexander Núñez Torres"
+        placeholder="Andrés Alexander Nuñez Torres"
       />
       <Campo
         etiqueta="DNI del representante"

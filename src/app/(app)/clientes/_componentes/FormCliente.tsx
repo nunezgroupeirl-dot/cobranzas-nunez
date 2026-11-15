@@ -153,10 +153,10 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         ) : (
           <>
             <Boton variante="secundario" tamano="grande" cargando={guardando === "solo"} onClick={(e) => guardar(e, "solo")}>
-              Solo guardar
+              Guardar sin contrato
             </Boton>
             <Boton type="submit" tamano="grande" cargando={guardando === "contrato"}>
-              Guardar y crear contrato →
+              Siguiente: moto, placa y contrato →
             </Boton>
           </>
         )}

@@ -1,5 +1,5 @@
 /** Nombre del sistema con el logo del grupo (león dorado). */
-export const NOMBRE_NEGOCIO = "Inversiones Núñez & Asociados";
+export const NOMBRE_NEGOCIO = "Inversiones Nuñez & Asociados";
 
 export function Marca({ claro = false, grande = false, chico = false }: { claro?: boolean; grande?: boolean; chico?: boolean }) {
   const lado = grande ? "size-20 md:size-24" : chico ? "size-9" : "size-11";
@@ -18,7 +18,7 @@ export function Marca({ claro = false, grande = false, chico = false }: { claro?
           className={`font-display font-bold whitespace-nowrap ${grande ? "mt-1 text-4xl md:text-6xl" : chico ? "mt-0.5 text-[1.05rem]" : "mt-0.5 text-[1.3rem]"} ${claro ? "text-white" : "text-tinta"}`}
           aria-hidden
         >
-          Núñez <span className={claro ? "text-oro" : "text-marca"}>&amp;</span> Asociados
+          Nuñez <span className={claro ? "text-oro" : "text-marca"}>&amp;</span> Asociados
         </span>
       </span>
     </span>

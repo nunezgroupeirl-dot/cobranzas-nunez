@@ -1,4 +1,4 @@
-// Fotos · Cobranzas Núñez
+// Fotos · Cobranzas Nuñez
 // Worker de Cloudflare que guarda las fotos en R2 (10 GB gratis) en vez de Supabase Storage.
 // Aplica los MISMOS permisos que tenían los buckets de Supabase:
 //   · ver: cualquier usuario activo · subir comprobantes: dueño y cobradores · subir fotos del cliente: solo el dueño
@@ -99,7 +99,7 @@ export default {
     }
     const url = new URL(peticion.url);
 
-    if (url.pathname === "/" && peticion.method === "GET") return new Response("Fotos de Cobranzas Núñez: activo.", { headers: CORS });
+    if (url.pathname === "/" && peticion.method === "GET") return new Response("Fotos de Cobranzas Nuñez: activo.", { headers: CORS });
 
     // Pedir un enlace temporal para mostrar una foto
     if (url.pathname === "/firmar" && peticion.method === "POST") {

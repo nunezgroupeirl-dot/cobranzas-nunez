@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
 import { Aviso, Boton, BotonEnlace, Cargando, IconoVehiculo, Placa, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
-import { Cronograma } from "../_componentes/Cronograma";
+import { CronogramaConComprobantes } from "../_componentes/ComprobanteAnterior";
 import { ModalCerrarContrato } from "../_componentes/ModalCerrarContrato";
 import { AccionesDuenoContrato } from "../_componentes/AccionesDuenoContrato";
 import { ResumenContrato } from "../_componentes/ResumenContrato";
@@ -90,7 +90,7 @@ export default function VerContrato() {
       <ResumenContrato contrato={contrato} cuotas={cuotas} estado={estado} moto={moto} />
       <TarjetaContratoFirmado contrato={contrato} cliente={cliente} moto={moto} empresa={empresaDatos} />
       <Tarjeta className="mt-4" titulo="Cronograma">
-        <Cronograma cuotas={cuotas} />
+        <CronogramaConComprobantes contrato={contrato} cuotas={cuotas} alGuardar={recargar} />
       </Tarjeta>
       <ModalCerrarContrato
         contratoId={contrato.id}

@@ -13,7 +13,9 @@ const destino = (p: Perfil, pedido: string | null) => pedido ?? inicioPara(p);
 
 function FormularioIngreso() {
   const router = useRouter();
-  const pedido = useSearchParams().get("volver") ?? "";
+  const parametros = useSearchParams();
+  const pedido = parametros.get("volver") ?? "";
+  const sesionCerrada = parametros.get("motivo") === "sesion";
   // solo rutas internas (evita redirigir a otro sitio)
   const pedidoValido = pedido.startsWith("/") && !pedido.startsWith("//") ? pedido : null;
   const [email, setEmail] = useState("");
@@ -67,6 +69,7 @@ function FormularioIngreso() {
 
   return (
     <form onSubmit={ingresar} className="flex flex-col gap-4">
+      {sesionCerrada && !error && <Aviso tipo="alerta">Tu sesión se cerró (venció o se salió desde otro equipo). Vuelve a ingresar para seguir.</Aviso>}
       {error && <Aviso tipo="error">{error}</Aviso>}
       <Campo etiqueta="Correo" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} obligatorio />
       <div className="relative">
@@ -132,7 +135,7 @@ export default function PaginaLogin() {
             →
           </span>
         </Link>
-        <p className="mt-8 text-xs text-tenue">© {new Date().getFullYear()} Inversiones Núñez &amp; Asociados</p>
+        <p className="mt-8 text-xs text-tenue">© {new Date().getFullYear()} Inversiones Nuñez &amp; Asociados</p>
       </section>
     </main>
   );

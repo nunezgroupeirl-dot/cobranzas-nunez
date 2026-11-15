@@ -58,7 +58,8 @@ export default function PaginaClientes() {
     const q = normalizar(texto);
     return filtrarPorEmpresa(filas ?? [], empresa)
       .filter((f) => (!color || (!f.sin_contrato && f.color === color)) && coincide(indice.get(f) ?? "", q))
-      .sort((a, b) => Number(a.sin_contrato ?? false) - Number(b.sin_contrato ?? false) || a.cliente.localeCompare(b.cliente));
+      // los que aún no tienen contrato van primero: así el cliente recién registrado se ve arriba
+      .sort((a, b) => Number(b.sin_contrato ?? false) - Number(a.sin_contrato ?? false) || a.cliente.localeCompare(b.cliente));
   }, [filas, indice, texto, color, empresa]);
 
   const columnas: Columna<Fila>[] = [
@@ -81,7 +82,12 @@ export default function PaginaClientes() {
     {
       clave: "estado",
       titulo: "Estado",
-      celda: (f) => (f.sin_contrato ? <span className="text-sm text-tenue">Sin contrato</span> : <EtiquetaSemaforo color={f.color} semanas={f.semanas_atraso} />),
+      celda: (f) =>
+        f.sin_contrato ? (
+          <span className="rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Falta contrato</span>
+        ) : (
+          <EtiquetaSemaforo color={f.color} semanas={f.semanas_atraso} />
+        ),
     },
     { clave: "deuda", titulo: "Deuda", numero: true, celda: (f) => (f.sin_contrato ? "—" : formatoSoles(f.deuda)) },
     { clave: "ultimo", titulo: "Último pago", celda: (f) => formatoFecha(f.ultimo_pago), ocultarEnMovil: true },

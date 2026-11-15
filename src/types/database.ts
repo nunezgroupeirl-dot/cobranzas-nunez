@@ -130,6 +130,8 @@ export interface Pago {
   creado_en: string;
   anulado: boolean;
   motivo_anulacion: string | null;
+  /** Comprobante de cuotas que el cuaderno ya daba por pagadas: el pago va justo a esas cuotas. */
+  cuotas_anteriores?: number[] | null;
 }
 
 /* ---------- Vistas ---------- */
@@ -236,6 +238,9 @@ export interface RegistrarPagoArgs {
   foto_ruta: string;
   foto_hash: string;
 }
+
+/** Comprobante de cuotas pagadas antes del sistema (del cuaderno). El monto es la suma de esas cuotas. */
+export type RegistrarPagoAnteriorArgs = Omit<RegistrarPagoArgs, "monto"> & { cuotas: number[] };
 
 export interface RegistrarPagoResultado {
   pago_id: string;

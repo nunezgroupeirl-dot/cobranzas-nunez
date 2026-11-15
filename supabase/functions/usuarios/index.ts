@@ -1,4 +1,4 @@
-// Edge Function "usuarios" · Cobranzas Núñez
+// Edge Function "usuarios" · Cobranzas Nuñez
 // Crea trabajadores (cajero de oficina o cobrador de ruta) y les cambia nombre, puesto o contraseña. Solo la usa el dueño.
 // Necesita la llave service_role, que Supabase inyecta sola en las Edge Functions
 // (nunca va en el frontend).

@@ -23,6 +23,7 @@ import type {
   Pago,
   Perfil,
   RegistrarPagoArgs,
+  RegistrarPagoAnteriorArgs,
   RegistrarPagoResultado,
   ResumenEmpresa,
   CobranzaSemana,
@@ -61,6 +62,8 @@ export interface Datos {
   sesion(): Promise<Perfil | null>;
   ingresar(email: string, clave: string): Promise<Perfil>;
   salir(): Promise<void>;
+  /** Avisa si la sesión se cierra sola (venció o se cerró desde otro lado). Devuelve cómo dejar de escuchar. */
+  alPerderSesion(fn: () => void): () => void;
   // catálogos
   empresas(): Promise<Empresa[]>;
   cuentas(): Promise<Cuenta[]>; // solo activas
@@ -115,6 +118,8 @@ export interface Datos {
   // pagos
   pagos(filtro?: FiltroPagos): Promise<Pago[]>;
   registrarPago(args: RegistrarPagoArgs): Promise<RegistrarPagoResultado>;
+  /** Sube el comprobante de cuotas que el cuaderno ya daba por pagadas (solo el dueño). Devuelve el id del pago. */
+  registrarPagoAnterior(args: RegistrarPagoAnteriorArgs): Promise<string>;
   anularPago(pagoId: string, motivo: string): Promise<void>;
   // público
   consultaPublica(dni: string): Promise<ConsultaPublica | null>;

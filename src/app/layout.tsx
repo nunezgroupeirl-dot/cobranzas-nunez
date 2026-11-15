@@ -9,7 +9,7 @@ import "@fontsource/barlow-semi-condensed/latin-700.css";
 import "./globals.css";
 
 const SITIO = "https://cobranzasntaa.pages.dev";
-const NOMBRE = "Inversiones Núñez & Asociados";
+const NOMBRE = "Inversiones Nuñez & Asociados";
 const DESCRIPCION = "Sistema de cobranzas: clientes, contratos de alquiler venta y pagos de motos y mototaxis.";
 
 // Lo que se ve al compartir el enlace (WhatsApp, Facebook, Telegram): logo, nombre y descripción
@@ -25,9 +25,9 @@ export const metadata: Metadata = {
     siteName: NOMBRE,
     title: NOMBRE,
     description: DESCRIPCION,
-    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: `Logo de ${NOMBRE}` }],
+    images: [{ url: "/og-2.jpg", width: 1200, height: 630, alt: `Logo de ${NOMBRE}` }],
   },
-  twitter: { card: "summary_large_image", title: NOMBRE, description: DESCRIPCION, images: ["/og.jpg"] },
+  twitter: { card: "summary_large_image", title: NOMBRE, description: DESCRIPCION, images: ["/og-2.jpg"] },
 };
 
 export const viewport: Viewport = {

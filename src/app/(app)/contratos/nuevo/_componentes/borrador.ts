@@ -132,7 +132,7 @@ export const datosCliente = (c: Cliente | null) => ({
 
 export const datosMoto = (m: Moto | null) => ({
   vehiculo: (m && /lineal|scooter/i.test(m.tipo) ? "MOTOCICLETA" : "MOTOTAXI") as Borrador["vehiculo"],
-  placa: t(m?.placa),
+  placa: m?.placa ?? (m?.placa_tramite ? "EN TRÁMITE" : ""),
   marca: (m?.marca ?? "").toUpperCase(),
   modelo: t(m?.modelo),
   anio: t(m?.anio),

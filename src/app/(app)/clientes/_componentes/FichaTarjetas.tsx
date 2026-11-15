@@ -2,7 +2,7 @@
 import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
 import { BotonEnlace, Cargando, Dato, EtiquetaSemaforo, NOMBRE_DOCUMENTO, NOMBRE_ESTADO_CONTRATO, Tarjeta, formatoFecha, formatoSoles } from "@/components/ui";
 import type { Cliente, Contrato, Cuota, Documento, EstadoCliente, Moto } from "@/types/database";
-import { Cronograma } from "../../contratos/_componentes/Cronograma";
+import { CronogramaConComprobantes } from "../../contratos/_componentes/ComprobanteAnterior";
 import { Foto } from "./Foto";
 import { MapaCliente } from "./MapaCliente";
 
@@ -69,7 +69,7 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
 
 interface PropsCronograma {
   cliente: Cliente;
-  empresa: string;
+  empresa?: string;
   contratos: Contrato[];
   motos: Map<string, Moto>;
   contratoActivo: string | null;
@@ -77,10 +77,12 @@ interface PropsCronograma {
   cuotas: Cuota[] | null;
   /** cajero de oficina: sin enlace al contrato */
   soloLectura?: boolean;
+  /** tras subir el comprobante de cuotas del cuaderno */
+  alCambiar: () => void;
 }
 
 /** Cronograma del contrato elegido, con selector si el cliente tiene varios. */
-export function TarjetaCronograma({ cliente, empresa, contratos, motos, contratoActivo, alElegir, cuotas, soloLectura }: PropsCronograma) {
+export function TarjetaCronograma({ cliente, empresa, contratos, motos, contratoActivo, alElegir, cuotas, soloLectura, alCambiar }: PropsCronograma) {
   const contrato = contratos.find((c) => c.id === contratoActivo);
   const moto = contrato ? motos.get(contrato.moto_id) : undefined;
   return (
@@ -104,7 +106,7 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
             </select>
           )}
           {contrato && cuotas && moto && (
-            <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} placa={moto.placa} empresa={empresa} contrato={contrato} cuotas={cuotas} />
+            <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} placa={moto.placa} empresa={empresa ?? ""} contrato={contrato} cuotas={cuotas} />
           )}
           {contrato && soloLectura !== true && (
             <BotonEnlace href={`/contratos/ver?id=${contrato.id}`} variante="fantasma" tamano="chico">
@@ -114,7 +116,7 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
         </div>
       }
     >
-      {cuotas ? <Cronograma cuotas={cuotas} /> : <Cargando />}
+      {cuotas && contrato ? <CronogramaConComprobantes contrato={contrato} cuotas={cuotas} alGuardar={alCambiar} /> : <Cargando />}
     </Tarjeta>
   );
 }

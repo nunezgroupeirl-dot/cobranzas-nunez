@@ -141,13 +141,20 @@ export function crearDatosReales(): Datos {
       }
       const p = await perfilDe(data.user.id);
       if (!p || !p.activo) {
-        await sb.auth.signOut();
+        await sb.auth.signOut({ scope: "local" });
         throw new ErrorDatos("INACTIVO", "Este usuario está desactivado. Pide acceso al administrador.");
       }
       return p;
     },
     async salir() {
-      await sb.auth.signOut();
+      // solo este equipo: si el dueño entra desde la PC y el celular, salir en uno no cierra el otro
+      await sb.auth.signOut({ scope: "local" });
+    },
+    alPerderSesion(fn) {
+      const { data } = sb.auth.onAuthStateChange((evento) => {
+        if (evento === "SIGNED_OUT") fn();
+      });
+      return () => data.subscription.unsubscribe();
     },
 
     /* ---------------- empresas y cuentas ---------------- */
@@ -387,7 +394,7 @@ export function crearDatosReales(): Datos {
       const filas = await todas<PagoConPerfil>((a, b) => {
         let q = sb
           .from("pagos")
-          .select("id, contrato_id, monto, fecha_pago, medio, cuenta_id, nro_operacion, foto_ruta, foto_hash, registrado_por, creado_en, anulado, motivo_anulacion, perfil:perfiles!pagos_registrado_por_fkey(nombre)")
+          .select("id, contrato_id, monto, fecha_pago, medio, cuenta_id, nro_operacion, foto_ruta, foto_hash, registrado_por, creado_en, anulado, motivo_anulacion, cuotas_anteriores, perfil:perfiles!pagos_registrado_por_fkey(nombre)")
           .order("fecha_pago", { ascending: false })
           .order("creado_en", { ascending: false });
         if (filtro?.contrato_id) q = q.eq("contrato_id", filtro.contrato_id);
@@ -412,6 +419,20 @@ export function crearDatosReales(): Datos {
       lanzar(r.error);
       const d = (Array.isArray(r.data) ? r.data[0] : r.data) as RegistrarPagoResultado;
       return { pago_id: d.pago_id, cuotas_cubiertas: d.cuotas_cubiertas ?? [] };
+    },
+    async registrarPagoAnterior(args) {
+      const r = await sb.rpc("registrar_pago_anterior", {
+        p_contrato_id: args.contrato_id,
+        p_cuotas: args.cuotas,
+        p_fecha_pago: args.fecha_pago,
+        p_medio: args.medio,
+        p_cuenta_id: args.cuenta_id,
+        p_nro_operacion: args.nro_operacion,
+        p_foto_ruta: args.foto_ruta,
+        p_foto_hash: args.foto_hash,
+      });
+      lanzar(r.error);
+      return r.data as string;
     },
     async anularPago(pagoId, motivo) {
       lanzar((await sb.rpc("anular_pago", { p_pago_id: pagoId, p_motivo: motivo })).error);

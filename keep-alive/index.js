@@ -1,4 +1,4 @@
-// Keep-alive · Cobranzas Núñez
+// Keep-alive · Cobranzas Nuñez
 // Worker de Cloudflare que corre solo (Cron Trigger) para que Supabase no pause
 // el proyecto en el plan gratis por "poca actividad" (7 días sin consultas).
 // Hace una consulta real y liviana: la consulta pública por DNI con un DNI que no

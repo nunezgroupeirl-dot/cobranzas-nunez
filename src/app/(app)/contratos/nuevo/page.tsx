@@ -19,7 +19,10 @@ function NuevoContrato() {
   const hoy = hoyLima();
   return (
     <>
-      <TituloPagina titulo="Nuevo contrato" sub="Llena el contrato paso a paso. Al final se crea con su cronograma y sale listo para imprimir: solo faltan las firmas y las huellas." />
+      <TituloPagina
+        titulo={clienteId ? "Paso 2 de 2: moto, placa y contrato" : "Nuevo contrato"}
+        sub="Llena el contrato paso a paso: moto y placa, cuotas y fechas. Al final se crea con su cronograma de pagos y sale listo para imprimir; aparte solo queda subir el contrato firmado."
+      />
       <AsistenteContrato
         {...info}
         hoy={hoy}

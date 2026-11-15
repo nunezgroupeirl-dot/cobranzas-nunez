@@ -54,35 +54,67 @@ export function generarCuotas(contrato: Pick<Contrato, "id" | "monto_cuota" | "n
   }));
 }
 
-/**
- * Reparte los pagos (no anulados) en orden de fecha sobre las cuotas,
- * siempre a la cuota pendiente más antigua, y guarda la fecha real de pago.
- */
-export function aplicarPagos<C extends Omit<Cuota, "estado" | "monto_pagado" | "fecha_pago">>(
-  cuotas: C[],
-  pagos: Pick<Pago, "monto" | "fecha_pago" | "creado_en" | "anulado">[],
-  hoy: string,
-  pagadasIniciales = 0, // cuotas que ya estaban pagadas al pasar del cuaderno
-): (C & Pick<Cuota, "estado" | "monto_pagado" | "fecha_pago">)[] {
-  const ordenadas = [...cuotas].sort((a, b) => a.numero - b.numero);
-  const pagado = ordenadas.map((c) => (c.numero <= pagadasIniciales ? aCentimos(c.monto) : 0));
-  const fechaPago: (string | null)[] = ordenadas.map(() => null);
+type PagoReparto = Pick<Pago, "monto" | "fecha_pago" | "creado_en" | "anulado" | "cuotas_anteriores"> & { id?: string };
 
+/**
+ * El mismo reparto que recalcular_contrato: cuánto pone cada pago en cada cuota.
+ * Primero los comprobantes de cuotas del cuaderno (van a esas cuotas), luego los demás pagos
+ * en orden de fecha, siempre a la cuota pendiente más antigua.
+ */
+function repartir<C extends Pick<Cuota, "numero" | "monto">>(ordenadas: C[], pagos: PagoReparto[], pagadasIniciales: number) {
   const validos = pagos
     .filter((p) => !p.anulado)
-    .sort((a, b) => (a.fecha_pago === b.fecha_pago ? a.creado_en.localeCompare(b.creado_en) : a.fecha_pago.localeCompare(b.fecha_pago)));
+    .sort(
+      (a, b) =>
+        Number(!a.cuotas_anteriores) - Number(!b.cuotas_anteriores) ||
+        (a.fecha_pago === b.fecha_pago ? a.creado_en.localeCompare(b.creado_en) : a.fecha_pago.localeCompare(b.fecha_pago)),
+    );
+  // cuotas del cuaderno que ya tienen su comprobante: las cubre ese pago, no la carga inicial
+  const conComprobante = new Set(validos.flatMap((p) => p.cuotas_anteriores ?? []));
+  const pagado = ordenadas.map((c) => (c.numero <= pagadasIniciales && !conComprobante.has(c.numero) ? aCentimos(c.monto) : 0));
+  const fechaPago: (string | null)[] = ordenadas.map(() => null);
+  const aportes: { pago: PagoReparto; monto: number }[][] = ordenadas.map(() => []);
 
   for (const p of validos) {
     let resto = aCentimos(p.monto);
+    const destino = p.cuotas_anteriores ? new Set(p.cuotas_anteriores) : null;
     for (let i = 0; i < ordenadas.length && resto > 0; i++) {
+      if (destino && !destino.has(ordenadas[i].numero)) continue;
       const falta = aCentimos(ordenadas[i].monto) - pagado[i];
       if (falta <= 0) continue;
       const aplica = Math.min(falta, resto);
       pagado[i] += aplica;
       resto -= aplica;
+      aportes[i].push({ pago: p, monto: deCentimos(aplica) });
       if (pagado[i] === aCentimos(ordenadas[i].monto)) fechaPago[i] = p.fecha_pago;
     }
   }
+  return { pagado, fechaPago, aportes };
+}
+
+/** Qué pagos cubren cada cuota (n.º de cuota → pagos con lo que aportó cada uno): para ver su voucher. */
+export function pagosPorCuota<P extends PagoReparto & { id: string }>(
+  cuotas: Pick<Cuota, "numero" | "monto">[],
+  pagos: P[],
+  pagadasIniciales = 0,
+): Map<number, { pago: P; monto: number }[]> {
+  const ordenadas = [...cuotas].sort((a, b) => a.numero - b.numero);
+  const { aportes } = repartir(ordenadas, pagos, pagadasIniciales);
+  return new Map(ordenadas.map((c, i) => [c.numero, aportes[i] as { pago: P; monto: number }[]]));
+}
+
+/**
+ * Reparte los pagos (no anulados) sobre las cuotas y calcula el estado de cada una
+ * con la fecha real de pago.
+ */
+export function aplicarPagos<C extends Omit<Cuota, "estado" | "monto_pagado" | "fecha_pago">>(
+  cuotas: C[],
+  pagos: PagoReparto[],
+  hoy: string,
+  pagadasIniciales = 0, // cuotas que ya estaban pagadas al pasar del cuaderno
+): (C & Pick<Cuota, "estado" | "monto_pagado" | "fecha_pago">)[] {
+  const ordenadas = [...cuotas].sort((a, b) => a.numero - b.numero);
+  const { pagado, fechaPago } = repartir(ordenadas, pagos, pagadasIniciales);
 
   return ordenadas.map((c, i) => {
     const completa = pagado[i] === aCentimos(c.monto);

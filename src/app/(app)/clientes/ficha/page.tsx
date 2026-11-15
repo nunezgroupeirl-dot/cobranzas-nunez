@@ -49,6 +49,7 @@ export default function FichaCliente() {
       estado: info.estados.find((e) => e.contrato_id === contratoActivo) ?? info.estados[0],
       deudaTotal: info.estados.reduce((s, e) => s + e.deuda, 0),
       pagosVigentes: info.pagos.filter((p) => !p.anulado).length,
+      motoActiva: info.motos.get(info.contratos.find((c) => c.id === contratoActivo)?.moto_id ?? ""),
     };
   }, [info, contratoActivo]);
 
@@ -57,8 +58,7 @@ export default function FichaCliente() {
   if (!info?.cliente || !resumen) return <Aviso tipo="error">No se encontró el cliente.</Aviso>;
 
   const { cliente, documentos, contratos, motos, cuentas, pagos } = info;
-  const { estado, deudaTotal, pagosVigentes } = resumen;
-  const motoActiva = motos.get(contratos.find((c) => c.id === contratoActivo)?.moto_id ?? "");
+  const { estado, deudaTotal, pagosVigentes, motoActiva } = resumen;
 
   return (
     <>
@@ -91,16 +91,18 @@ export default function FichaCliente() {
         <TarjetaDatos cliente={cliente} documentos={documentos} />
       </div>
 
+      {contratos.length === 0 && esAdmin && <FaltaContrato clienteId={cliente.id} />}
       {contratos.length > 0 && (
         <TarjetaCronograma
           cliente={cliente}
-          empresa={estado?.empresa ?? ""}
+          empresa={estado?.empresa}
           contratos={contratos}
           motos={motos}
           contratoActivo={contratoActivo}
           alElegir={setContratoSel}
           cuotas={cuotas}
           soloLectura={!esAdmin}
+          alCambiar={recargar}
         />
       )}
 
@@ -140,5 +142,18 @@ function VehiculoCliente({ moto, placa }: { moto?: Moto; placa?: string | null }
       <IconoVehiculo tipo={moto.tipo} className="h-8 w-11" conTexto />
       <Placa placa={moto.placa} tramite={moto.placa_tramite} tamano="grande" />
     </>
+  );
+}
+
+/** Cliente registrado sin contrato: lleva al paso 2 (moto, placa, cronograma y contrato). */
+function FaltaContrato({ clienteId }: { clienteId: string }) {
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-amarillo bg-amarillo-suave p-4 sm:flex-row sm:items-center">
+      <div className="flex-1">
+        <p className="font-bold">Falta el paso 2: moto, placa y contrato</p>
+        <p className="text-sm">Este cliente aún no tiene moto ni cronograma de pagos. Regístralos con el contrato: sale listo para imprimir y firmar.</p>
+      </div>
+      <BotonEnlace href={`/contratos/nuevo?cliente=${clienteId}`}>Registrar moto y contrato →</BotonEnlace>
+    </div>
   );
 }

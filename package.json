@@ -2,7 +2,7 @@
   "name": "cobranzas-nunez",
   "version": "1.0.0",
   "private": true,
-  "description": "Sistema de cobranzas de Inversiones Núñez: clientes, contratos, pagos con evidencia y morosos.",
+  "description": "Sistema de cobranzas de Inversiones Nuñez: clientes, contratos, pagos con evidencia y morosos.",
   "engines": {
     "node": ">=20"
   },

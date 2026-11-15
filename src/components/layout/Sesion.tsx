@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getDatos, type Datos } from "@/lib/supabase/datos";
 import type { Empresa, Perfil } from "@/types/database";
@@ -33,6 +33,17 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   const ruta = usePathname();
   const [valor, setValor] = useState<Omit<ValorSesion, "salir"> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const saliendo = useRef(false);
+
+  // Si la sesión se cierra sola (venció, o se cerró en todos los equipos), se vuelve al login con aviso
+  // en vez de seguir mostrando pantallas que ya no pueden leer datos ("No tienes permiso").
+  useEffect(() => {
+    if (!valor) return;
+    return valor.datos.alPerderSesion(() => {
+      // react-doctor-disable-next-line nextjs-no-client-side-redirect
+      if (!saliendo.current) window.location.replace(`/login?volver=${encodeURIComponent(window.location.pathname)}&motivo=sesion`);
+    });
+  }, [valor]);
 
   useEffect(() => {
     let vivo = true;
@@ -60,6 +71,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   }, []);
 
   const salir = useCallback(async () => {
+    saliendo.current = true;
     await valor?.datos.salir();
     router.replace("/login");
   }, [valor, router]);

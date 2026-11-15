@@ -1,4 +1,4 @@
-# Cobranzas Núñez
+# Cobranzas Nuñez
 
 Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas semanales. Reemplaza los cuadernos: clientes, motos, contratos con cronograma automático, pagos con foto del comprobante, semáforo de morosos, panel del dueño y consulta pública por DNI.
 

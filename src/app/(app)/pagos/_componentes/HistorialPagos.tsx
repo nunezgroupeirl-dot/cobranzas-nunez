@@ -65,6 +65,11 @@ export function HistorialPagos({ pagos, cuentas, etiquetas, alCambiar }: Props) 
                 <p className="font-semibold">{formatoFecha(p.fecha_pago)}</p>
               </div>
               {etiquetas && <p className="truncate font-semibold">{etiquetas.get(p.contrato_id) ?? "—"}</p>}
+              {p.cuotas_anteriores?.length ? (
+                <p className="text-sm font-semibold text-marca">
+                  {p.cuotas_anteriores.length === 1 ? "Cuota" : "Cuotas"} N.º {p.cuotas_anteriores.join(", ")} · comprobante de pago anterior (cuaderno)
+                </p>
+              ) : null}
               <p className="text-sm text-tenue">
                 {NOMBRE_MEDIO[p.medio]}
                 {cuenta(p.cuenta_id) ? ` · ${cuenta(p.cuenta_id)}` : ""}

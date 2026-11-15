@@ -341,6 +341,9 @@ export function crearDatosSimulados(): Datos {
     async salir() {
       window.localStorage.removeItem(CLAVE_SESION);
     },
+    alPerderSesion() {
+      return () => undefined; // en modo prueba la sesión no vence
+    },
 
     async empresas() {
       return leer().empresas;
@@ -802,6 +805,45 @@ export function crearDatosSimulados(): Datos {
         .filter((c, i) => c.estado.startsWith("pagada") && !antes[i].estado.startsWith("pagada"))
         .map((c) => c.numero);
       return { pago_id: pago.id, cuotas_cubiertas: cubiertas };
+    },
+    async registrarPagoAnterior(args) {
+      await pausa();
+      const s = leer();
+      const quien = exigirAdmin(s);
+      const contrato = s.contratos.find((c) => c.id === args.contrato_id);
+      if (!contrato || contrato.estado === "anulado") throw new ErrorDatos("DATOS", "Este contrato no existe o está cerrado.");
+      const cuotas = [...new Set(args.cuotas)].sort((a, b) => a - b);
+      if (!cuotas.length) throw new ErrorDatos("DATOS", "Elige al menos una cuota.");
+      if (cuotas.some((n) => n < 1 || n > contrato.cuotas_pagadas_inicial))
+        throw new ErrorDatos("DATOS", "Solo se sube comprobante de cuotas que el cuaderno ya daba por pagadas.");
+      const elegidas = new Set(cuotas);
+      const vivos = s.pagos.filter((p) => p.contrato_id === contrato.id && !p.anulado);
+      if (vivos.some((p) => p.cuotas_anteriores?.some((n) => elegidas.has(n)))) throw new ErrorDatos("DATOS", "Alguna de esas cuotas ya tiene su comprobante.");
+      if (args.fecha_pago > fechaOperativaLima()) throw new ErrorDatos("DATOS", "La fecha de pago no puede ser futura.");
+      const monto = s.cuotas.filter((q) => q.contrato_id === contrato.id && elegidas.has(q.numero)).reduce((t, q) => t + q.monto, 0);
+      const error = validarPago({ ...args, monto }, s.pagos, monto);
+      if (error) throw new ErrorDatos(error);
+      const pago: Pago = {
+        id: nuevoId(),
+        contrato_id: contrato.id,
+        monto,
+        fecha_pago: args.fecha_pago,
+        medio: args.medio,
+        cuenta_id: args.medio === "efectivo" ? null : args.cuenta_id,
+        nro_operacion: args.medio === "efectivo" ? null : args.nro_operacion?.trim() || null,
+        foto_ruta: args.foto_ruta,
+        foto_hash: args.foto_hash,
+        registrado_por: quien.id,
+        registrado_por_nombre: quien.nombre,
+        creado_en: new Date().toISOString(),
+        anulado: false,
+        motivo_anulacion: null,
+        cuotas_anteriores: cuotas,
+      };
+      s.pagos.push(pago);
+      actualizarEstadoContrato(s, contrato.id);
+      guardar(s);
+      return pago.id;
     },
     async anularPago(pagoId, motivo) {
       await pausa();

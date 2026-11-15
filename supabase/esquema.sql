@@ -1,5 +1,5 @@
 -- =============================================================================
---  COBRANZAS NÚÑEZ · Esquema completo de la base de datos (Supabase / PostgreSQL)
+--  COBRANZAS NUÑEZ · Esquema completo de la base de datos (Supabase / PostgreSQL)
 -- -----------------------------------------------------------------------------
 --  Cómo usarlo:
 --    Supabase → SQL Editor → New query → pegar TODO este archivo → Run.
@@ -222,6 +222,8 @@ create index if not exists pagos_fecha_idx on public.pagos (fecha_pago);
 -- Bloqueo de vouchers repetidos (los pagos anulados liberan el número y la imagen)
 create unique index if not exists pagos_nro_operacion_uq on public.pagos (nro_operacion) where not anulado and nro_operacion is not null;
 create unique index if not exists pagos_foto_hash_uq on public.pagos (foto_hash) where not anulado;
+-- Comprobante de cuotas que el cuaderno ya daba por pagadas: el pago se aplica justo a esas cuotas
+alter table public.pagos add column if not exists cuotas_anteriores integer[];
 
 -- Qué parte de cada pago se aplicó a cada cuota (se reconstruye en cada recálculo)
 create table if not exists public.pago_cuota (
@@ -355,6 +357,7 @@ declare
   v_aplica   numeric;
   v_total    integer;
   v_pagadas  integer;
+  v_objetivo integer[];
   r_pago     record;
   r_cuota    record;
 begin
@@ -368,20 +371,27 @@ begin
   using public.cuotas_base cb
   where pc.cuota_id = cb.id and cb.contrato_id = p_contrato_id;
 
+  -- cuotas del cuaderno que ya tienen su comprobante subido: las cubre ese pago y no la carga inicial
+  select coalesce(array_agg(n), '{}') into v_objetivo
+  from public.pagos p, unnest(p.cuotas_anteriores) as n
+  where p.contrato_id = p_contrato_id and not p.anulado;
+
   update public.cuotas_base
-  set monto_pagado = case when numero <= v_inicial then monto else 0 end,
+  set monto_pagado = case when numero <= v_inicial and not (numero = any (v_objetivo)) then monto else 0 end,
       fecha_pago = null
   where contrato_id = p_contrato_id;
 
+  -- primero los comprobantes de cuotas del cuaderno (van a sus cuotas), luego los pagos normales en orden
   for r_pago in
-    select id, monto, fecha_pago from public.pagos
+    select id, monto, fecha_pago, cuotas_anteriores from public.pagos
     where contrato_id = p_contrato_id and not anulado
-    order by fecha_pago, creado_en, id
+    order by (cuotas_anteriores is null), fecha_pago, creado_en, id
   loop
     v_resto := r_pago.monto;
     for r_cuota in
       select id, monto, monto_pagado from public.cuotas_base
       where contrato_id = p_contrato_id and monto_pagado < monto
+        and (r_pago.cuotas_anteriores is null or numero = any (r_pago.cuotas_anteriores))
       order by numero
     loop
       exit when v_resto <= 0;
@@ -595,6 +605,96 @@ begin
            coalesce(array_agg(cb.numero order by cb.numero), '{}')::integer[]
     from public.cuotas_base cb
     where cb.contrato_id = p_contrato_id and cb.monto_pagado >= cb.monto and not (cb.numero = any (v_antes));
+end;
+$$;
+
+-- Sube el comprobante de cuotas que el cuaderno ya daba por pagadas (solo el dueño).
+-- Crea un pago con su voucher por el total de esas cuotas: así se ven en el historial y en el cronograma
+-- con su fecha real. La deuda no cambia. Si se anula, las cuotas vuelven a "pagadas del cuaderno".
+create or replace function public.registrar_pago_anterior(
+  p_contrato_id    uuid,
+  p_cuotas         integer[],
+  p_fecha_pago     date,
+  p_medio          public.medio_pago,
+  p_cuenta_id      uuid,
+  p_nro_operacion  text,
+  p_foto_ruta      text,
+  p_foto_hash      text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_contrato    public.contratos;
+  v_cuotas      integer[];
+  v_monto       numeric;
+  v_nro         text := nullif(trim(p_nro_operacion), '');
+  v_cuenta      uuid := p_cuenta_id;
+  v_id          uuid;
+  v_restriccion text;
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+
+  select * into v_contrato from public.contratos where id = p_contrato_id for update;
+  if not found or v_contrato.estado = 'anulado' then
+    raise exception 'Este contrato no existe o está cerrado.';
+  end if;
+
+  select coalesce(array_agg(distinct n order by n), '{}') into v_cuotas from unnest(p_cuotas) as n;
+  if cardinality(v_cuotas) = 0 then
+    raise exception 'Elige al menos una cuota.';
+  end if;
+  if exists (select 1 from unnest(v_cuotas) n where n < 1 or n > v_contrato.cuotas_pagadas_inicial) then
+    raise exception 'Solo se sube comprobante de cuotas que el cuaderno ya daba por pagadas.';
+  end if;
+  if exists (select 1 from public.pagos p, unnest(p.cuotas_anteriores) n
+             where p.contrato_id = p_contrato_id and not p.anulado and n = any (v_cuotas)) then
+    raise exception 'Alguna de esas cuotas ya tiene su comprobante.';
+  end if;
+
+  if coalesce(trim(p_foto_ruta), '') = '' or coalesce(trim(p_foto_hash), '') = '' then
+    raise exception 'SIN_FOTO';
+  end if;
+  if p_fecha_pago is null or p_fecha_pago > public.hoy_lima() then
+    raise exception 'La fecha de pago no puede ser futura.';
+  end if;
+
+  if p_medio = 'efectivo' then
+    v_nro := null;
+    v_cuenta := null;
+  else
+    if v_nro is null then
+      raise exception 'Escribe el número de operación.';
+    end if;
+    if v_cuenta is null or not exists (select 1 from public.cuentas where id = v_cuenta and activa) then
+      raise exception 'Elige la cuenta donde llegó el dinero.';
+    end if;
+    if exists (select 1 from public.pagos where nro_operacion = v_nro and not anulado) then
+      raise exception 'OPERACION_REPETIDA';
+    end if;
+  end if;
+  if exists (select 1 from public.pagos where foto_hash = p_foto_hash and not anulado) then
+    raise exception 'IMAGEN_REPETIDA';
+  end if;
+
+  select sum(monto) into v_monto from public.cuotas_base where contrato_id = p_contrato_id and numero = any (v_cuotas);
+
+  begin
+    insert into public.pagos (contrato_id, monto, fecha_pago, medio, cuenta_id, nro_operacion, foto_ruta, foto_hash, registrado_por, cuotas_anteriores)
+    values (p_contrato_id, v_monto, p_fecha_pago, p_medio, v_cuenta, v_nro, p_foto_ruta, p_foto_hash, auth.uid(), v_cuotas)
+    returning id into v_id;
+  exception when unique_violation then
+    get stacked diagnostics v_restriccion = constraint_name;
+    if v_restriccion = 'pagos_nro_operacion_uq' then raise exception 'OPERACION_REPETIDA'; end if;
+    raise exception 'IMAGEN_REPETIDA';
+  end;
+
+  perform public.recalcular_contrato(p_contrato_id);
+  return v_id;
 end;
 $$;
 
@@ -1423,6 +1523,8 @@ revoke all on function public.es_admin() from public, anon;
 
 grant execute on function public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text, text) to authenticated;
 grant execute on function public.registrar_pago(uuid, numeric, date, public.medio_pago, uuid, text, text, text) to authenticated;
+revoke all on function public.registrar_pago_anterior(uuid, integer[], date, public.medio_pago, uuid, text, text, text) from public, anon;
+grant execute on function public.registrar_pago_anterior(uuid, integer[], date, public.medio_pago, uuid, text, text, text) to authenticated;
 grant execute on function public.anular_pago(uuid, text) to authenticated;
 grant execute on function public.cerrar_contrato(uuid, text) to authenticated;
 grant execute on function public.actualizar_usuario(uuid, public.rol_usuario, boolean) to authenticated;
