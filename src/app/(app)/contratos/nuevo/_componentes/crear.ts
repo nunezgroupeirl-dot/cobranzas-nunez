@@ -48,6 +48,7 @@ export async function crearTodo({ datos, b, empresa, cliente, moto, hechos }: En
     cliente_id: hechos.cliente.id,
     empresa_id: empresa.id,
     placa: b.placa.trim().toUpperCase(),
+    placa_tramite: laMoto?.placa_tramite ?? false,
     tipo: laMoto?.tipo ?? (b.vehiculo === "MOTOCICLETA" ? "Lineal" : "Mototaxi"),
     marca: b.marca.trim(),
     color: b.color.trim(),

@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { OpcionesBoton, Placa, textoDocumento } from "@/components/ui";
+import { IconoVehiculo, OpcionesBoton, Placa, textoDocumento } from "@/components/ui";
 import { claveBusqueda, coincide, normalizar } from "@/lib/texto";
 import type { Cliente, Empresa, Moto } from "@/types/database";
 
@@ -94,7 +94,8 @@ export function ElegirMoto({ motos, elegida, alElegir }: { motos: Moto[]; elegid
             onClick={() => alElegir(m)}
             className={`flex min-h-12 items-center gap-2 rounded-xl border px-3 text-sm font-semibold ${elegida?.id === m.id ? "border-marca bg-marca-suave" : "border-borde hover:border-marca"}`}
           >
-            <Placa placa={m.placa} tamano="chico" /> {m.marca} {m.tipo}
+            <IconoVehiculo tipo={m.tipo} />
+            <Placa placa={m.placa} tramite={m.placa_tramite} tamano="chico" /> {m.marca} {m.tipo}
           </button>
         ))}
         <button

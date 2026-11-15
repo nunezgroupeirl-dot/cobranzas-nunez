@@ -58,7 +58,7 @@ function almacenWorker(sb: SupabaseClient, base: string): Almacen {
 
   return {
     async subir(bucket, ruta, archivo) {
-      await llamar("PUT", camino(bucket, ruta), archivo, "image/jpeg");
+      await llamar("PUT", camino(bucket, ruta), archivo, archivo.type || "image/jpeg");
     },
     async borrar(bucket, ruta) {
       enlaces.delete(`${bucket}/${ruta}`);

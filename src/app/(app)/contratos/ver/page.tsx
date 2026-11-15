@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
-import { Aviso, Boton, BotonEnlace, Cargando, Placa, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Cargando, IconoVehiculo, Placa, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
 import { Cronograma } from "../_componentes/Cronograma";
 import { ModalCerrarContrato } from "../_componentes/ModalCerrarContrato";
 import { AccionesDuenoContrato } from "../_componentes/AccionesDuenoContrato";
@@ -61,7 +61,8 @@ export default function VerContrato() {
         titulo="Contrato"
         sub={
           <span className="flex flex-wrap items-center gap-3">
-            <Placa placa={moto?.placa} tamano="grande" />
+            <IconoVehiculo tipo={moto?.tipo} className="h-8 w-11" />
+            <Placa placa={moto?.placa} tramite={moto?.placa_tramite} tamano="grande" />
             <span>
               {cliente?.nombres ?? ""} · {empresa}
             </span>

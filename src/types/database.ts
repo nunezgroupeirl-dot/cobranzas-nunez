@@ -10,7 +10,7 @@ export type Puesto = "oficina" | "ruta";
 export type Frecuencia = "semanal" | "quincenal" | "mensual";
 export type Color = "verde" | "amarillo" | "rojo";
 export type MedioPago = "yape" | "plin" | "banco" | "agente" | "efectivo";
-export type TipoDocumento = "cliente" | "dni" | "moto" | "fachada" | "recibo" | "otro" | "contrato";
+export type TipoDocumento = "cliente" | "dni" | "dni_reverso" | "moto" | "fachada" | "recibo" | "otro" | "contrato";
 export type Bucket = "evidencias" | "documentos";
 
 /* ---------- Tablas ---------- */
@@ -67,7 +67,9 @@ export interface Moto {
   id: string;
   cliente_id: string | null;
   empresa_id: string;
-  placa: string | null; // null = falta (importado del cuaderno)
+  placa: string | null; // null = falta (importado del cuaderno) o está en trámite
+  /** La placa aún no sale: no cuenta como dato pendiente. */
+  placa_tramite?: boolean;
   tipo: string; // "Lineal", "Scooter", "Trimoto", "Otro"
   marca: string;
   color: string;

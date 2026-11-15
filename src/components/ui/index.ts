@@ -6,6 +6,7 @@ export { Modal } from "./Modal";
 export { ModalEliminar } from "./ModalEliminar";
 export { VistaPrevia } from "./VistaPrevia";
 export { Placa } from "./Placa";
+export { IconoVehiculo } from "./IconoVehiculo";
 export { Aviso } from "./Aviso";
 export { EtiquetaSemaforo } from "./Semaforo";
 export { Tarjeta, Cargando, TituloPagina, Dato } from "./Tarjeta";

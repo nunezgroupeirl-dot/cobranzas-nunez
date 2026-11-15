@@ -6,6 +6,7 @@
  * - Supabase devuelve como máximo 1000 filas por consulta: `todas()` pagina para
  *   que las listas grandes (clientes, pagos de un mes) lleguen completas.
  */
+import { normalizarPlaca } from "@/lib/placa";
 import type { PostgrestError } from "@supabase/supabase-js";
 import type {
   Cliente,
@@ -33,7 +34,7 @@ import { mesAnterior, siguienteMes } from "@/lib/letras";
 /** Códigos que lanza la base de datos y que la pantalla traduce (ver MENSAJE_ERROR) */
 const CODIGOS = ["OPERACION_REPETIDA", "IMAGEN_REPETIDA", "MONTO_INVALIDO", "SIN_FOTO", "SIN_PERMISO"];
 const TAMANO_PAGINA = 1000;
-const COLUMNAS_MOTO = "id, cliente_id, empresa_id, placa, tipo, marca, color, modelo, anio, clase, combustible, serie, motor, carroceria";
+const COLUMNAS_MOTO = "id, cliente_id, empresa_id, placa, placa_tramite, tipo, marca, color, modelo, anio, clase, combustible, serie, motor, carroceria";
 
 type ErrorSupabase = Pick<PostgrestError, "message" | "code"> | { message: string; code?: string };
 
@@ -270,7 +271,7 @@ export function crearDatosReales(): Datos {
     },
     async guardarMoto(m) {
       const { id, ...resto } = m;
-      const datos = { ...resto, placa: resto.placa?.trim().toUpperCase() || null };
+      const datos = { ...resto, ...normalizarPlaca(resto.placa, resto.placa_tramite) };
       const r = id
         ? await sb.from("motos").update(datos).eq("id", id).select(COLUMNAS_MOTO).single()
         : await sb.from("motos").insert(datos).select(COLUMNAS_MOTO).single();
@@ -315,6 +316,17 @@ export function crearDatosReales(): Datos {
     async contratos() {
       const filas = await todas<Contrato>((a, b) => sb.from("contratos").select("*").order("creado_en", { ascending: false }).range(a, b));
       return filas.map(normalizarContrato);
+    },
+    async contratosPorFirmar() {
+      // sin traer los contratos completos: ids de los activos llenados, cuántos faltan llenar y cuáles tienen el firmado
+      const [llenados, sinLlenar, firmados] = await Promise.all([
+        todas<{ id: string }>((a, b) => sb.from("contratos").select("id").eq("estado", "activo").not("documento", "is", null).order("id").range(a, b)),
+        sb.from("contratos").select("id", { count: "exact", head: true }).eq("estado", "activo").is("documento", null),
+        todas<{ contrato_id: string }>((a, b) => sb.from("documentos").select("contrato_id").eq("tipo", "contrato").not("contrato_id", "is", null).order("id").range(a, b)),
+      ]);
+      lanzar(sinLlenar.error);
+      const conFirma = new Set(firmados.map((d) => d.contrato_id));
+      return (sinLlenar.count ?? 0) + llenados.filter((c) => !conFirma.has(c.id)).length;
     },
     async contrato(id) {
       const c = fila<Contrato>(await sb.from("contratos").select("*").eq("id", id).maybeSingle());

@@ -1,10 +1,11 @@
 "use client";
+import type { Moto } from "@/types/database";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, Cargando, Placa, textoDocumento, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { Aviso, BotonEnlace, Cargando, IconoVehiculo, Placa, textoDocumento, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
 import { HistorialPagos } from "../../pagos/_componentes/HistorialPagos";
 import { EliminarCliente } from "../_componentes/EliminarCliente";
 import { TarjetaCronograma, TarjetaDatos, TarjetaSituacion } from "../_componentes/FichaTarjetas";
@@ -57,6 +58,7 @@ export default function FichaCliente() {
 
   const { cliente, documentos, contratos, motos, cuentas, pagos } = info;
   const { estado, deudaTotal, pagosVigentes } = resumen;
+  const motoActiva = motos.get(contratos.find((c) => c.id === contratoActivo)?.moto_id ?? "");
 
   return (
     <>
@@ -67,7 +69,7 @@ export default function FichaCliente() {
         titulo={cliente.nombres}
         sub={
           <span className="flex flex-wrap items-center gap-3">
-            {estado && <Placa placa={estado.placa} tamano="grande" />}
+            <VehiculoCliente moto={motoActiva} placa={estado?.placa} />
             <DocumentoCliente dni={cliente.dni} />
           </span>
         }
@@ -127,5 +129,16 @@ function AccionPrincipal({ clienteId, contratoId, esAdmin }: { clienteId: string
     <BotonEnlace href={`/contratos/nuevo?cliente=${clienteId}`} tamano="grande">
       Crear contrato
     </BotonEnlace>
+  );
+}
+
+/** El vehículo que el cliente tiene en su poder: ícono, tipo y placa (o "en trámite"). */
+function VehiculoCliente({ moto, placa }: { moto?: Moto; placa?: string | null }) {
+  if (!moto) return placa ? <Placa placa={placa} tamano="grande" /> : null;
+  return (
+    <>
+      <IconoVehiculo tipo={moto.tipo} className="h-8 w-11" conTexto />
+      <Placa placa={moto.placa} tramite={moto.placa_tramite} tamano="grande" />
+    </>
   );
 }

@@ -40,6 +40,7 @@ exception when duplicate_object then null; end $$;
 do $$ begin create type public.tipo_documento as enum ('cliente', 'dni', 'moto', 'fachada', 'recibo', 'otro', 'contrato');
 exception when duplicate_object then null; end $$;
 alter type public.tipo_documento add value if not exists 'contrato';  -- páginas del contrato firmado
+alter type public.tipo_documento add value if not exists 'dni_reverso';  -- DNI o Carné de Extranjería: 'dni' es el frente
 
 -- activo: se está pagando · terminado: pagó todo · anulado: cerrado por el administrador (moto recuperada, etc.)
 do $$ begin create type public.estado_contrato as enum ('activo', 'terminado', 'anulado');
@@ -145,6 +146,8 @@ alter table public.motos add column if not exists motor text;
 alter table public.motos add column if not exists carroceria text;
 alter table public.motos drop constraint if exists motos_anio_check;
 alter table public.motos add constraint motos_anio_check check (anio is null or anio between 1990 and 2100);
+-- Placa en trámite: la moto ya se entregó pero la placa aún no sale (no cuenta como dato pendiente)
+alter table public.motos add column if not exists placa_tramite boolean not null default false;
 
 create table if not exists public.contratos (
   id                      uuid primary key default gen_random_uuid(),
@@ -861,6 +864,7 @@ declare
   v_dni       text := nullif(regexp_replace(coalesce(p_fila ->> 'dni', ''), '\D', '', 'g'), '');
   v_nombres   text := regexp_replace(trim(coalesce(p_fila ->> 'nombres', '')), '\s+', ' ', 'g');
   v_placa     text := nullif(upper(trim(coalesce(p_fila ->> 'placa', ''))), '');
+  v_tramite   boolean := false;
   v_celular   text := nullif(regexp_replace(coalesce(p_fila ->> 'celular', ''), '\D', '', 'g'), '');
   v_cuota     numeric := nullif(p_fila ->> 'cuota', '')::numeric;
   v_nro       integer := nullif(p_fila ->> 'nro_cuotas', '')::integer;
@@ -915,6 +919,12 @@ begin
     raise exception 'Esta fila ya se importó (el cliente ya tiene ese mismo contrato).';
   end if;
 
+  -- "EN TRÁMITE" en la columna PLACA no es una placa: la moto queda con la placa en trámite
+  if v_placa ~ 'TR[AÁ]MITE' then
+    v_placa := null;
+    v_tramite := true;
+  end if;
+
   -- Moto: por placa. Si la placa ya es de OTRO cliente con contrato activo, se crea sin placa y se avisa.
   if v_placa is not null then
     select * into v_moto from public.motos where placa = v_placa;
@@ -925,8 +935,8 @@ begin
     end if;
   end if;
   if v_moto.id is null then
-    insert into public.motos (cliente_id, empresa_id, placa, tipo, marca, color)
-    values (v_cliente.id, v_empresa, v_placa,
+    insert into public.motos (cliente_id, empresa_id, placa, placa_tramite, tipo, marca, color)
+    values (v_cliente.id, v_empresa, v_placa, v_tramite,
             coalesce(nullif(trim(p_fila ->> 'tipo'), ''), 'Otro'),
             coalesce(trim(p_fila ->> 'marca'), ''), coalesce(trim(p_fila ->> 'color'), ''))
     returning * into v_moto;
@@ -1354,7 +1364,8 @@ create policy borrar on public.documentos for delete to authenticated
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
   ('evidencias', 'evidencias', false, 5242880, array['image/jpeg', 'image/png', 'image/webp']),
-  ('documentos', 'documentos', false, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+  -- documentos acepta PDF (DNI, recibos escaneados) sin comprimir: hasta 10 MB
+  ('documentos', 'documentos', false, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
 on conflict (id) do update
   set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
 

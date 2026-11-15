@@ -126,10 +126,14 @@ export async function comprimirImagen(archivo: File | Blob, { lado: ladoMax = LA
 
 /* ---------------- subir ---------------- */
 
-export function rutaArchivo(empresaId: string, clienteId: string, prefijo: string): string {
+export function rutaArchivo(empresaId: string, clienteId: string, prefijo: string, extension: "jpg" | "pdf" = "jpg"): string {
   const azar = Math.random().toString(36).slice(2, 8);
-  return `${empresaId}/${clienteId}/${prefijo}-${Date.now()}-${azar}.jpg`;
+  const limpio = prefijo.toLowerCase().replace(/[^a-z]/g, "") || "doc"; // "dni_reverso" → "dnireverso"
+  return `${empresaId}/${clienteId}/${limpio}-${Date.now()}-${azar}.${extension}`;
 }
+
+/** Un PDF se guarda tal cual (no se comprime): hasta 10 MB. */
+export const PDF_MAXIMO = 10 * 1024 * 1024;
 
 /** Foto de evidencia de un pago: hash de la ORIGINAL, luego comprime y sube a "evidencias". */
 export async function prepararFotoPago(datos: Datos, empresaId: string, clienteId: string, archivo: File): Promise<{ ruta: string; hash: string }> {
@@ -140,7 +144,7 @@ export async function prepararFotoPago(datos: Datos, empresaId: string, clienteI
   return { ruta, hash };
 }
 
-/** Foto o documento del cliente: comprime y sube a "documentos". */
+/** Foto o documento del cliente: comprime la foto (o sube el PDF tal cual) a "documentos". */
 export async function subirDocumento(
   datos: Datos,
   empresaId: string,
@@ -149,6 +153,12 @@ export async function subirDocumento(
   archivo: File,
   calidad?: { lado: number; objetivo: number },
 ): Promise<string> {
+  if (archivo.type === "application/pdf") {
+    if (archivo.size > PDF_MAXIMO) throw new Error("El PDF pesa más de 10 MB. Escanéalo con menos resolución.");
+    const ruta = rutaArchivo(empresaId, clienteId, tipo, "pdf");
+    await datos.subirArchivo("documentos", ruta, archivo);
+    return ruta;
+  }
   const comprimida = await comprimirImagen(archivo, calidad);
   const ruta = rutaArchivo(empresaId, clienteId, tipo);
   await datos.subirArchivo("documentos", ruta, comprimida);

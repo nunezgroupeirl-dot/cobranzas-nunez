@@ -105,6 +105,8 @@ export interface Datos {
   /** Cambia cuota, n.º de cuotas o fecha: rehace el cronograma y reaplica los pagos (solo el dueño). */
   editarContrato(id: string, c: EditarContratoArgs): Promise<void>;
   contratos(): Promise<Contrato[]>;
+  /** Contratos activos sin llenar o sin el firmado subido (aviso del menú, solo el dueño). */
+  contratosPorFirmar(): Promise<number>;
   contrato(id: string): Promise<Contrato | null>;
   crearContrato(args: CrearContratoArgs): Promise<string>;
   cuotas(contratoId: string): Promise<Cuota[]>;

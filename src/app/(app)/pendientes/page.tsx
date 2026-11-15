@@ -1,13 +1,15 @@
 "use client";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
-import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
+import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
 import { Aviso, Boton, Cargando, Modal, TituloPagina, hoyLima, useCarga } from "@/components/ui";
 import { descargarExcel } from "@/lib/exportar";
 import { claveBusqueda, coincide, normalizar } from "@/lib/texto";
 import { FormMoto } from "../contratos/_componentes/FormMoto";
-import { CLAVES_FALTANTES, FALTANTES, calcularPendientes, contarPorDato, type Faltante, type FilaPendiente } from "./_componentes/faltantes";
+import { CLAVES_FALTANTES, FALTANTES, VISTAS, calcularPendientes, contarPorDato, filasDeVista, type Faltante, type FilaPendiente, type Vista } from "./_componentes/faltantes";
 import { TarjetaPendiente } from "./_componentes/TarjetaPendiente";
+import { AvisoContratos, PestanasVista } from "./_componentes/PestanasVista";
 
 const GRUPOS = [
   { clave: "cliente", titulo: "Del cliente" },
@@ -15,10 +17,19 @@ const GRUPOS = [
   { clave: "contrato", titulo: "Del contrato" },
 ] as const;
 const POR_PAGINA = 40;
+const TODO_COMPLETO: Record<Vista, string> = {
+  cliente: "Todo completo: a ningún cliente ni moto le falta un dato.",
+  contratos: "Todos los contratos activos están llenados y firmados.",
+};
+const CUENTA: Record<Vista, string> = { cliente: "contratos con datos pendientes", contratos: "contratos sin llenar o sin firmar" };
 
 function Pendientes() {
   const { datos } = useSesion();
   const empresa = useEmpresa();
+  const router = useRouter();
+  const conEmpresa = useConEmpresa();
+  // ?vista=contratos llega desde el número rojo del menú
+  const vista: Vista = useSearchParams().get("vista") === "contratos" ? "contratos" : "cliente";
   const [dato, setDato] = useState<Faltante | "">("");
   const [texto, setTexto] = useState("");
   const [cuantos, setCuantos] = useState(POR_PAGINA);
@@ -35,7 +46,19 @@ function Pendientes() {
     return calcularPendientes({ estados, contratos, clientes, motos, documentos }).map((f) => ({ ...f, clave: claveBusqueda(f.cliente, f.placa) }));
   }, [datos]);
 
-  const deEmpresa = useMemo(() => filtrarPorEmpresa(todas ?? [], empresa), [todas, empresa]);
+  const porVista = useMemo(() => {
+    const base = filtrarPorEmpresa(todas ?? [], empresa);
+    return { cliente: filasDeVista(base, "cliente"), contratos: filasDeVista(base, "contratos") };
+  }, [todas, empresa]);
+  const deEmpresa = porVista[vista];
+  const grupos = GRUPOS.filter((g) => (VISTAS[vista].grupos as readonly string[]).includes(g.clave));
+  const claves = CLAVES_FALTANTES.filter((k) => grupos.some((g) => g.clave === FALTANTES[k].grupo));
+
+  const cambiarVista = (v: Vista) => {
+    setDato("");
+    setCuantos(POR_PAGINA);
+    router.replace(conEmpresa(v === "contratos" ? "/pendientes?vista=contratos" : "/pendientes"), { scroll: false });
+  };
   const cuenta = useMemo(() => contarPorDato(deEmpresa), [deEmpresa]);
   const lista = useMemo(() => {
     const q = normalizar(texto);
@@ -48,11 +71,17 @@ function Pendientes() {
   };
 
   const excel = () =>
-    descargarExcel(`datos_pendientes_${hoyLima()}`, [
+    descargarExcel(`${vista === "contratos" ? "contratos_pendientes" : "datos_pendientes"}_${hoyLima()}`, [
       {
-        nombre: "Pendientes",
-        columnas: ["Cliente", "Placa", "Empresa", ...CLAVES_FALTANTES.map((k) => FALTANTES[k].texto), "Qué revisar"],
-        filas: lista.map((f) => [f.cliente, f.placa ?? "", f.empresa, ...CLAVES_FALTANTES.map((k) => (f.faltan.includes(k) ? "FALTA" : "")), f.nota ?? ""]),
+        nombre: VISTAS[vista].titulo,
+        columnas: ["Cliente", "Placa", "Empresa", ...claves.map((k) => FALTANTES[k].texto), ...(vista === "cliente" ? ["Qué revisar"] : [])],
+        filas: lista.map((f) => [
+          f.cliente,
+          f.placa ?? (f.moto?.placa_tramite ? "EN TRÁMITE" : ""),
+          f.empresa,
+          ...claves.map((k) => (f.faltan.includes(k) ? "FALTA" : "")),
+          ...(vista === "cliente" ? [f.nota ?? ""] : []),
+        ]),
       },
     ]);
 
@@ -60,7 +89,7 @@ function Pendientes() {
     <>
       <TituloPagina
         titulo="Datos pendientes"
-        sub="De cada contrato activo, lo que falta completar. Toca un dato para ver solo a quiénes les falta."
+        sub="De cada contrato activo, lo que falta completar. El contrato va en su propia pestaña. Toca un dato para ver solo a quiénes les falta."
         accion={
           <Boton variante="secundario" tamano="grande" onClick={excel} disabled={!lista.length}>
             Descargar lista (Excel)
@@ -72,8 +101,11 @@ function Pendientes() {
         <Cargando />
       ) : (
         <>
-          <div className="mb-4 grid gap-3 md:grid-cols-3">
-            {GRUPOS.map((g) => (
+          <PestanasVista vista={vista} cuentas={{ cliente: porVista.cliente.length, contratos: porVista.contratos.length }} alCambiar={cambiarVista} />
+          {vista === "contratos" && porVista.contratos.length > 0 && <AvisoContratos cuantos={porVista.contratos.length} />}
+
+          <div className={`mb-4 grid gap-3 ${grupos.length > 1 ? "md:grid-cols-2" : ""}`}>
+            {grupos.map((g) => (
               <section key={g.clave} className="rounded-2xl border border-borde bg-superficie p-3">
                 <h2 className="mb-2 text-sm font-bold tracking-wide text-tenue uppercase">{g.titulo}</h2>
                 <div className="flex flex-wrap gap-2">
@@ -110,7 +142,7 @@ function Pendientes() {
               aria-label="Buscar"
             />
             <p className="text-sm text-tenue">
-              <b className="text-tinta">{lista.length}</b> de {deEmpresa.length} contratos con datos pendientes
+              <b className="text-tinta">{lista.length}</b> de {deEmpresa.length} {CUENTA[vista]}
               {dato && (
                 <>
                   {" "}· {FALTANTES[dato].texto}{" "}
@@ -123,7 +155,7 @@ function Pendientes() {
           </div>
 
           {deEmpresa.length === 0 ? (
-            <Aviso tipo="exito">Todo completo: ningún contrato activo tiene datos pendientes.</Aviso>
+            <Aviso tipo="exito">{TODO_COMPLETO[vista]}</Aviso>
           ) : (
             <ul className="flex flex-col gap-3">
               {lista.slice(0, cuantos).map((f) => (

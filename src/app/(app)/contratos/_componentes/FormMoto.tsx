@@ -26,6 +26,7 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
   const filtro = useEmpresa();
   const [f, setF] = useState({
     placa: moto?.placa ?? "",
+    tramite: !moto?.placa && !!moto?.placa_tramite,
     tipo: moto?.tipo ?? "Mototaxi",
     marca: moto?.marca ?? "",
     color: moto?.color ?? "",
@@ -37,11 +38,11 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
-  const poner = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
+  const poner = (k: Exclude<keyof typeof f, "tramite">, v: string) => setF((x) => ({ ...x, [k]: v }));
 
   const guardar = async () => {
     const e: Record<string, string> = {};
-    if (f.placa.trim() && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(f.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
+    if (!f.tramite && f.placa.trim() && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(f.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
     if (!f.marca.trim()) e.marca = "Escribe la marca.";
     if (!f.color.trim()) e.color = "Escribe el color.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
@@ -56,7 +57,8 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
         id: moto?.id,
         cliente_id: moto?.cliente_id ?? clienteId ?? null,
         empresa_id: f.empresa_id,
-        placa: f.placa,
+        placa: f.tramite ? null : f.placa,
+        placa_tramite: f.tramite,
         tipo: f.tipo,
         marca: f.marca.trim(),
         color: f.color.trim(),
@@ -80,14 +82,12 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
     <div className="flex flex-col gap-4">
       {error && <Aviso tipo="error">{error}</Aviso>}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          etiqueta="Placa"
-          value={f.placa}
-          onChange={(e) => poner("placa", e.target.value.toUpperCase())}
+        <CampoPlaca
+          placa={f.placa}
+          tramite={f.tramite}
           error={errores.placa}
-          ayuda={f.placa ? undefined : "Si aún no tiene placa, déjala vacía: saldrá en “Datos pendientes”."}
-          className="font-display text-lg font-bold tracking-[0.06em] uppercase"
-          autoCapitalize="characters"
+          alCambiarPlaca={(v) => poner("placa", v)}
+          alCambiarTramite={(v) => setF((x) => ({ ...x, tramite: v }))}
         />
         <Selector
           etiqueta="Empresa"
@@ -126,6 +126,37 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
           {moto ? "Guardar moto" : "Registrar moto"}
         </Boton>
       </div>
+    </div>
+  );
+}
+
+interface PropsPlaca {
+  placa: string;
+  tramite: boolean;
+  error?: string;
+  alCambiarPlaca: (v: string) => void;
+  alCambiarTramite: (v: boolean) => void;
+}
+
+/** Placa, o la casilla "en trámite" cuando la placa aún no sale (así no figura como dato pendiente). */
+function CampoPlaca({ placa, tramite, error, alCambiarPlaca, alCambiarTramite }: PropsPlaca) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Campo
+        etiqueta="Placa"
+        value={tramite ? "" : placa}
+        onChange={(e) => alCambiarPlaca(e.target.value.toUpperCase())}
+        error={error}
+        disabled={tramite}
+        placeholder={tramite ? "En trámite" : undefined}
+        ayuda={placa || tramite ? undefined : "Si aún no la sabes, déjala vacía: saldrá en “Datos pendientes”."}
+        className="font-display text-lg font-bold tracking-[0.06em] uppercase"
+        autoCapitalize="characters"
+      />
+      <label className="flex min-h-11 cursor-pointer items-center gap-2 font-semibold">
+        <input type="checkbox" checked={tramite} onChange={(e) => alCambiarTramite(e.target.checked)} className="size-5 shrink-0 accent-marca" />
+        Placa en trámite (aún no sale)
+      </label>
     </div>
   );
 }

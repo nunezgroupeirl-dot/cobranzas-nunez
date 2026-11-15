@@ -1,19 +1,20 @@
 import type { Cliente, Color, Contrato, Documento, EstadoCliente, Moto } from "@/types/database";
 
-/** Cada dato que puede faltar en un contrato activo, agrupado por dónde se completa. */
+/** Cada dato que puede faltar en un contrato activo, agrupado por dónde se completa (el contrato va en su propia pestaña). */
 export const FALTANTES = {
   dni: { texto: "DNI", grupo: "cliente" },
   celular: { texto: "Celular", grupo: "cliente" },
   direccion: { texto: "Dirección", grupo: "cliente" },
   ubicacion: { texto: "Ubicación en el mapa", grupo: "cliente" },
   foto_cliente: { texto: "Foto del cliente", grupo: "cliente" },
-  foto_dni: { texto: "Foto del DNI", grupo: "cliente" },
+  foto_dni: { texto: "Fotos del DNI o Carné (2 caras)", grupo: "cliente" },
   placa: { texto: "Placa", grupo: "moto" },
+  tipo: { texto: "Tipo de vehículo", grupo: "moto" },
   ficha: { texto: "Ficha técnica (serie y motor)", grupo: "moto" },
   foto_moto: { texto: "Foto de la moto", grupo: "moto" },
   contrato_llenado: { texto: "Contrato sin llenar", grupo: "contrato" },
   contrato_firmado: { texto: "Contrato firmado sin subir", grupo: "contrato" },
-  revisar: { texto: "Revisar en el cuaderno", grupo: "contrato" },
+  revisar: { texto: "Revisar en el cuaderno", grupo: "cliente" },
 } as const;
 
 export type Faltante = keyof typeof FALTANTES;
@@ -80,8 +81,10 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
     if (!cliente?.direccion) faltan.push("direccion");
     if (!cliente?.ubicacion) faltan.push("ubicacion");
     if (!tiene?.has("cliente")) faltan.push("foto_cliente");
-    if (!tiene?.has("dni")) faltan.push("foto_dni");
-    if (!moto?.placa) faltan.push("placa");
+    if (!tiene?.has("dni") || !tiene?.has("dni_reverso")) faltan.push("foto_dni");
+    if (!moto?.placa && !moto?.placa_tramite) faltan.push("placa");
+    // el cuaderno no decía qué vehículo es: hasta elegirlo, el ícono sale genérico
+    if (!moto?.tipo || moto.tipo === "Otro") faltan.push("tipo");
     if (!moto?.serie || !moto?.motor) faltan.push("ficha");
     if (!tiene?.has("moto")) faltan.push("foto_moto");
     if (!contrato?.documento) faltan.push("contrato_llenado");
@@ -104,6 +107,24 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
   }
   // Primero a quien le falta más
   return filas.sort((a, b) => b.faltan.length - a.faltan.length || a.cliente.localeCompare(b.cliente));
+}
+
+/** Las dos pestañas de "Datos pendientes": el contrato va aparte porque se completa en otro momento (imprimir y firmar). */
+export const VISTAS = {
+  cliente: { titulo: "Cliente y moto", grupos: ["cliente", "moto"] },
+  contratos: { titulo: "Contratos", grupos: ["contrato"] },
+} as const;
+export type Vista = keyof typeof VISTAS;
+
+/** Deja en cada fila solo lo de esa pestaña; las filas que quedan sin nada no salen. */
+export function filasDeVista<T extends FilaPendiente>(filas: T[], vista: Vista): T[] {
+  const grupos = new Set<string>(VISTAS[vista].grupos);
+  return filas
+    .flatMap((f) => {
+      const faltan = f.faltan.filter((k) => grupos.has(FALTANTES[k].grupo));
+      return faltan.length ? [{ ...f, faltan }] : [];
+    })
+    .sort((a, b) => b.faltan.length - a.faltan.length || a.cliente.localeCompare(b.cliente));
 }
 
 /** Cuántos contratos tienen pendiente cada dato. */

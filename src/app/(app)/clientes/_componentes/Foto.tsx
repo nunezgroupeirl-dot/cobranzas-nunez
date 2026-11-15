@@ -2,9 +2,11 @@
 import { useEffect, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { Modal } from "@/components/ui";
+import { HojasPdf, MiniaturaPdf } from "@/components/ui/Pdf";
+import { esPdf } from "@/lib/pdf";
 import type { Bucket } from "@/types/database";
 
-/** Miniatura de una foto guardada en un bucket; al tocarla se amplía. */
+/** Miniatura de una foto (o PDF) guardada en un bucket; al tocarla se amplía. */
 export function Foto({ bucket, ruta, titulo, className = "size-24" }: { bucket: Bucket; ruta: string; titulo: string; className?: string }) {
   const { datos } = useSesion();
   const [url, setUrl] = useState<string | null>(null);
@@ -30,13 +32,23 @@ export function Foto({ bucket, ruta, titulo, className = "size-24" }: { bucket: 
         Sin foto
       </div>
     );
+  const pdf = esPdf(ruta);
   return (
     <>
       <button type="button" onClick={() => setAbierta(true)} className={`${className} overflow-hidden rounded-xl border border-borde`} aria-label={`Ampliar ${titulo}`}>
-        <img src={url} alt={titulo} className="size-full object-cover" />
+        {pdf ? <MiniaturaPdf fuente={url} className="size-full" /> : <img src={url} alt={titulo} className="size-full object-cover" />}
       </button>
       <Modal abierto={abierta} titulo={titulo} alCerrar={() => setAbierta(false)} ancho="grande">
-        <img src={url} alt={titulo} className="mx-auto max-h-[75dvh] w-auto rounded-xl" />
+        {pdf ? (
+          <div className="flex flex-col gap-3">
+            <a href={url} target="_blank" rel="noopener noreferrer" className="self-end text-sm font-semibold text-marca underline">
+              Abrir PDF
+            </a>
+            {abierta && <HojasPdf fuente={url} />}
+          </div>
+        ) : (
+          <img src={url} alt={titulo} className="mx-auto max-h-[75dvh] w-auto rounded-xl" />
+        )}
       </Modal>
     </>
   );

@@ -8,6 +8,7 @@ import { Marca } from "./Marca";
 import { FiltroEmpresa } from "./FiltroEmpresa";
 import { menuPara, type ItemMenu } from "./menu";
 import { RecordatorioReporte } from "./RecordatorioReporte";
+import { useContratosPorFirmar } from "./avisoContratos";
 import { useSesion } from "./Sesion";
 import { NOMBRE_PUESTO } from "@/components/ui/formato";
 import type { Perfil } from "@/types/database";
@@ -17,6 +18,16 @@ function Icono({ d, className = "size-6" }: { d: string; className?: string }) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
       <path d={d} />
     </svg>
+  );
+}
+
+/** Número rojo de avisos junto a una opción del menú. */
+function Contador({ n }: { n: number }) {
+  if (!n) return null;
+  return (
+    <span className="num ml-auto min-w-6 rounded-full bg-rojo px-1.5 py-0.5 text-center text-xs font-bold text-white" title={`${n} contratos sin firmar`}>
+      {n > 99 ? "99+" : n}
+    </span>
   );
 }
 
@@ -35,6 +46,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const items = menuPara(perfil);
   const actual = activo(ruta, items);
   const [masAbierto, setMasAbierto] = useState(false);
+  const porFirmar = useContratosPorFirmar(ruta);
+  // el número rojo va en "Datos pendientes"; el aviso lleva directo a la pestaña de contratos
+  const avisoDe = (href: string) => (href === "/pendientes" ? porFirmar : 0);
+  const enlaceDe = (href: string) => conEmpresa(href === "/pendientes" && porFirmar ? "/pendientes?vista=contratos" : href);
 
   const enBarra = items.filter((i) => i.enCelular).slice(0, 4);
   const hrefsBarra = new Set(enBarra.map((i) => i.href));
@@ -51,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {items.map((i) => (
             <Link
               key={i.href}
-              href={conEmpresa(i.href)}
+              href={enlaceDe(i.href)}
               aria-current={actual === i.href ? "page" : undefined}
               className={`relative flex min-h-12 items-center gap-3 rounded-xl px-3 font-medium transition-colors ${
                 actual === i.href
@@ -61,6 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Icono d={i.icono} />
               {i.texto}
+              <Contador n={avisoDe(i.href)} />
             </Link>
           ))}
         </nav>
@@ -103,9 +119,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             {i.corto}
           </Link>
         ))}
-        <button onClick={() => setMasAbierto(true)} className="flex min-h-16 flex-col items-center justify-center gap-0.5 text-xs font-semibold text-tenue">
+        <button onClick={() => setMasAbierto(true)} className="relative flex min-h-16 flex-col items-center justify-center gap-0.5 text-xs font-semibold text-tenue">
           <Icono d="M4 6h16M4 12h16M4 18h16" />
           Más
+          {enMas.some((i) => avisoDe(i.href) > 0) && <span className="absolute top-2.5 right-[calc(50%-18px)] size-2.5 rounded-full bg-rojo ring-2 ring-superficie" aria-label="Hay avisos" />}
         </button>
       </nav>
 
@@ -116,9 +133,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             {datos.modoPrueba && <p className="mb-3 rounded-xl bg-amarillo-suave px-3 py-2 text-sm font-semibold text-amarillo">Modo prueba: datos falsos</p>}
             <div className="flex flex-col gap-1">
               {enMas.map((i) => (
-                <Link key={i.href} href={conEmpresa(i.href)} onClick={() => setMasAbierto(false)} className="flex min-h-14 items-center gap-3 rounded-xl px-3 font-semibold hover:bg-fondo">
+                <Link key={i.href} href={enlaceDe(i.href)} onClick={() => setMasAbierto(false)} className="flex min-h-14 items-center gap-3 rounded-xl px-3 font-semibold hover:bg-fondo">
                   <Icono d={i.icono} />
                   {i.texto}
+                  <Contador n={avisoDe(i.href)} />
                 </Link>
               ))}
               <button onClick={salir} className="flex min-h-14 items-center gap-3 rounded-xl px-3 font-semibold text-rojo hover:bg-rojo-suave">

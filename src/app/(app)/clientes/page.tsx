@@ -3,11 +3,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, Placa } from "@/components/ui";
-import type { Color, EstadoCliente } from "@/types/database";
+import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, Placa, IconoVehiculo } from "@/components/ui";
+import type { Color, EstadoCliente, Moto } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
 
-type Fila = EstadoCliente & { sin_contrato?: boolean };
+type Fila = EstadoCliente & { sin_contrato?: boolean; moto?: Moto };
 
 const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo"]);
 
@@ -22,8 +22,12 @@ export default function PaginaClientes() {
   const [color, setColor] = useState<Color | "">(() => (COLORES_VALIDOS.has(colorInicial) ? (colorInicial as Color) : ""));
 
   const { datos: filas, cargando, error } = useCarga(async () => {
-    const [estado, clientes] = await Promise.all([datos.estadoClientes(), datos.clientes()]);
+    const [estado, clientes, contratos, motos] = await Promise.all([datos.estadoClientes(), datos.clientes(), datos.contratos(), datos.motos()]);
     const conContrato = new Set(estado.map((e) => e.cliente_id));
+    // el vehículo que cada cliente tiene en su poder: la moto de su contrato (o la suya, si aún no tiene contrato)
+    const motoPorId = new Map(motos.map((m) => [m.id, m]));
+    const motoDeContrato = new Map(contratos.map((c) => [c.id, motoPorId.get(c.moto_id)]));
+    const motoDeCliente = new Map(motos.filter((m) => m.cliente_id).map((m) => [m.cliente_id, m]));
     const sinContrato: Fila[] = clientes
       .filter((c) => !conContrato.has(c.id))
       .map((c) => ({
@@ -42,8 +46,9 @@ export default function PaginaClientes() {
         ultimo_pago: null,
         proxima_cuota: null,
         sin_contrato: true,
+        moto: motoDeCliente.get(c.id),
       }));
-    return [...estado, ...sinContrato] as Fila[];
+    return [...estado.map((e) => ({ ...e, moto: motoDeContrato.get(e.contrato_id) })), ...sinContrato] as Fila[];
   }, [datos]);
 
   // clave de búsqueda por fila, calculada solo cuando llegan los datos
@@ -59,7 +64,19 @@ export default function PaginaClientes() {
   const columnas: Columna<Fila>[] = [
     { clave: "cliente", titulo: "Cliente", celda: (f) => <span className="font-semibold">{f.cliente}</span> },
     { clave: "dni", titulo: "DNI", celda: (f) => <span className="num">{f.dni}</span> },
-    { clave: "placa", titulo: "Placa", celda: (f) => <Placa placa={f.placa} tamano="chico" /> },
+    {
+      clave: "placa",
+      titulo: "Vehículo",
+      celda: (f) =>
+        f.moto || f.placa ? (
+          <span className="flex items-center gap-2">
+            <IconoVehiculo tipo={f.moto?.tipo} />
+            <Placa placa={f.moto?.placa ?? f.placa} tramite={f.moto?.placa_tramite} tamano="chico" />
+          </span>
+        ) : (
+          <span className="text-tenue">—</span>
+        ),
+    },
     { clave: "empresa", titulo: "Empresa", celda: (f) => f.empresa || "—", ocultarEnMovil: true },
     {
       clave: "estado",

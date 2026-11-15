@@ -5,6 +5,7 @@
  *   admin@prueba.pe / admin123        (administrador)
  *   cobrador@prueba.pe / cobrador123  (cobrador)
  */
+import { normalizarPlaca } from "@/lib/placa";
 import type {
   Bucket,
   Cliente,
@@ -105,7 +106,7 @@ function semilla(): Estado {
     ["Silvia Nina Ccama", "73698521", "988776655", "7531-UV", 4, 0, 145],
     ["Hugo Vargas Inga", "45632178", "977665544", "4826-WX", 16, 4, 120],
   ];
-  const tipos = ["Lineal", "Scooter", "Trimoto"];
+  const tipos = ["Mototaxi", "Lineal", "Scooter", "Trimoto"];
   const marcas = ["Honda", "Bajaj", "Yamaha", "TVS"];
   const colores = ["Rojo", "Negro", "Azul", "Blanco"];
 
@@ -132,7 +133,7 @@ function semilla(): Estado {
       cliente_id: cliente.id,
       empresa_id: empresa.id,
       placa,
-      tipo: tipos[i % 3],
+      tipo: tipos[i % tipos.length],
       marca: marcas[i % 4],
       color: colores[i % 4],
     };
@@ -561,15 +562,15 @@ export function crearDatosSimulados(): Datos {
       await pausa();
       const s = leer();
       exigirAdmin(s);
-      const placa = m.placa?.trim().toUpperCase() || null;
+      const { placa, placa_tramite } = normalizarPlaca(m.placa, m.placa_tramite);
       if (placa && s.motos.some((x) => x.placa === placa && x.id !== m.id)) throw new ErrorDatos("PLACA_REPETIDA", "Ya existe una moto con esa placa.");
       if (m.id) {
         const i = s.motos.findIndex((x) => x.id === m.id);
-        s.motos[i] = { ...s.motos[i], ...m, placa, id: m.id };
+        s.motos[i] = { ...s.motos[i], ...m, placa, placa_tramite, id: m.id };
         guardar(s);
         return s.motos[i];
       }
-      const nueva: Moto = { ...m, placa, id: nuevoId() };
+      const nueva: Moto = { ...m, placa, placa_tramite, id: nuevoId() };
       s.motos.push(nueva);
       guardar(s);
       return nueva;
@@ -645,6 +646,11 @@ export function crearDatosSimulados(): Datos {
     async contratos() {
       return leer().contratos;
     },
+    async contratosPorFirmar() {
+      const s = leer();
+      const conFirma = new Set(s.documentos.filter((d) => d.tipo === "contrato").map((d) => d.contrato_id));
+      return s.contratos.filter((c) => c.estado === "activo" && (!c.documento || !conFirma.has(c.id))).length;
+    },
     async contrato(id) {
       return leer().contratos.find((c) => c.id === id) ?? null;
     },
@@ -703,7 +709,7 @@ export function crearDatosSimulados(): Datos {
       const empresa = s.empresas.find((e) => claveEmpresa(e.nombre) === claveEmpresa(f.empresa));
       if (!empresa) throw new ErrorDatos("DATOS", `La empresa "${f.empresa}" no existe en el sistema. Revisa el nombre en Configuración.`);
       const dni = f.dni.replace(/\D/g, "") || null;
-      const placa = f.placa.trim().toUpperCase() || null;
+      const { placa, placa_tramite } = normalizarPlaca(f.placa);
       if (dni && !/^\d{8,12}$/.test(dni)) throw new ErrorDatos("DATOS", "DNI o Carné de Extranjería inválido.");
       if (!f.nombres.trim()) throw new ErrorDatos("DATOS", "Falta el nombre.");
       if (!f.cuota || f.cuota <= 0) throw new ErrorDatos("DATOS", "Falta la cuota.");
@@ -725,7 +731,7 @@ export function crearDatosSimulados(): Datos {
       if (moto && s.contratos.some((c) => c.moto_id === moto?.id && c.estado === "activo" && c.cliente_id !== cliente?.id))
         throw new ErrorDatos("DATOS", `La placa ${placa} ya tiene un contrato activo (¿fila importada dos veces?).`);
       if (!moto) {
-        moto = { id: nuevoId(), cliente_id: cliente.id, empresa_id: empresa.id, placa, tipo: f.tipo || "Otro", marca: f.marca, color: f.color };
+        moto = { id: nuevoId(), cliente_id: cliente.id, empresa_id: empresa.id, placa, placa_tramite, tipo: f.tipo || "Otro", marca: f.marca, color: f.color };
         s.motos.push(moto);
       } else moto.cliente_id = cliente.id;
 

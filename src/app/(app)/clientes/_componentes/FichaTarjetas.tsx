@@ -58,7 +58,7 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
           {documentos.map((d) => (
             <figure key={d.id} className="flex flex-col gap-1">
               <Foto bucket="documentos" ruta={d.ruta} titulo={`${NOMBRE_DOCUMENTO[d.tipo]} · ${cliente.nombres}`} className="size-24" />
-              <figcaption className="text-xs font-semibold">{NOMBRE_DOCUMENTO[d.tipo]}</figcaption>
+              <figcaption className="max-w-24 text-xs leading-tight font-semibold">{NOMBRE_DOCUMENTO[d.tipo]}</figcaption>
             </figure>
           ))}
         </div>

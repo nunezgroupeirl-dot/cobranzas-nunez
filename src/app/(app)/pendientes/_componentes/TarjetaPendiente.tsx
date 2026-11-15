@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useConEmpresa } from "@/components/layout/empresa";
-import { Boton, BotonEnlace, EtiquetaSemaforo, Placa } from "@/components/ui";
+import { Boton, BotonEnlace, EtiquetaSemaforo, IconoVehiculo, Placa } from "@/components/ui";
 import { FALTANTES, type Faltante, type FilaPendiente } from "./faltantes";
 
 interface Props {
@@ -23,7 +23,8 @@ export function TarjetaPendiente({ fila: f, resaltado, alEditarMoto }: Props) {
             {f.cliente}
           </Link>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-tenue">
-            <Placa placa={f.placa} tamano="chico" />
+            <IconoVehiculo tipo={f.moto?.tipo} />
+            <Placa placa={f.placa} tramite={f.moto?.placa_tramite} tamano="chico" />
             <span>{f.empresa}</span>
           </p>
         </div>

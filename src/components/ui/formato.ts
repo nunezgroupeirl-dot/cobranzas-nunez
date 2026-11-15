@@ -38,7 +38,8 @@ export const NOMBRE_ESTADO_CONTRATO: Record<"activo" | "terminado" | "anulado", 
 
 export const NOMBRE_DOCUMENTO: Record<TipoDocumento, string> = {
   cliente: "Foto del cliente",
-  dni: "DNI",
+  dni: "DNI o Carné de Extranjería (frente)",
+  dni_reverso: "DNI o Carné de Extranjería (reverso)",
   moto: "Moto",
   fachada: "Fachada",
   recibo: "Recibo de luz/agua",

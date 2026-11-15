@@ -9,6 +9,7 @@ import { ubicacionValida } from "@/lib/mapa";
 import type { Cliente, Documento, TipoDocumento } from "@/types/database";
 import { CampoUbicacion } from "./CampoUbicacion";
 import { FotosPorTipo } from "./FotosPorTipo";
+import { TOTAL_FOTOS } from "./secciones";
 
 
 export function FormCliente({ cliente }: { cliente?: Cliente }) {
@@ -50,7 +51,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
   };
 
   const quitarExistente = async (d: Documento) => {
-    if (!confirm(`¿Quitar la foto "${NOMBRE_DOCUMENTO[d.tipo]}"?`)) return;
+    if (!confirm(`¿Quitar "${NOMBRE_DOCUMENTO[d.tipo]}"?`)) return;
     await datos.borrarDocumento(d.id); // también borra el archivo guardado
     setExistentes((x) => x.filter((y) => y.id !== d.id));
   };
@@ -124,7 +125,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         </div>
       </Tarjeta>
 
-      <Tarjeta titulo={`Fotos y documentos (${existentes.length + Object.keys(pendientes).length} de 6)`}>
+      <Tarjeta titulo={`Fotos y documentos (${existentes.length + Object.keys(pendientes).length} de ${TOTAL_FOTOS})`}>
         <FotosPorTipo
           existentes={existentes}
           pendientes={pendientes}

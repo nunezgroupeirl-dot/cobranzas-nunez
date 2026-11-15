@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, BotonEnlace, Cargando, Modal, mensajeDeError, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, NOMBRE_ESTADO_CONTRATO, Placa } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Cargando, Modal, mensajeDeError, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, NOMBRE_ESTADO_CONTRATO, Placa, IconoVehiculo } from "@/components/ui";
 import type { Contrato, Moto } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "../clientes/_componentes/buscar";
 import { BotonPlantillaContrato } from "./_componentes/BotonPlantillaContrato";
@@ -34,6 +34,7 @@ export default function PaginaContratos() {
     return {
       clientes,
       placas,
+      motos: new Map((info?.motos ?? []).map((m) => [m.id, m])),
       empresas: new Map((info?.empresas ?? []).map((e) => [e.id, e.nombre])),
       // texto buscable de cada contrato y cada moto, calculado una sola vez
       claveContrato: new Map((info?.contratos ?? []).map((c) => [c.id, claveBusqueda(cliente(c.cliente_id), placas.get(c.moto_id))])),
@@ -41,7 +42,6 @@ export default function PaginaContratos() {
     };
   }, [info]);
   const nombreCliente = (id: string | null) => (id && mapas.clientes.get(id)) || "—";
-  const placa = (id: string) => mapas.placas.get(id) ?? "—";
   const nombreEmpresa = (id: string) => mapas.empresas.get(id) ?? "—";
   const q = normalizar(texto);
 
@@ -62,7 +62,16 @@ export default function PaginaContratos() {
 
   const colContratos: Columna<Contrato>[] = [
     { clave: "cliente", titulo: "Cliente", celda: (c) => <span className="font-semibold">{nombreCliente(c.cliente_id)}</span> },
-    { clave: "placa", titulo: "Placa", celda: (c) => <Placa placa={placa(c.moto_id)} tamano="chico" /> },
+    {
+      clave: "placa",
+      titulo: "Vehículo",
+      celda: (c) => (
+        <span className="flex items-center gap-2">
+          <IconoVehiculo tipo={mapas.motos.get(c.moto_id)?.tipo} />
+          <Placa placa={mapas.motos.get(c.moto_id)?.placa} tramite={mapas.motos.get(c.moto_id)?.placa_tramite} tamano="chico" />
+        </span>
+      ),
+    },
     { clave: "cuota", titulo: "Cuota", numero: true, celda: (c) => formatoSoles(c.monto_cuota) },
     { clave: "nro", titulo: "Cuotas", numero: true, celda: (c) => c.nro_cuotas },
     { clave: "inicio", titulo: "1.ª cuota", celda: (c) => formatoFecha(c.fecha_inicio) },
@@ -70,8 +79,8 @@ export default function PaginaContratos() {
     { clave: "estado", titulo: "Estado", celda: (c) => <span>{NOMBRE_ESTADO_CONTRATO[c.estado]}</span> },
   ];
   const colMotos: Columna<Moto>[] = [
-    { clave: "placa", titulo: "Placa", celda: (m) => <Placa placa={m.placa} /> },
-    { clave: "tipo", titulo: "Tipo", celda: (m) => m.tipo },
+    { clave: "placa", titulo: "Placa", celda: (m) => <Placa placa={m.placa} tramite={m.placa_tramite} /> },
+    { clave: "tipo", titulo: "Tipo", celda: (m) => <IconoVehiculo tipo={m.tipo} conTexto /> },
     { clave: "marca", titulo: "Marca", celda: (m) => m.marca },
     { clave: "color", titulo: "Color", celda: (m) => m.color },
     { clave: "cliente", titulo: "Cliente", celda: (m) => nombreCliente(m.cliente_id) },

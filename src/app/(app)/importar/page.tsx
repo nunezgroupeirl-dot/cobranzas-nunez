@@ -1,4 +1,5 @@
 "use client";
+import { ES_TRAMITE } from "@/lib/placa";
 import { useMemo, useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
 import { Aviso, Boton, Tabla, Tarjeta, TituloPagina, formatoFecha, formatoSoles, mensajeDeError, textoDocumento, type Columna, Placa } from "@/components/ui";
@@ -151,7 +152,7 @@ function Importar() {
 
       // DNI + placa repetidos dentro del mismo archivo
       const placas = new Map<string, number>();
-      vista.forEach((v) => v.datos.placa && placas.set(v.datos.placa, (placas.get(v.datos.placa) ?? 0) + 1));
+      vista.forEach((v) => v.datos.placa && !ES_TRAMITE.test(v.datos.placa) && placas.set(v.datos.placa, (placas.get(v.datos.placa) ?? 0) + 1));
       vista.forEach((v) => {
         if (v.estado === "lista" && v.datos.placa && (placas.get(v.datos.placa) ?? 0) > 1) {
           v.estado = "error";
@@ -234,7 +235,7 @@ function Importar() {
         </span>
       ),
     },
-    { clave: "placa", titulo: "Placa", celda: (f) => <Placa placa={f.datos.placa} tamano="chico" /> },
+    { clave: "placa", titulo: "Placa", celda: (f) => <Placa placa={ES_TRAMITE.test(f.datos.placa) ? null : f.datos.placa} tramite={ES_TRAMITE.test(f.datos.placa)} tamano="chico" /> },
     { clave: "empresa", titulo: "Empresa", celda: (f) => f.datos.empresa, ocultarEnMovil: true },
     {
       clave: "cuotas",
