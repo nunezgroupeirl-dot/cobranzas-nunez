@@ -69,6 +69,7 @@ export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales
     }
     const ficha = {
       placa: moto.placa ?? nulo(f.placa),
+      placa_tramite: moto.placa_tramite,
       marca: f.marca.trim() || moto.marca,
       color: f.color.trim() || moto.color,
       modelo: nulo(f.modelo),

@@ -191,6 +191,8 @@ export interface CrearContratoArgs {
   precio_total?: number | null;
   inicial?: number | null;
   frecuencia?: Frecuencia;
+  /** cuotas que ya pagó antes de registrarlo (quedan como "del cuaderno": se les puede subir el voucher) */
+  cuotas_pagadas?: number;
 }
 
 /** Datos editables de un contrato (solo el dueño). Al guardar se rehace el cronograma. */

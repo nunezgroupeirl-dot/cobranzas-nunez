@@ -11,6 +11,8 @@ import { RecordatorioReporte } from "./RecordatorioReporte";
 import { useContratosPorFirmar } from "./avisoContratos";
 import { useSesion } from "./Sesion";
 import { NOMBRE_PUESTO } from "@/components/ui/formato";
+import { Aviso } from "@/components/ui/Aviso";
+import { ModalEditarUsuario } from "@/app/(app)/usuarios/_componentes/ModalEditarUsuario";
 import type { Perfil } from "@/types/database";
 
 function Icono({ d, className = "size-6" }: { d: string; className?: string }) {
@@ -47,6 +49,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const actual = activo(ruta, items);
   const [masAbierto, setMasAbierto] = useState(false);
   const porFirmar = useContratosPorFirmar(ruta);
+  const [cambiandoClave, setCambiandoClave] = useState(false);
+  const [avisoClave, setAvisoClave] = useState<string | null>(null);
+  const esDueno = perfil.rol === "administrador";
+  const abrirClave = () => {
+    setMasAbierto(false);
+    setCambiandoClave(true);
+  };
   // el número rojo va en "Datos pendientes"; el aviso lleva directo a la pestaña de contratos
   const avisoDe = (href: string) => (href === "/pendientes" ? porFirmar : 0);
   const enlaceDe = (href: string) => conEmpresa(href === "/pendientes" && porFirmar ? "/pendientes?vista=contratos" : href);
@@ -84,6 +93,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           {datos.modoPrueba && <p className="mb-3 rounded-lg bg-amarillo-suave px-2.5 py-1.5 text-xs font-semibold text-amarillo">Modo prueba: datos falsos</p>}
           <p className="truncate font-semibold">{perfil.nombre}</p>
           <p className="text-sm text-white/60">{puestoDe(perfil)}</p>
+          {esDueno && (
+            <button onClick={abrirClave} className="mt-1 text-sm font-semibold text-oro underline-offset-2 hover:underline">
+              Cambiar mi contraseña
+            </button>
+          )}
           <button onClick={salir} className="mt-3 min-h-11 w-full rounded-xl border border-white/20 font-semibold hover:bg-white/10">
             Cerrar sesión
           </button>
@@ -102,6 +116,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-28 sm:px-6 md:pb-10">
+          {avisoClave && (
+            <div className="mb-4">
+              <Aviso tipo="exito" alCerrar={() => setAvisoClave(null)}>
+                {avisoClave}
+              </Aviso>
+            </div>
+          )}
           <RecordatorioReporte />
           {children}
         </main>
@@ -139,6 +160,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Contador n={avisoDe(i.href)} />
                 </Link>
               ))}
+              {esDueno && (
+                <button onClick={abrirClave} className="flex min-h-14 items-center gap-3 rounded-xl px-3 font-semibold hover:bg-fondo">
+                  <Icono d="M7 11V7a5 5 0 0 1 10 0v4M5 11h14v10H5z" />
+                  Cambiar mi contraseña
+                </button>
+              )}
               <button onClick={salir} className="flex min-h-14 items-center gap-3 rounded-xl px-3 font-semibold text-rojo hover:bg-rojo-suave">
                 <Icono d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
                 Cerrar sesión
@@ -146,6 +173,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
+      )}
+      {cambiandoClave && (
+        <ModalEditarUsuario
+          usuario="yo"
+          alCerrar={() => setCambiandoClave(false)}
+          alGuardar={(texto) => {
+            setCambiandoClave(false);
+            setAvisoClave(texto);
+          }}
+        />
       )}
     </div>
   );

@@ -1,3 +1,6 @@
+/** Tipos de vehículo (cada uno tiene su ícono). */
+export const TIPOS_MOTO = ["Mototaxi", "Lineal", "Scooter", "Trimoto", "Otro"];
+
 /** "EN TRÁMITE" escrito en la placa no es una placa: se guarda como placa en trámite. */
 export const ES_TRAMITE = /TR[AÁ]MITE/i;
 

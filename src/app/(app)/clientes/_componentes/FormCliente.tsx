@@ -1,15 +1,17 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
-import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, Tarjeta, esDocumentoValido, mensajeDeError } from "@/components/ui";
+import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, Tarjeta, esDocumentoValido, hoyLima, mensajeDeError } from "@/components/ui";
 import { subirDocumento } from "@/lib/fotos";
 import { ubicacionValida } from "@/lib/mapa";
 import type { Cliente, Documento, TipoDocumento } from "@/types/database";
 import { CampoUbicacion } from "./CampoUbicacion";
 import { FotosPorTipo } from "./FotosPorTipo";
+import { MotoYCronograma } from "./MotoYCronograma";
 import { TOTAL_FOTOS } from "./secciones";
+import { guardarVenta, validarVenta, ventaVacia, type Hechos, type Venta } from "./venta";
 
 
 export function FormCliente({ cliente }: { cliente?: Cliente }) {
@@ -29,6 +31,11 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<"" | "solo" | "contrato">("");
+  // cliente nuevo: su moto y cronograma en el mismo formulario (el contrato en papel se llena después)
+  const [conVenta, setConVenta] = useState(true); // solo se usa al crear
+  const [venta, setVenta] = useState<Venta>(() => ventaVacia(hoyLima()));
+  const [erroresVenta, setErroresVenta] = useState<Record<string, string>>({});
+  const hechos = useRef<Hechos & { cliente?: Cliente }>({});
   const [existentes, setExistentes] = useState<Documento[]>([]);
   // una foto nueva por tipo (cliente, DNI, moto…): se suben al guardar
   const [pendientes, setPendientes] = useState<Partial<Record<TipoDocumento, File>>>({});
@@ -47,7 +54,9 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     if (!ubicacionValida(f.ubicacion)) e.ubicacion = "Pega un enlace de Google Maps o coordenadas como -12.0464,-77.0428.";
     setErrores(e);
-    return Object.keys(e).length === 0;
+    const ev = !cliente && conVenta ? validarVenta(venta) : {};
+    setErroresVenta(ev);
+    return Object.keys(e).length === 0 && Object.keys(ev).length === 0;
   };
 
   const quitarExistente = async (d: Documento) => {
@@ -63,7 +72,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
     setError(null);
     try {
       const guardado = await datos.guardarCliente({
-        id: cliente?.id,
+        id: cliente?.id ?? hechos.current.cliente?.id,
         empresa_id: f.empresa_id,
         nombres: f.nombres.trim(),
         dni: f.dni || null,
@@ -79,7 +88,14 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
           await datos.agregarDocumento({ cliente_id: guardado.id, tipo, ruta });
         }),
       );
+      hechos.current.cliente = guardado;
       setPendientes({});
+      if (!cliente && conVenta) {
+        const contratoId = await guardarVenta(datos, guardado, venta, hechos.current);
+        // "Guardar y llenar el contrato": directo al contrato con todo ya puesto (cliente, moto y cuotas)
+        router.push(despues === "contrato" ? `/contratos/documento?id=${contratoId}` : `/clientes/ficha?id=${guardado.id}`);
+        return;
+      }
       router.push(despues === "contrato" ? `/contratos/nuevo?cliente=${guardado.id}` : `/clientes/ficha?id=${guardado.id}`);
     } catch (err) {
       setError(mensajeDeError(err));
@@ -142,25 +158,60 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         <p className="mt-3 text-sm text-tenue">Cada foto se sube por separado y se comprime a unos 120 KB. Para cambiar una, quítala y toma otra.</p>
       </Tarjeta>
 
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Boton variante="secundario" tamano="grande" onClick={() => router.back()}>
-          Cancelar
-        </Boton>
-        {cliente ? (
-          <Boton type="submit" tamano="grande" cargando={guardando === "solo"}>
-            Guardar cambios
-          </Boton>
-        ) : (
-          <>
-            <Boton variante="secundario" tamano="grande" cargando={guardando === "solo"} onClick={(e) => guardar(e, "solo")}>
-              Guardar sin contrato
-            </Boton>
-            <Boton type="submit" tamano="grande" cargando={guardando === "contrato"}>
-              Siguiente: moto, placa y contrato →
-            </Boton>
-          </>
-        )}
-      </div>
+      {!cliente && (
+        <MotoYCronograma
+          activa={conVenta}
+          alActivar={setConVenta}
+          v={venta}
+          errores={erroresVenta}
+          alCambiar={(cambio) => {
+            setVenta((x) => ({ ...x, ...cambio }));
+            setErroresVenta((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in cambio))));
+          }}
+        />
+      )}
+      {Object.keys(erroresVenta).length > 0 && <Aviso tipo="error">Revisa los datos de la moto y del cronograma.</Aviso>}
+
+      <BotonesGuardar
+        editando={!!cliente}
+        conVenta={conVenta}
+        guardando={guardando}
+        alCancelar={() => router.back()}
+        alGuardarSolo={(e) => guardar(e, "solo")}
+      />
     </form>
+  );
+}
+
+interface PropsBotones {
+  editando: boolean;
+  conVenta: boolean;
+  guardando: "" | "solo" | "contrato";
+  alCancelar: () => void;
+  alGuardarSolo: (e: { preventDefault: () => void }) => void;
+}
+
+/** Al crear: guardar (con su moto y cronograma) o guardar y pasar a llenar el contrato. El botón principal envía el formulario. */
+function BotonesGuardar({ editando, conVenta, guardando, alCancelar, alGuardarSolo }: PropsBotones) {
+  return (
+    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <Boton variante="secundario" tamano="grande" onClick={alCancelar}>
+        Cancelar
+      </Boton>
+      {editando ? (
+        <Boton type="submit" tamano="grande" cargando={guardando === "solo"}>
+          Guardar cambios
+        </Boton>
+      ) : (
+        <>
+          <Boton variante="secundario" tamano="grande" cargando={guardando === "solo"} onClick={alGuardarSolo}>
+            {conVenta ? "Guardar cliente" : "Guardar sin moto"}
+          </Boton>
+          <Boton type="submit" tamano="grande" cargando={guardando === "contrato"}>
+            {conVenta ? "Guardar y llenar el contrato →" : "Siguiente: moto, placa y contrato →"}
+          </Boton>
+        </>
+      )}
+    </div>
   );
 }

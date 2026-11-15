@@ -677,7 +677,7 @@ export function crearDatosSimulados(): Datos {
         frecuencia: args.frecuencia ?? "semanal",
         precio_total: args.precio_total ?? null,
         inicial: args.inicial ?? null,
-        cuotas_pagadas_inicial: 0,
+        cuotas_pagadas_inicial: Math.min(args.cuotas_pagadas ?? 0, args.nro_cuotas),
         observaciones: null,
         estado: "activo",
         cerrado_motivo: null,

@@ -5,7 +5,7 @@ import { FormCliente } from "../_componentes/FormCliente";
 export default function NuevoCliente() {
   return (
     <>
-      <TituloPagina titulo="Nuevo cliente" sub="Paso 1 de 2: datos y fotos del cliente. En el paso 2 registras su moto (placa), el cronograma de pagos y el contrato." />
+      <TituloPagina titulo="Nuevo cliente" sub="Datos y fotos del cliente, su moto (placa) y su cronograma de pagos. El contrato en papel se puede llenar ahora o después." />
       <FormCliente />
     </>
   );

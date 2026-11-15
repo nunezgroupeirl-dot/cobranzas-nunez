@@ -6,8 +6,9 @@ import { Aviso, Boton, Campo, OpcionesBoton, Selector, mensajeDeError } from "@/
 import { CamposFichaTecnica } from "./FichaTecnica";
 import { CAMPOS_FICHA, type FichaTecnica } from "./fichaTecnica";
 import type { Moto } from "@/types/database";
+import { TIPOS_MOTO } from "@/lib/placa";
+import { CampoPlaca } from "./CampoPlaca";
 
-const TIPOS_MOTO = ["Mototaxi", "Lineal", "Scooter", "Trimoto", "Otro"];
 
 interface Props {
   moto?: Moto;
@@ -126,37 +127,6 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
           {moto ? "Guardar moto" : "Registrar moto"}
         </Boton>
       </div>
-    </div>
-  );
-}
-
-interface PropsPlaca {
-  placa: string;
-  tramite: boolean;
-  error?: string;
-  alCambiarPlaca: (v: string) => void;
-  alCambiarTramite: (v: boolean) => void;
-}
-
-/** Placa, o la casilla "en trámite" cuando la placa aún no sale (así no figura como dato pendiente). */
-function CampoPlaca({ placa, tramite, error, alCambiarPlaca, alCambiarTramite }: PropsPlaca) {
-  return (
-    <div className="flex flex-col gap-2">
-      <Campo
-        etiqueta="Placa"
-        value={tramite ? "" : placa}
-        onChange={(e) => alCambiarPlaca(e.target.value.toUpperCase())}
-        error={error}
-        disabled={tramite}
-        placeholder={tramite ? "En trámite" : undefined}
-        ayuda={placa || tramite ? undefined : "Si aún no la sabes, déjala vacía: saldrá en “Datos pendientes”."}
-        className="font-display text-lg font-bold tracking-[0.06em] uppercase"
-        autoCapitalize="characters"
-      />
-      <label className="flex min-h-11 cursor-pointer items-center gap-2 font-semibold">
-        <input type="checkbox" checked={tramite} onChange={(e) => alCambiarTramite(e.target.checked)} className="size-5 shrink-0 accent-marca" />
-        Placa en trámite (aún no sale)
-      </label>
     </div>
   );
 }

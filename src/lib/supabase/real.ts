@@ -348,6 +348,7 @@ export function crearDatosReales(): Datos {
         p_fecha_inicio: args.fecha_inicio,
         p_precio_total: args.precio_total ?? null,
         p_inicial: args.inicial ?? null,
+        ...(args.cuotas_pagadas ? { p_cuotas_pagadas: args.cuotas_pagadas } : {}),
         // semanal es el valor por defecto en la base: solo se manda cuando es otra
         ...(args.frecuencia && args.frecuencia !== "semanal" ? { p_frecuencia: args.frecuencia } : {}),
       });
@@ -473,7 +474,12 @@ export function crearDatosReales(): Datos {
     async cambiarMiClave(clave) {
       if (clave.length < 6) throw new ErrorDatos("CLAVE", "La contraseña debe tener al menos 6 caracteres.");
       const { error } = await sb.auth.updateUser({ password: clave });
-      if (error) throw new ErrorDatos("CLAVE", /different|same/i.test(error.message) ? "La nueva contraseña debe ser distinta de la actual." : error.message);
+      if (!error) return;
+      const m = error.message;
+      if (/different|same/i.test(m)) throw new ErrorDatos("CLAVE", "La nueva contraseña debe ser distinta de la actual.");
+      if (/weak|pwned|characters/i.test(m)) throw new ErrorDatos("CLAVE", "Esa contraseña es muy fácil de adivinar. Usa una más larga, con letras y números.");
+      if (/reauth|session|jwt|expired/i.test(m)) throw new ErrorDatos("CLAVE", "Tu sesión es antigua: sal, vuelve a ingresar y cambia la contraseña de nuevo.");
+      throw new ErrorDatos("CLAVE", "No se pudo cambiar la contraseña. Inténtalo otra vez.");
     },
     async actualizarUsuario(id, cambios) {
       lanzar((await sb.rpc("actualizar_usuario", { p_id: id, p_rol: cambios.rol ?? null, p_activo: cambios.activo ?? null })).error);

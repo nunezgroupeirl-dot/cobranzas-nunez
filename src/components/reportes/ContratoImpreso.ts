@@ -54,7 +54,7 @@ export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Mot
     doc_numero: t(cliente.dni),
     domicilio_cliente: t(cliente.direccion),
     vehiculo: /lineal|scooter/i.test(moto.tipo) ? "MOTOCICLETA" : "MOTOTAXI",
-    placa: t(moto.placa),
+    placa: moto.placa ?? (moto.placa_tramite ? "EN TRÁMITE" : ""),
     marca: moto.marca.toUpperCase(),
     modelo: t(moto.modelo),
     anio: t(moto.anio),
