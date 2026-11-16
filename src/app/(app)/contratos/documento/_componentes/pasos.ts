@@ -1,4 +1,4 @@
-import { problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
+import { VEHICULOS_CONTRATO, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
 
 type Clave = keyof CamposContrato;
 
@@ -66,10 +66,7 @@ export const PASOS: Paso[] = [
         clave: "vehiculo",
         tipo: "opciones",
         ancho: true,
-        opciones: [
-          { valor: "MOTOTAXI", texto: "Mototaxi" },
-          { valor: "MOTOCICLETA", texto: "Motocicleta" },
-        ],
+        opciones: VEHICULOS_CONTRATO.map(({ valor, texto }) => ({ valor, texto })),
       },
       { clave: "placa", mayusculas: true, ejemplo: "1215-RD", guia: "Si la placa aún no sale, escribe EN TRÁMITE." },
       { clave: "marca", mayusculas: true, ejemplo: "TVS" },

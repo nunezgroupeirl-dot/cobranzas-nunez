@@ -6,6 +6,7 @@
  */
 import { enteroEnLetras, sumarMeses } from "@/lib/letras";
 import type { CamposContrato } from "./ContratoImpreso";
+import { VEHICULOS_CONTRATO } from "./vehiculos";
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
@@ -60,7 +61,8 @@ interface Opciones {
 export function htmlPlantillaContrato(c?: Partial<CamposContrato> | null, { vistaPrevia = false }: Opciones = {}): string {
   const d: Partial<CamposContrato> = c ?? {};
   const lleno = !!c;
-  const mototaxi = d.vehiculo !== "MOTOCICLETA";
+  const elegido = VEHICULOS_CONTRATO.find((v) => v.valor === d.vehiculo);
+  const mototaxi = !elegido || elegido.valor === "MOTOTAXI";
   const cuenta = partirCuenta(d.cuenta);
   const titulo = lleno ? `Contrato ${d.placa || "sin placa"} - ${d.cliente || ""}` : "Contrato de Alquiler Venta - plantilla en blanco";
   const aviso = lleno
@@ -90,12 +92,12 @@ b{font-weight:700}
 @media screen{body{max-width:180mm;margin:20px auto;padding:0 10mm}${vistaPrevia ? "" : ".ok{display:block;background:#fff5d6;border:1px solid #e6c65c;padding:8px 12px;border-radius:8px;font-size:10pt;margin-bottom:16px;line-height:1.4}"}}
 </style></head><body>
 <div class="ok">${aviso}</div>
-<h1>Contrato de Alquiler Venta de ${lleno && !mototaxi ? "Motocicleta" : "Mototaxi"}</h1>
+<h1>Contrato de Alquiler Venta de ${lleno && elegido ? elegido.texto.replace(" lineal", "") : "Vehículo"}</h1>
 <div class="codigo">Placa N.º ${r(110, d.placa)}</div>
 
 <p class="llenar">Conste por el presente documento el contrato de <b>ALQUILER VENTA</b> del vehículo de placa de rodaje N.º ${r(100, d.placa)} que celebran de una parte la empresa ${r(300, d.empresa)}, con número de RUC ${r(130, d.ruc)}, representada por el Sr. ${r(270, d.representante)} con DNI de N.º ${r(110, d.representante_dni)}, con domicilio en ${d.domicilio_empresa?.trim() ? r(560, d.domicilio_empresa) : `${r(560)} ${r(300)}`}, a quien en adelante se le llamará <b>EL ARRENDADOR</b>; y de la otra parte el Sr. ${r(330, d.cliente)} con ${casilla("DNI", lleno && d.doc_tipo === "DNI")} ${casilla("Carné de Extranjería", lleno && d.doc_tipo === "CE")} N.º ${r(130, d.doc_numero)}, con domicilio en ${d.domicilio_cliente?.trim() ? r(520, d.domicilio_cliente) : `${r(520)} ${r(340)}`}, que para los efectos del presente contrato se le denominará <b>EL ARRENDATARIO</b>, sujeto a los términos y condiciones siguientes:</p>
 
-<p class="llenar"><b>PRIMERO.</b> <b>EL ARRENDADOR</b> da en alquiler venta a <b>EL ARRENDATARIO</b> el vehículo ${casilla("MOTOTAXI", lleno && mototaxi)} ${casilla("MOTOCICLETA", lleno && !mototaxi)} de placa de rodaje N.º ${r(100, d.placa)}, que presenta las siguientes características:</p>
+<p class="llenar"><b>PRIMERO.</b> <b>EL ARRENDADOR</b> da en alquiler venta a <b>EL ARRENDATARIO</b> el vehículo ${VEHICULOS_CONTRATO.map((v) => casilla(v.valor === "MOTOCICLETA" ? "MOTOCICLETA" : v.texto.toUpperCase(), lleno && d.vehiculo === v.valor)).join(" ")} de placa de rodaje N.º ${r(100, d.placa)}, que presenta las siguientes características:</p>
 <div class="ficha">
 <div>Clase: ${r(150, d.clase)}</div><div>Combustible: ${r(170, d.combustible)}</div>
 <div>Marca: ${r(150, d.marca)}</div><div>Color: ${r(200, d.color)}</div>
@@ -104,7 +106,7 @@ b{font-weight:700}
 <div></div><div>Carrocería: ${r(180, d.carroceria)}</div>
 </div>
 
-<p><b>SEGUNDO.</b> <b>EL ARRENDATARIO</b> destinará el vehículo materia del presente contrato única y exclusivamente al <b>SERVICIO DE ${lleno && !mototaxi ? "TRANSPORTE" : "MOTOTAXI"}</b>, quedando prohibido variar su finalidad.</p>
+<p><b>SEGUNDO.</b> <b>EL ARRENDATARIO</b> destinará el vehículo materia del presente contrato única y exclusivamente al <b>SERVICIO DE ${lleno && !mototaxi ? "TRANSPORTE" : lleno ? "MOTOTAXI" : "MOTOTAXI / TRANSPORTE"}</b>, quedando prohibido variar su finalidad.</p>
 
 <p><b>TERCERO.</b> <b>EL ARRENDATARIO</b> está prohibido de traspasar o subarrendar el vehículo materia del presente contrato, total o parcialmente, a favor de terceros, reservándose <b>EL ARRENDADOR</b> el derecho de resolver el presente contrato.</p>
 

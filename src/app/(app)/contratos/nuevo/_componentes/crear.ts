@@ -1,4 +1,4 @@
-import { fechaFin } from "@/components/reportes/ContratoImpreso";
+import { fechaFin, tipoDeVehiculo } from "@/components/reportes/ContratoImpreso";
 import type { Datos } from "@/lib/supabase/datos";
 import type { Cliente, Empresa, Moto } from "@/types/database";
 import { aCampos, type Borrador } from "./borrador";
@@ -49,7 +49,8 @@ export async function crearTodo({ datos, b, empresa, cliente, moto, hechos }: En
     empresa_id: empresa.id,
     placa: b.placa.trim().toUpperCase(),
     placa_tramite: laMoto?.placa_tramite ?? false,
-    tipo: laMoto?.tipo ?? (b.vehiculo === "MOTOCICLETA" ? "Lineal" : "Mototaxi"),
+    // lo elegido en el contrato manda (si la ficha decía "Otro", ahora queda el tipo real)
+    tipo: tipoDeVehiculo(b.vehiculo) ?? laMoto?.tipo ?? "Otro",
     marca: b.marca.trim(),
     color: b.color.trim(),
     modelo: nulo(b.modelo),

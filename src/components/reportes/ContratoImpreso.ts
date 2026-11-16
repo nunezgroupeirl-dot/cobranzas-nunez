@@ -6,6 +6,10 @@ import type { Cliente, Contrato, Cuenta, Empresa, Frecuencia, Moto } from "@/typ
  * Datos del contrato de alquiler venta tal como se llenan en la página (todo texto).
  * Lo que quede vacío sale con una raya para llenarlo a mano.
  */
+import { VEHICULOS_CONTRATO, tipoDeVehiculo, vehiculoDeTipo, type VehiculoContrato } from "./vehiculos";
+
+export { VEHICULOS_CONTRATO, tipoDeVehiculo, vehiculoDeTipo, type VehiculoContrato };
+
 export interface CamposContrato {
   empresa: string;
   ruc: string;
@@ -16,7 +20,7 @@ export interface CamposContrato {
   doc_tipo: "DNI" | "CE";
   doc_numero: string;
   domicilio_cliente: string;
-  vehiculo: "MOTOTAXI" | "MOTOCICLETA";
+  vehiculo: VehiculoContrato | "";
   placa: string;
   marca: string;
   modelo: string;
@@ -58,7 +62,7 @@ export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Mot
     doc_tipo: !cliente.dni || cliente.dni.length === 8 ? "DNI" : "CE",
     doc_numero: t(cliente.dni),
     domicilio_cliente: t(cliente.direccion),
-    vehiculo: /lineal|scooter/i.test(moto.tipo) ? "MOTOCICLETA" : "MOTOTAXI",
+    vehiculo: vehiculoDeTipo(moto.tipo),
     placa: moto.placa ?? (moto.placa_tramite ? "EN TRÁMITE" : ""),
     marca: moto.marca.toUpperCase(),
     modelo: t(moto.modelo),

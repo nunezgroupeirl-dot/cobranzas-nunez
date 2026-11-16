@@ -1,4 +1,4 @@
-import { FRECUENCIA_CONTRATO, MESES_POR_CUOTA, etiquetaCampo, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
+import { FRECUENCIA_CONTRATO, MESES_POR_CUOTA, vehiculoDeTipo, etiquetaCampo, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
 import type { Cliente, Cuenta, Empresa, Frecuencia, Moto } from "@/types/database";
 import { fechaCuota } from "@/lib/supabase/reglas";
 import { PASOS, type Paso } from "../../documento/_componentes/pasos";
@@ -131,7 +131,7 @@ export const datosCliente = (c: Cliente | null) => ({
 });
 
 export const datosMoto = (m: Moto | null) => ({
-  vehiculo: (m && /lineal|scooter/i.test(m.tipo) ? "MOTOCICLETA" : "MOTOTAXI") as Borrador["vehiculo"],
+  vehiculo: m ? vehiculoDeTipo(m.tipo) : "",
   placa: m?.placa ?? (m?.placa_tramite ? "EN TRÁMITE" : ""),
   marca: (m?.marca ?? "").toUpperCase(),
   modelo: t(m?.modelo),

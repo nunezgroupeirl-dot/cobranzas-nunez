@@ -1,7 +1,7 @@
 "use client";
 import { useDeferredValue, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { camposFaltantes, etiquetaCampo, fechaFin, htmlContrato, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
+import { camposFaltantes, etiquetaCampo, fechaFin, htmlContrato, problemaCampo, tipoDeVehiculo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
 import { Aviso, Boton, formatoFecha, mensajeDeError } from "@/components/ui";
 import type { Cliente, Contrato, Empresa, Moto } from "@/types/database";
 import { Avance } from "./Avance";
@@ -68,6 +68,8 @@ export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales
       tareas.push(datos.guardarCliente({ id, empresa_id, nombres, dni, celular, referencia, ubicacion, direccion: nulo(f.domicilio_cliente) }));
     }
     const ficha = {
+      // el tipo elegido en el contrato pasa a la ficha (así el ícono y "Datos pendientes" quedan bien)
+      tipo: tipoDeVehiculo(f.vehiculo) ?? moto.tipo,
       placa: moto.placa ?? nulo(f.placa),
       placa_tramite: moto.placa_tramite,
       marca: f.marca.trim() || moto.marca,
