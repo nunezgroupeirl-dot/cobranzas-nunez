@@ -83,7 +83,7 @@ function PaginaAuditoria() {
       </div>
       {error && <Aviso tipo="error">{error}</Aviso>}
       {cargando && !filas ? (
-        <Cargando />
+        <Cargando variante="tarjetas" />
       ) : !filas?.length ? (
         <p className="rounded-2xl border border-dashed border-borde bg-superficie p-8 text-center text-tenue">No hay movimientos con estos filtros.</p>
       ) : (

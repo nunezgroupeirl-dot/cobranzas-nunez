@@ -99,7 +99,7 @@ function Pendientes() {
       />
       {error && <Aviso tipo="error">{error}</Aviso>}
       {cargando && !todas ? (
-        <Cargando />
+        <Cargando variante="tarjetas" />
       ) : (
         <>
           <PestanasVista vista={vista} cuentas={{ cliente: porVista.cliente.length, contratos: porVista.contratos.length }} alCambiar={cambiarVista} />

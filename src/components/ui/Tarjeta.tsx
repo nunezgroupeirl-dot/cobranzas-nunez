@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Esqueleto, type VarianteCarga } from "./Esqueleto";
 
 export function Tarjeta({ titulo, accion, children, className = "" }: { titulo?: ReactNode; accion?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -14,13 +15,9 @@ export function Tarjeta({ titulo, accion, children, className = "" }: { titulo?:
   );
 }
 
-export function Cargando({ texto = "Cargando…" }: { texto?: string }) {
-  return (
-    <div className="flex items-center justify-center gap-3 py-12 text-tenue" role="status">
-      <span className="size-5 animate-spin rounded-full border-2 border-marca border-r-transparent" aria-hidden />
-      {texto}
-    </div>
-  );
+/** Mientras carga: un esqueleto con la forma de la pantalla (no un círculo girando). */
+export function Cargando({ texto = "Cargando…", variante = "lista" }: { texto?: string; variante?: VarianteCarga }) {
+  return <Esqueleto texto={texto} variante={variante} />;
 }
 
 export function TituloPagina({ titulo, sub, accion }: { titulo: string; sub?: ReactNode; accion?: ReactNode }) {

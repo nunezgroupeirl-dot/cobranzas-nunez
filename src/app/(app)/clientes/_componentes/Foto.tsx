@@ -25,7 +25,7 @@ export function Foto({ bucket, ruta, titulo, className = "size-24" }: { bucket: 
     };
   }, [datos, bucket, ruta]);
 
-  if (!cargada) return <div className={`${className} animate-pulse rounded-xl bg-fondo`} />;
+  if (!cargada) return <div className={`esqueleto ${className} rounded-xl`} aria-hidden />;
   if (!url)
     return (
       <div className={`${className} grid place-items-center rounded-xl border border-dashed border-borde bg-fondo p-1 text-center text-xs text-tenue`}>

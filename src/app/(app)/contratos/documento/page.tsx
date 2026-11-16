@@ -29,7 +29,7 @@ function DocumentoContrato() {
     };
   }, [datos, id, empresas]);
 
-  if (cargando) return <Cargando />;
+  if (cargando) return <Cargando variante="formulario" />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!info) return <Aviso tipo="error">No se encontró el contrato.</Aviso>;
 

@@ -39,7 +39,7 @@ export default function VerContrato() {
     };
   }, [datos, id]);
 
-  if (cargando) return <Cargando />;
+  if (cargando) return <Cargando variante="ficha" />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!info) return <Aviso tipo="error">No se encontró el contrato.</Aviso>;
   const { contrato, cliente, moto, cuotas, estado, empresa, empresaDatos } = info;

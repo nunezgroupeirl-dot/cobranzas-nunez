@@ -63,7 +63,7 @@ export function MiniaturaPdf({ fuente, className = "" }: { fuente: Blob | string
   return (
     <div className={`relative overflow-hidden bg-white ${className}`}>
       <canvas ref={lienzo} className="block w-full" aria-hidden />
-      {estado === "cargando" && <div className="absolute inset-0 animate-pulse bg-fondo" aria-hidden />}
+      {estado === "cargando" && <div className="esqueleto absolute inset-0 rounded-none" aria-hidden />}
       {estado === "error" && <div className="absolute inset-0 grid place-items-center p-2 text-center text-xs text-tenue">No se pudo mostrar el PDF</div>}
       <span className="absolute top-1.5 left-1.5 rounded-md bg-rojo px-1.5 py-0.5 text-[11px] font-bold text-white">
         PDF{typeof estado === "object" && estado.hojas > 1 ? ` · ${estado.hojas} hojas` : ""}

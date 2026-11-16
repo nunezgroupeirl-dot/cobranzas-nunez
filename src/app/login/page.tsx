@@ -65,7 +65,7 @@ function FormularioIngreso() {
     }
   };
 
-  if (revisando) return <Cargando texto="Verificando sesión…" />;
+  if (revisando) return <Cargando texto="Verificando sesión…" variante="pantalla" />;
 
   return (
     <form onSubmit={ingresar} className="flex flex-col gap-4">

@@ -52,7 +52,7 @@ function Historial() {
         </label>
       </div>
       {error && <Aviso tipo="error">{error}</Aviso>}
-      {cargando && !info ? <Cargando /> : <HistorialPagos pagos={lista} cuentas={info?.cuentas ?? []} etiquetas={etiquetas} alCambiar={recargar} />}
+      {cargando && !info ? <Cargando variante="tarjetas" /> : <HistorialPagos pagos={lista} cuentas={info?.cuentas ?? []} etiquetas={etiquetas} alCambiar={recargar} />}
     </>
   );
 }

@@ -116,7 +116,7 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
         </div>
       }
     >
-      {cuotas && contrato ? <CronogramaConComprobantes contrato={contrato} cuotas={cuotas} alGuardar={alCambiar} /> : <Cargando />}
+      {cuotas && contrato ? <CronogramaConComprobantes contrato={contrato} cuotas={cuotas} alGuardar={alCambiar} /> : <Cargando variante="cuotas" />}
     </Tarjeta>
   );
 }

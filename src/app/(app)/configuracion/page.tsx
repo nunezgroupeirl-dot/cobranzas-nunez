@@ -83,7 +83,7 @@ function Configuracion() {
     }
   };
 
-  if (cargando && !info) return <Cargando />;
+  if (cargando && !info) return <Cargando variante="formulario" />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!info) return null;
 

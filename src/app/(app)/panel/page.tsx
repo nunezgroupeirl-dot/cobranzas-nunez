@@ -52,7 +52,7 @@ function Panel() {
     };
   }, [info, empresa]);
 
-  if (cargando && !info) return <Cargando />;
+  if (cargando && !info) return <Cargando variante="panel" />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!vista) return null;
 

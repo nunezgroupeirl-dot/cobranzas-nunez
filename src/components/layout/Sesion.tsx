@@ -89,7 +89,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
         </button>
       </div>
     );
-  if (!contexto) return <Cargando texto="Verificando sesión…" />;
+  if (!contexto) return <Cargando texto="Verificando sesión…" variante="pantalla" />;
   return (
     <Contexto.Provider value={contexto}>
       <GuardaRol perfil={contexto.perfil} ruta={ruta}>

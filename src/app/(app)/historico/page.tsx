@@ -102,7 +102,7 @@ function Historico() {
       </div>
       {error && <Aviso tipo="error">{error}</Aviso>}
       {cargando && !fichas ? (
-        <Cargando />
+        <Cargando variante="tarjetas" />
       ) : lista.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-borde bg-superficie p-8 text-center text-tenue">No hay vehículos con esa búsqueda.</p>
       ) : (

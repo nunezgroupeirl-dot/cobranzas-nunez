@@ -13,5 +13,5 @@ export function VistaPrevia({ archivo, alt = "", className = "" }: { archivo: Bl
     setUrl(u);
     return () => URL.revokeObjectURL(u);
   }, [archivo]);
-  return url ? <img src={url} alt={alt} className={className} /> : <div className={`animate-pulse bg-fondo ${className}`} aria-hidden />;
+  return url ? <img src={url} alt={alt} className={className} /> : <div className={`esqueleto ${className}`} aria-hidden />;
 }

@@ -15,7 +15,7 @@ export default function EditarCliente() {
   }, [datos, id]);
   const cliente = info?.cliente;
 
-  if (cargando) return <Cargando />;
+  if (cargando) return <Cargando variante="formulario" />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!cliente) return <Aviso tipo="error">No se encontró el cliente.</Aviso>;
   return (

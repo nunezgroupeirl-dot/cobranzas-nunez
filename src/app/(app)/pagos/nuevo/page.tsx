@@ -133,7 +133,7 @@ export default function RegistrarPago() {
     }
   };
 
-  if (cargando && !info) return <Cargando />;
+  if (cargando && !info) return <Cargando variante="formulario" />;
   if (!elegido) return <BuscarContrato estados={info?.estados ?? []} alElegir={elegirContrato} />;
 
   if (resultado) {

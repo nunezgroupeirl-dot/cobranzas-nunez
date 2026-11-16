@@ -7,7 +7,7 @@ import { Cargando } from "@/components/ui/Tarjeta";
 /** Marco de todas las pantallas con sesión iniciada */
 export default function LayoutApp({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<Cargando />}>
+    <Suspense fallback={<Cargando variante="pantalla" />}>
       <ProveedorSesion>
         <AppShell>{children}</AppShell>
       </ProveedorSesion>

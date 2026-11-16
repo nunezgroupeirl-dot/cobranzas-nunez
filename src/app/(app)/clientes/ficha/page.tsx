@@ -54,7 +54,7 @@ export default function FichaCliente() {
     };
   }, [info, contratoActivo]);
 
-  if (cargando && !info) return <Cargando />;
+  if (cargando && !info) return <Cargando variante="ficha" />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!info?.cliente || !resumen) return <Aviso tipo="error">No se encontró el cliente.</Aviso>;
 
