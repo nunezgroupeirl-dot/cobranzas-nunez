@@ -1,6 +1,6 @@
 # Cobranzas Nuñez
 
-Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas semanales. Reemplaza los cuadernos: clientes, motos, contratos con cronograma automático, pagos con foto del comprobante, semáforo de morosos, panel del dueño y consulta pública por DNI.
+Sistema web de cobranzas para financiamiento de vehículos (mototaxi, lineal, scooter, auto, camioneta, combi, minivan) con cuotas diarias, semanales, quincenales o mensuales. Reemplaza los cuadernos: clientes, vehículos, contratos con cronograma automático, pagos con foto del comprobante, semáforo de morosos, panel del dueño y consulta pública por DNI.
 
 | | |
 |---|---|
@@ -13,17 +13,20 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 | Ruta | Qué hace | Quién |
 |---|---|---|
 | `/login` | Ingreso | Todos |
-| `/clientes` · `/clientes/nuevo` · `/clientes/ficha?id=` · `/clientes/editar?id=` | Lista con semáforo, alta con fotos, ficha completa. El **cajero de oficina** ve la lista y la ficha sin poder editar | Dueño (cajero: solo ver) |
-| `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` · `/contratos/documento?id=` | Motos, contratos (semanales, quincenales o mensuales), cronograma; **pasarela del contrato** (5 pasos, todo obligatorio: la plantilla sale llenada y solo quedan las firmas y huellas), plantilla en blanco, hojas firmadas escaneadas y su reimpresión | Dueño |
-| `/pendientes` | **Datos pendientes**: de cada contrato activo, qué le falta (DNI, celular, dirección, ubicación, fotos, placa, ficha técnica, contrato llenado o firmado, notas del cuaderno por revisar), con filtros, botones para completar y Excel | Dueño |
-| `/pagos/nuevo` | Registrar un pago con foto del comprobante. Pantalla de inicio del **cajero de oficina** | Dueño y trabajadores |
-| `/pagos` | Historial de pagos (anular, filtrar por fechas) | Dueño |
-| `/morosos` | ¿Quién no paga? Con dirección y “Cómo llegar”, copiar para WhatsApp y Excel. Pantalla de inicio del **cobrador de ruta** | Dueño y trabajadores |
-| `/panel` | Cobrado hoy y en la semana, deuda por empresa | Dueño |
-| `/reportes` | Reporte mensual (resumen, pagos y clientes) y Excel de clientes y de pagos por fechas. Desde el día 1 de cada mes el dueño ve un aviso fijo hasta descargar el reporte del mes anterior | Dueño |
-| `/usuarios` | Crear trabajadores con su puesto (**cajero de oficina** o **cobrador de ruta**), nombre, correo y contraseña; cambiarles puesto, nombre o contraseña; desactivarlos; cambiar la contraseña propia | Dueño |
-| `/importar` | Cargar clientes desde la plantilla Excel (DNI y placa opcionales; frecuencia semanal, quincenal o mensual; precio e inicial opcionales). Una fila ya importada se rechaza sola | Dueño |
-| `/configuracion` | Agregar, editar y eliminar empresas y cuentas de cobro | Dueño |
+| `/clientes` · `/clientes/nuevo` · `/clientes/ficha?id=` · `/clientes/editar?id=` | Lista con semáforo e icono del vehículo. Alta y edición en un solo formulario: datos, uno o varios vehículos (placa o **placa en trámite**), cronograma y al final las fotos (DNI o carné por ambas caras, PDF con vista previa, abrir y descargar). Un cliente sin contrato queda en datos pendientes. El **cajero de oficina** solo ve | Administradores (cajero: solo ver) |
+| `/contratos` · `/contratos/nuevo` · `/contratos/ver?id=` · `/contratos/documento?id=` | Vehículos y contratos (diarios, semanales, quincenales o mensuales, hasta 1000 cuotas), cronograma con el comprobante de cada pago y de las cuotas del cuaderno; **pasarela del contrato** (5 pasos, todo obligatorio: la plantilla sale llenada y solo quedan las firmas y huellas), plantilla en blanco, hojas firmadas escaneadas y su reimpresión | Administradores |
+| `/pendientes` | **Datos pendientes** (pestañas *Cliente y vehículo* y *Contratos*, con aviso en el menú): de cada cliente o contrato activo, qué le falta (DNI, celular, dirección, ubicación, fotos, placa, ficha técnica, contrato llenado o firmado, notas del cuaderno por revisar), con filtros, botones para completar y Excel | Administradores |
+| `/pagos/nuevo` | Registrar un pago con foto del comprobante. Pantalla de inicio del **cajero de oficina** | Administradores y trabajadores |
+| `/pagos` | Historial de pagos (anular, filtrar por fechas) | Administradores |
+| `/morosos` | ¿Quién no paga? Con dirección y “Cómo llegar”, copiar para WhatsApp y Excel. Pantalla de inicio del **cobrador de ruta** | Administradores y trabajadores |
+| `/panel` | Cobrado hoy y en la semana, deuda por empresa | Administradores |
+| `/reportes` | Reporte mensual (resumen, pagos y clientes) y Excel de clientes y de pagos por fechas. Desde el día 1 de cada mes el dueño ve un aviso fijo hasta descargar el reporte del mes anterior | Administradores |
+| `/usuarios` | Crear trabajadores con su puesto (**cajero de oficina** o **cobrador de ruta**), nombre, correo y contraseña; cambiarles puesto, nombre o contraseña; desactivarlos; cambiar la contraseña propia. Solo el dueño nombra o quita administradores | Administradores |
+| `/importar` | Cargar clientes desde la plantilla Excel (DNI y placa opcionales; frecuencia semanal, quincenal o mensual; precio e inicial opcionales). Una fila ya importada se rechaza sola | Administradores |
+| `/historico` | Cada vehículo con todos sus contratos (pagando, terminados, cerrados), incluso de archivados | Administradores |
+| `/archivados` | Clientes y vehículos que ya no están en la empresa: se ocultan de las listas sin borrar su historia, y se pueden recuperar | Administradores |
+| `/auditoria` | Quién registró cada pago, quién creó o cambió clientes, vehículos y contratos, y cuándo | Administradores |
+| `/configuracion` | Agregar, editar y eliminar empresas y cuentas de cobro | Administradores |
 | `/consulta` · `/qr` | El cliente consulta su deuda con su DNI · hoja con el QR | Público |
 
 ## Reglas del negocio
@@ -36,7 +39,7 @@ Sistema web de cobranzas para financiamiento de mototaxis y motos con cuotas sem
 - Sin intereses ni mora: la cuota es fija. Un contrato pagado completo pasa a **terminado**.
 - Lo registrado hasta las **10:00 p.m.** (hora de Lima) cuenta para ese día.
 
-Las reglas viven en la base de datos (`supabase/esquema.sql`). `src/lib/supabase/reglas.ts` es una copia solo para el modo de prueba.
+Las reglas viven en la base de datos (`supabase/esquema.sql`). `src/lib/supabase/reglas.ts` y `simulado.ts` son una copia **solo para el modo de prueba** (sin `.env.local`); si se cambia una regla en la base, hay que cambiarla también ahí.
 
 ## Ubicación de los clientes
 
@@ -44,14 +47,15 @@ Cada cliente tiene dirección escrita y, opcional, su ubicación en Google Maps:
 
 ## Seguridad
 
-- **Un solo dueño.** Solo la cuenta `correo_dueno()` (en `esquema.sql`) puede ser administrador: anular pagos, cerrar contratos, crear usuarios, importar, configurar y ver panel y reportes. Lo garantiza la base de datos (función, disparador y restricción en la tabla), no solo la pantalla. Todo usuario nuevo es **cobrador**: solo registra pagos y ve ¿Quién no paga?; no crea ni edita clientes, motos ni contratos (también lo impide la base de datos).
+- **Administradores.** Puede haber varios (hoy el dueño y Elvis). Solo el **dueño** (la cuenta `correo_dueno()` en `esquema.sql`) nombra o quita administradores; un administrador no puede quitarle el puesto al dueño. Los administradores anulan pagos, cierran contratos, crean usuarios, importan, configuran y ven panel, reportes, histórico, archivados y auditoría. Lo garantiza la base de datos (`es_admin()`, `es_dueno()`, disparadores y RLS), no solo la pantalla.
+- **Trabajadores** (cajero de oficina o cobrador de ruta): registran pagos y ven ¿Quién no paga?; no crean ni editan clientes, vehículos ni contratos. Solo registran pagos con fecha de hoy o de **hasta 7 días atrás**; uno más antiguo lo registra un administrador (lo impide `registrar_pago`).
 - **RLS en todas las tablas.** El frontend solo lleva la llave pública (anon). Lo que cada usuario puede ver o cambiar lo decide la base de datos.
 - Pagos, contratos y cuotas **no se escriben directo**: solo con `registrar_pago`, `crear_contrato`, `anular_pago` y `cerrar_contrato`.
 - **El dueño tiene CRUD de todo:** empresas, cuentas, clientes, motos y contratos se pueden crear, editar y eliminar. Borrar algo con datos ligados (una empresa con clientes, una cuenta con pagos, una moto con contrato) lo impide la base de datos. Eliminar un cliente o un contrato pide escribir su DNI o placa y borra también sus pagos y fotos.
 - Fotos **privadas** en Cloudflare R2 (o Supabase Storage si no se configura R2), visibles solo con enlace firmado de 1 hora. El Worker `fotos/` valida la sesión de Supabase en cada subida o borrado.
-- La tabla `auditoria` guarda quién creó o cambió cada cliente, moto, contrato y pago.
+- La tabla `auditoria` la llenan disparadores: guarda quién creó, cambió o archivó cada cliente, vehículo, contrato, pago, documento y usuario. Nadie la puede editar ni borrar desde la app.
 - Todo el tráfico va por **HTTPS** (Cloudflare + Supabase) con cabeceras de seguridad (`public/_headers`).
-- Datos personales (DNI, dirección, celular): Ley 29733. La consulta pública solo muestra nombre, placa, deuda y cronograma.
+- Datos personales (DNI, dirección, celular): Ley 29733. La consulta pública solo muestra nombre abreviado, placa, deuda y cronograma, y tiene un **límite de 10 consultas cada 10 minutos por conexión** (`consulta_publica` → `consulta_intentos`) para que nadie pruebe DNI en masa.
 
 ## Desarrollo
 
@@ -107,7 +111,7 @@ Worker aparte que hace una consulta liviana cada 6 horas para que el proyecto no
 
 ```
 supabase/esquema.sql          toda la base de datos: tablas, reglas, vistas, RLS, storage, datos iniciales
-supabase/functions/usuarios/  Edge Function para crear cobradores
+supabase/functions/usuarios/  Edge Function para crear usuarios
 fotos/                        Worker de Cloudflare que guarda las fotos en R2 con los mismos permisos
 keep-alive/                   Worker de Cloudflare que evita la pausa de Supabase (plan gratis)
 public/plantilla-clientes.xlsx plantilla para importar clientes

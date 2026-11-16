@@ -33,6 +33,7 @@ import {
   inicioSemana,
   resumenCuotas,
   sumarDias,
+  DIAS_ATRAS_TRABAJADOR,
   validarPago,
 } from "./reglas";
 import { claveEmpresa, nombreReservado } from "@/lib/texto";
@@ -809,6 +810,9 @@ export function crearDatosSimulados(): Datos {
       const saldo = resumenCuotas(antes).saldo;
       const error = validarPago(args, s.pagos, saldo);
       if (error) throw new ErrorDatos(error);
+      if (args.fecha_pago > hoy) throw new ErrorDatos("DATOS", "La fecha de pago no puede ser futura.");
+      if (quien.rol !== "administrador" && args.fecha_pago < sumarDias(hoy, -DIAS_ATRAS_TRABAJADOR))
+        throw new ErrorDatos("DATOS", `Solo un administrador puede registrar pagos de hace más de ${DIAS_ATRAS_TRABAJADOR} días.`);
       const pago: Pago = {
         id: nuevoId(),
         contrato_id: args.contrato_id,

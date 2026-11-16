@@ -144,6 +144,9 @@ export function resumenCuotas(cuotas: Pick<Cuota, "estado" | "monto" | "monto_pa
 }
 
 /** Validaciones que hace registrar_pago antes de guardar. */
+/** Un trabajador registra pagos de hoy o de hasta estos días atrás; los más antiguos, solo un administrador (igual que en la base de datos). */
+export const DIAS_ATRAS_TRABAJADOR = 7;
+
 export function validarPago(
   args: RegistrarPagoArgs,
   pagosExistentes: Pick<Pago, "nro_operacion" | "foto_hash" | "anulado">[],

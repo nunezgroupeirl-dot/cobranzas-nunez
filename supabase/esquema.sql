@@ -583,6 +583,10 @@ begin
   if p_fecha_pago is null or p_fecha_pago > public.hoy_lima() then
     raise exception 'La fecha de pago no puede ser futura.';
   end if;
+  -- los trabajadores registran lo del día (o de la última semana); pagos más antiguos, solo un administrador
+  if not public.es_admin() and p_fecha_pago < public.hoy_lima() - 7 then
+    raise exception 'Solo un administrador puede registrar pagos de hace más de 7 días.';
+  end if;
 
   if p_medio = 'efectivo' then
     v_nro := null;
@@ -1326,7 +1330,7 @@ $$;
 -- 6. CONSULTA PÚBLICA POR DNI (página /consulta, sin iniciar sesión)
 --    Devuelve solo nombre, placa, deuda y cronograma. Nunca dirección, celular ni fotos.
 -- =============================================================================
-create or replace function public.consulta_publica(p_dni text)
+create or replace function public.consulta_publica_datos(p_dni text)
 returns jsonb
 language sql
 stable
@@ -1385,6 +1389,36 @@ as $$
     )
   )
   where exists (select 1 from contratos);
+$$;
+
+-- Límite de consultas públicas: así nadie puede probar DNIs uno tras otro con un programa.
+-- Se guarda solo una huella (hash) de la IP, por 1 día.
+create table if not exists public.consulta_intentos (
+  huella text not null,
+  en     timestamptz not null default now()
+);
+create index if not exists consulta_intentos_idx on public.consulta_intentos (huella, en);
+alter table public.consulta_intentos enable row level security; -- sin políticas: solo la función la toca
+
+create or replace function public.consulta_publica(p_dni text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_h      json := nullif(current_setting('request.headers', true), '')::json;
+  v_ip     text := coalesce(nullif(trim(split_part(v_h ->> 'x-forwarded-for', ',', 1)), ''), v_h ->> 'cf-connecting-ip');
+  v_huella text := md5('cn-consulta:' || coalesce(v_ip, 'sin-ip'));
+  v_limite integer := case when v_ip is null then 300 else 10 end; -- 10 consultas cada 10 minutos por persona
+begin
+  delete from public.consulta_intentos where en < now() - interval '1 day';
+  if (select count(*) from public.consulta_intentos where huella = v_huella and en > now() - interval '10 minutes') >= v_limite then
+    raise exception 'DEMASIADAS_CONSULTAS';
+  end if;
+  insert into public.consulta_intentos (huella) values (v_huella);
+  return public.consulta_publica_datos(p_dni);
+end;
 $$;
 
 
@@ -1627,6 +1661,7 @@ end $$;
 grant execute on function public.es_staff() to authenticated;
 grant execute on function public.es_admin() to authenticated;
 grant execute on function public.hoy_lima() to anon, authenticated;
+revoke all on function public.consulta_publica_datos(text) from public, anon, authenticated;
 grant execute on function public.consulta_publica(text) to anon, authenticated;
 revoke all on function public.uso_fotos() from public, anon;
 grant execute on function public.uso_fotos() to authenticated;

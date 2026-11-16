@@ -77,6 +77,7 @@ export const MENSAJE_ERROR: Record<string, string> = {
   MONTO_INVALIDO: "El monto no es válido o es mayor a lo que debe el cliente.",
   SIN_FOTO: "Falta la foto del comprobante.",
   SIN_PERMISO: "No tienes permiso para hacer esto.",
+  DEMASIADAS_CONSULTAS: "Hiciste muchas consultas seguidas. Espera unos minutos e inténtalo otra vez.",
   SIN_SESION: "Tu sesión terminó. Vuelve a ingresar.",
 };
 

@@ -3,6 +3,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
+import { DIAS_ATRAS_TRABAJADOR, sumarDias } from "@/lib/supabase/reglas";
 import { Aviso, Boton, Campo, Cargando, NOMBRE_MEDIO, OpcionesBoton, Selector, Tarjeta, TituloPagina, formatoSoles, hoyLima, mensajeDeError, useCarga } from "@/components/ui";
 import { borrarFoto, prepararFotoPago } from "@/lib/fotos";
 import type { MedioPago, RegistrarPagoResultado } from "@/types/database";
@@ -24,12 +25,13 @@ interface Borrador {
 }
 
 /** Revisa el formulario antes de subir nada. Devuelve los errores por campo (vacío = todo bien). */
-function validar(b: Borrador): Record<string, string> {
+function validar(b: Borrador, minimo: string): Record<string, string> {
   const e: Record<string, string> = {};
   const conCuenta = b.medio !== "efectivo";
   if (!(Number(b.monto) > 0)) e.monto = "Escribe el monto.";
   if (!b.fecha) e.fecha = "Elige la fecha.";
   else if (b.fecha > hoyLima()) e.fecha = "La fecha no puede ser futura.";
+  else if (minimo && b.fecha < minimo) e.fecha = `Solo un administrador puede registrar pagos de hace más de ${DIAS_ATRAS_TRABAJADOR} días.`;
   if (conCuenta && !b.cuentaId) e.cuenta = "Elige la cuenta donde llegó el dinero.";
   if (conCuenta && !b.nroOp.trim()) e.nro = "Escribe el número de operación.";
   if (!b.foto) e.foto = b.medio === "efectivo" ? "Tómale una foto al cliente al recibir el dinero." : "La foto del comprobante es obligatoria.";
@@ -40,7 +42,8 @@ const textoBoton = (paso: string, monto: string) =>
   paso === "foto" ? "Subiendo foto…" : paso === "guardando" ? "Guardando…" : `Registrar ${monto ? formatoSoles(Number(monto)) : "pago"}`;
 
 export default function RegistrarPago() {
-  const { datos, empresas } = useSesion();
+  const { datos, empresas, esAdmin } = useSesion();
+  const minimo = esAdmin ? "" : sumarDias(hoyLima(), -DIAS_ATRAS_TRABAJADOR);
   const router = useRouter();
   const contratoParam = useSearchParams().get("contrato");
   const empresa = useEmpresa();
@@ -100,7 +103,7 @@ export default function RegistrarPago() {
 
   const registrar = async () => {
     if (!elegido || enviando.current) return;
-    const e = validar({ monto, fecha, medio, cuentaId, nroOp, foto });
+    const e = validar({ monto, fecha, medio, cuentaId, nroOp, foto }, minimo);
     setErrores(e);
     if (Object.keys(e).length || !foto) return;
 
@@ -230,11 +233,12 @@ export default function RegistrarPago() {
                 etiqueta="Fecha en que pagó"
                 type="date"
                 max={hoyLima()}
+                min={minimo || undefined}
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
                 error={errores.fecha}
                 obligatorio
-                ayuda="Después de las 10:00 p.m. cuenta para el día siguiente."
+                ayuda={`Después de las 10:00 p.m. cuenta para el día siguiente.${esAdmin ? "" : ` Hasta ${DIAS_ATRAS_TRABAJADOR} días atrás; más antiguo, pídeselo a un administrador.`}`}
               />
             </div>
           </Tarjeta>
