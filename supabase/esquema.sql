@@ -155,7 +155,7 @@ create table if not exists public.contratos (
   moto_id                 uuid not null references public.motos (id) on delete restrict,
   empresa_id              uuid not null references public.empresas (id) on delete restrict,
   monto_cuota             numeric(10, 2) not null check (monto_cuota > 0),
-  nro_cuotas              integer not null check (nro_cuotas between 1 and 260),
+  nro_cuotas              integer not null check (nro_cuotas between 1 and 1000),
   fecha_inicio            date not null,                       -- vencimiento de la 1.ª cuota
   precio_total            numeric(12, 2) check (precio_total is null or precio_total >= 0),
   inicial                 numeric(12, 2) check (inicial is null or inicial >= 0),
@@ -176,7 +176,10 @@ create index if not exists contratos_estado_idx on public.contratos (estado);
 -- Cada cuánto paga: semanal (lo normal), quincenal o mensual. El cronograma sale según esto.
 alter table public.contratos add column if not exists frecuencia text not null default 'semanal';
 alter table public.contratos drop constraint if exists contratos_frecuencia_check;
-alter table public.contratos add constraint contratos_frecuencia_check check (frecuencia in ('semanal', 'quincenal', 'mensual'));
+alter table public.contratos add constraint contratos_frecuencia_check check (frecuencia in ('diario', 'semanal', 'quincenal', 'mensual'));
+-- cobro diario: un año son ~365 cuotas
+alter table public.contratos drop constraint if exists contratos_nro_cuotas_check;
+alter table public.contratos add constraint contratos_nro_cuotas_check check (nro_cuotas between 1 and 1000);
 -- Páginas del contrato firmado y escaneado (documentos de tipo "contrato")
 alter table public.documentos add column if not exists contrato_id uuid references public.contratos (id) on delete cascade;
 create index if not exists documentos_contrato_idx on public.documentos (contrato_id);
@@ -428,10 +431,11 @@ language sql
 security definer
 set search_path = ''
 as $$
-  -- semanal: cada 7 días · mensual: el mismo día de cada mes · quincenal: 2 por mes (el día de inicio y 15 días después)
+  -- diario: cada día · semanal: cada 7 días · mensual: el mismo día de cada mes · quincenal: 2 por mes (el día de inicio y 15 días después)
   insert into public.cuotas_base (contrato_id, numero, fecha_vencimiento, monto)
   select c.id, n,
     case c.frecuencia
+      when 'diario' then c.fecha_inicio + (n - 1)
       when 'mensual' then (c.fecha_inicio + make_interval(months => n - 1))::date
       when 'quincenal' then (c.fecha_inicio + make_interval(months => (n - 1) / 2))::date + case when n % 2 = 0 then 15 else 0 end
       else c.fecha_inicio + (n - 1) * 7
@@ -486,11 +490,11 @@ begin
   if p_monto_cuota is null or p_monto_cuota <= 0 then
     raise exception 'La cuota debe ser mayor a 0.';
   end if;
-  if coalesce(p_frecuencia, 'semanal') not in ('semanal', 'quincenal', 'mensual') then
+  if coalesce(p_frecuencia, 'semanal') not in ('diario', 'semanal', 'quincenal', 'mensual') then
     raise exception 'Frecuencia no válida.';
   end if;
-  if p_nro_cuotas is null or p_nro_cuotas < 1 or p_nro_cuotas > 260 then
-    raise exception 'El número de cuotas debe estar entre 1 y 260.';
+  if p_nro_cuotas is null or p_nro_cuotas < 1 or p_nro_cuotas > 1000 then
+    raise exception 'El número de cuotas debe estar entre 1 y 1000.';
   end if;
   if p_fecha_inicio is null then
     raise exception 'Elige la fecha de la primera cuota.';
@@ -798,6 +802,7 @@ $$;
 
 -- Editar un contrato: rehace el cronograma con los datos nuevos y vuelve a aplicar
 -- los pagos ya registrados (a la cuota más antigua, como siempre).
+drop function if exists public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text);
 create or replace function public.editar_contrato(
   p_contrato_id     uuid,
   p_monto_cuota     numeric,
@@ -806,7 +811,8 @@ create or replace function public.editar_contrato(
   p_precio_total    numeric default null,
   p_inicial         numeric default null,
   p_cuotas_pagadas  integer default null,
-  p_observaciones   text default null
+  p_observaciones   text default null,
+  p_frecuencia      text default null   -- null = la misma de antes
 )
 returns void
 language plpgsql
@@ -829,11 +835,11 @@ begin
   if p_monto_cuota is null or p_monto_cuota <= 0 then
     raise exception 'La cuota debe ser mayor a 0.';
   end if;
-  if coalesce(p_frecuencia, 'semanal') not in ('semanal', 'quincenal', 'mensual') then
+  if coalesce(p_frecuencia, 'semanal') not in ('diario', 'semanal', 'quincenal', 'mensual') then
     raise exception 'Frecuencia no válida.';
   end if;
-  if p_nro_cuotas is null or p_nro_cuotas < 1 or p_nro_cuotas > 260 then
-    raise exception 'El número de cuotas debe estar entre 1 y 260.';
+  if p_nro_cuotas is null or p_nro_cuotas < 1 or p_nro_cuotas > 1000 then
+    raise exception 'El número de cuotas debe estar entre 1 y 1000.';
   end if;
   if p_fecha_inicio is null then
     raise exception 'Elige la fecha de la primera cuota.';
@@ -849,7 +855,8 @@ begin
       precio_total = p_precio_total,
       inicial = p_inicial,
       cuotas_pagadas_inicial = coalesce(p_cuotas_pagadas, cuotas_pagadas_inicial),
-      observaciones = nullif(trim(p_observaciones), '')
+      observaciones = nullif(trim(p_observaciones), ''),
+      frecuencia = coalesce(p_frecuencia, frecuencia)
   where id = p_contrato_id;
 
   delete from public.cuotas_base where contrato_id = p_contrato_id;  -- pago_cuota se borra en cascada
@@ -972,7 +979,8 @@ declare
   v_pagadas   integer := coalesce(nullif(p_fila ->> 'cuotas_pagadas', '')::integer, 0);
   v_ultimo    date := nullif(p_fila ->> 'ultimo_pago', '')::date;
   v_frec      text := case lower(coalesce(p_fila ->> 'frecuencia', ''))
-                        when 'mensual' then 'mensual' when 'quincenal' then 'quincenal' else 'semanal' end;
+                        when 'mensual' then 'mensual' when 'quincenal' then 'quincenal'
+                        when 'diario' then 'diario' when 'diaria' then 'diario' else 'semanal' end;
   v_nota      text;
 begin
   if not public.es_admin() then
@@ -1530,12 +1538,12 @@ grant execute on function public.cerrar_contrato(uuid, text) to authenticated;
 grant execute on function public.actualizar_usuario(uuid, public.rol_usuario, boolean) to authenticated;
 grant execute on function public.importar_cliente(jsonb) to authenticated;
 revoke all on function public.generar_cuotas(uuid) from public, anon, authenticated;
-revoke all on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text) from public, anon;
+revoke all on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text, text) from public, anon;
 revoke all on function public.eliminar_contrato(uuid) from public, anon;
 revoke all on function public.guardar_documento_contrato(uuid, jsonb) from public, anon;
 grant execute on function public.guardar_documento_contrato(uuid, jsonb) to authenticated;
 revoke all on function public.eliminar_cliente(uuid) from public, anon;
-grant execute on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text) to authenticated;
+grant execute on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text, text) to authenticated;
 grant execute on function public.eliminar_contrato(uuid) to authenticated;
 grant execute on function public.eliminar_cliente(uuid) to authenticated;
 grant execute on function public.clave_empresa(text) to authenticated;

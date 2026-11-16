@@ -7,7 +7,7 @@
 export type Rol = "administrador" | "cobrador";
 /** Los cobradores trabajan en la oficina (caja) o en la calle (ruta). Mismos permisos, distinta pantalla de inicio. */
 export type Puesto = "oficina" | "ruta";
-export type Frecuencia = "semanal" | "quincenal" | "mensual";
+export type Frecuencia = "diario" | "semanal" | "quincenal" | "mensual";
 export type Color = "verde" | "amarillo" | "rojo";
 export type MedioPago = "yape" | "plin" | "banco" | "agente" | "efectivo";
 export type TipoDocumento = "cliente" | "dni" | "dni_reverso" | "moto" | "fachada" | "recibo" | "otro" | "contrato";
@@ -204,6 +204,8 @@ export interface EditarContratoArgs {
   inicial: number | null;
   cuotas_pagadas: number;
   observaciones: string | null;
+  /** si no se manda, se queda la de antes */
+  frecuencia?: Frecuencia;
 }
 
 /** Una fila de la plantilla Excel de clientes (importar_cliente) */

@@ -315,6 +315,7 @@ export function crearDatosReales(): Datos {
             p_inicial: c.inicial,
             p_cuotas_pagadas: c.cuotas_pagadas,
             p_observaciones: c.observaciones,
+            ...(c.frecuencia ? { p_frecuencia: c.frecuencia } : {}),
           })
         ).error,
       );

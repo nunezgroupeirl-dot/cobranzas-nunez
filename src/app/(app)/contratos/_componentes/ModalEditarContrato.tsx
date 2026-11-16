@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { AreaTexto, Aviso, Boton, Campo, Modal, mensajeDeError } from "@/components/ui";
-import type { Contrato } from "@/types/database";
+import { AreaTexto, Aviso, Boton, Campo, FRECUENCIAS, Modal, OpcionesBoton, mensajeDeError } from "@/components/ui";
+import type { Contrato, Frecuencia } from "@/types/database";
 
 interface Props {
   contrato: Contrato;
@@ -25,10 +25,11 @@ export function ModalEditarContrato({ contrato, abierto, alCerrar, alTerminar }:
     inicial: texto(contrato.inicial),
     pagadas: texto(contrato.cuotas_pagadas_inicial),
     obs: contrato.observaciones ?? "",
+    frec: (contrato.frecuencia ?? "semanal") as Frecuencia,
   }));
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const poner = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
+  const poner = (k: Exclude<keyof typeof f, "frec">, v: string) => setF((x) => ({ ...x, [k]: v }));
 
   const guardar = async () => {
     setOcupado(true);
@@ -42,6 +43,7 @@ export function ModalEditarContrato({ contrato, abierto, alCerrar, alTerminar }:
         inicial: numero(f.inicial),
         cuotas_pagadas: Number(f.pagadas || 0),
         observaciones: f.obs.trim() || null,
+        frecuencia: f.frec,
       });
       alTerminar();
     } catch (e) {
@@ -69,9 +71,16 @@ export function ModalEditarContrato({ contrato, abierto, alCerrar, alTerminar }:
     >
       <div className="flex flex-col gap-3">
         <p className="text-sm text-tenue">El cronograma se vuelve a armar y los pagos ya registrados se aplican de nuevo, desde la cuota más antigua.</p>
+        <OpcionesBoton
+          etiqueta="Frecuencia de cobro"
+          opciones={FRECUENCIAS.map(({ valor, texto: t }) => ({ valor, texto: t }))}
+          valor={f.frec}
+          alCambiar={(v) => setF((x) => ({ ...x, frec: v as Frecuencia }))}
+          obligatorio
+        />
         <div className="grid gap-3 sm:grid-cols-2">
-          <Campo etiqueta="Cuota semanal (S/)" type="number" inputMode="decimal" min="0" step="0.5" value={f.cuota} onChange={(e) => poner("cuota", e.target.value)} obligatorio />
-          <Campo etiqueta="Número de cuotas" type="number" inputMode="numeric" min="1" max="260" value={f.nro} onChange={(e) => poner("nro", e.target.value)} obligatorio />
+          <Campo etiqueta="Cuota (S/)" type="number" inputMode="decimal" min="0" step="0.5" value={f.cuota} onChange={(e) => poner("cuota", e.target.value)} obligatorio />
+          <Campo etiqueta="Número de cuotas" type="number" inputMode="numeric" min="1" max="1000" value={f.nro} onChange={(e) => poner("nro", e.target.value)} obligatorio />
           <Campo etiqueta="Fecha de la 1.ª cuota" type="date" value={f.inicio} onChange={(e) => poner("inicio", e.target.value)} obligatorio />
           <Campo etiqueta="Cuotas ya pagadas (cuaderno)" type="number" inputMode="numeric" min="0" value={f.pagadas} onChange={(e) => poner("pagadas", e.target.value)} />
           <Campo etiqueta="Precio de la moto (S/)" type="number" inputMode="decimal" min="0" value={f.precio} onChange={(e) => poner("precio", e.target.value)} />

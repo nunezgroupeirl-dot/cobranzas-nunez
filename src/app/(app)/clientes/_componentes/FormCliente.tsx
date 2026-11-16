@@ -11,10 +11,11 @@ import { CampoUbicacion } from "./CampoUbicacion";
 import { FotosPorTipo } from "./FotosPorTipo";
 import { MotoYCronograma } from "./MotoYCronograma";
 import { TOTAL_FOTOS } from "./secciones";
-import { guardarVenta, validarVenta, ventaVacia, type Hechos, type Venta } from "./venta";
+import { guardarEdicion, guardarVenta, validarVenta, ventaDe, ventaVacia, type Hechos, type Venta, type VentaActual } from "./venta";
 
 
-export function FormCliente({ cliente }: { cliente?: Cliente }) {
+/** Datos del cliente, su moto, su cronograma de pagos y sus fotos (en ese orden). Al editar, `actual` trae su moto y su contrato. */
+export function FormCliente({ cliente, actual }: { cliente?: Cliente; actual?: VentaActual }) {
   const { datos, empresas } = useSesion();
   const empresaFiltro = useEmpresa();
   const router = useRouter();
@@ -32,9 +33,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<"" | "solo" | "contrato">("");
   // cliente nuevo: su moto y cronograma en el mismo formulario (el contrato en papel se llena después)
-  const [conVenta, setConVenta] = useState(true); // solo se usa al crear
-  const [venta, setVenta] = useState<Venta>(() => ventaVacia(hoyLima()));
-  const [erroresVenta, setErroresVenta] = useState<Record<string, string>>({});
+  const { conVenta, setConVenta, venta, conContrato, ventaActiva, erroresVenta, setErroresVenta, cambiarVenta } = useVenta(!cliente, actual);
   const hechos = useRef<Hechos & { cliente?: Cliente }>({});
   const [existentes, setExistentes] = useState<Documento[]>([]);
   // una foto nueva por tipo (cliente, DNI, moto…): se suben al guardar
@@ -54,7 +53,7 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     if (!ubicacionValida(f.ubicacion)) e.ubicacion = "Pega un enlace de Google Maps o coordenadas como -12.0464,-77.0428.";
     setErrores(e);
-    const ev = !cliente && conVenta ? validarVenta(venta) : {};
+    const ev = ventaActiva ? validarVenta(venta) : {};
     setErroresVenta(ev);
     return Object.keys(e).length === 0 && Object.keys(ev).length === 0;
   };
@@ -90,6 +89,11 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
       );
       hechos.current.cliente = guardado;
       setPendientes({});
+      if (cliente && actual && ventaActiva) {
+        await guardarEdicion(datos, guardado, venta, actual, hechos.current);
+        router.push(`/clientes/ficha?id=${guardado.id}`);
+        return;
+      }
       if (!cliente && conVenta) {
         const contratoId = await guardarVenta(datos, guardado, venta, hechos.current);
         // "Guardar y llenar el contrato": directo al contrato con todo ya puesto (cliente, moto y cuotas)
@@ -141,6 +145,16 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         </div>
       </Tarjeta>
 
+      <MotoYCronograma
+        activa={conContrato ? null : conVenta}
+        alActivar={setConVenta}
+        v={venta}
+        errores={erroresVenta}
+        conContrato={conContrato}
+        otrosContratos={actual?.otros ?? 0}
+        alCambiar={cambiarVenta}
+      />
+
       <Tarjeta titulo={`Fotos y documentos (${existentes.length + Object.keys(pendientes).length} de ${TOTAL_FOTOS})`}>
         <FotosPorTipo
           existentes={existentes}
@@ -158,18 +172,6 @@ export function FormCliente({ cliente }: { cliente?: Cliente }) {
         <p className="mt-3 text-sm text-tenue">Cada foto se sube por separado y se comprime a unos 120 KB. Para cambiar una, quítala y toma otra.</p>
       </Tarjeta>
 
-      {!cliente && (
-        <MotoYCronograma
-          activa={conVenta}
-          alActivar={setConVenta}
-          v={venta}
-          errores={erroresVenta}
-          alCambiar={(cambio) => {
-            setVenta((x) => ({ ...x, ...cambio }));
-            setErroresVenta((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in cambio))));
-          }}
-        />
-      )}
       {Object.keys(erroresVenta).length > 0 && <Aviso tipo="error">Revisa los datos de la moto y del cronograma.</Aviso>}
 
       <BotonesGuardar
@@ -214,4 +216,17 @@ function BotonesGuardar({ editando, conVenta, guardando, alCancelar, alGuardarSo
       )}
     </div>
   );
+}
+
+/** Moto y cronograma del formulario: con contrato no hay casilla (siempre se muestra); sin nada registrado, al editar empieza apagada. */
+function useVenta(nuevo: boolean, actual?: VentaActual) {
+  const [conVenta, setConVenta] = useState(() => nuevo || !!actual?.moto);
+  const [venta, setVenta] = useState<Venta>(() => (actual ? ventaDe(hoyLima(), actual) : ventaVacia(hoyLima())));
+  const [erroresVenta, setErroresVenta] = useState<Record<string, string>>({});
+  const conContrato = !!actual?.contrato;
+  const cambiarVenta = (cambio: Partial<Venta>) => {
+    setVenta((x) => ({ ...x, ...cambio }));
+    setErroresVenta((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in cambio))));
+  };
+  return { conVenta, setConVenta, venta, conContrato, ventaActiva: conContrato || conVenta, erroresVenta, setErroresVenta, cambiarVenta };
 }

@@ -32,8 +32,9 @@ export function inicioSemana(fecha: string): string {
 export const aCentimos = (n: number) => Math.round(n * 100);
 export const deCentimos = (c: number) => c / 100;
 
-/** Fecha de la cuota i (desde 0), igual que generar_cuotas en la base: semanal cada 7 días, mensual el mismo día, quincenal 2 por mes. */
+/** Fecha de la cuota i (desde 0), igual que generar_cuotas en la base: diario cada día, semanal cada 7 días, mensual el mismo día, quincenal 2 por mes. */
 export function fechaCuota(inicio: string, i: number, frecuencia: Contrato["frecuencia"] = "semanal"): string {
+  if (frecuencia === "diario") return sumarDias(inicio, i);
   if (frecuencia === "semanal" || !frecuencia) return sumarDias(inicio, i * 7);
   const meses = frecuencia === "mensual" ? i : Math.floor(i / 2);
   const [a, m, d] = inicio.split("-").map(Number);

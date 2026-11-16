@@ -1,6 +1,6 @@
 import { sumarMeses } from "@/lib/letras";
 import { htmlPlantillaContrato } from "./ContratoPlantilla";
-import type { Cliente, Contrato, Cuenta, Empresa, Moto } from "@/types/database";
+import type { Cliente, Contrato, Cuenta, Empresa, Frecuencia, Moto } from "@/types/database";
 
 /**
  * Datos del contrato de alquiler venta tal como se llenan en la página (todo texto).
@@ -40,6 +40,11 @@ export interface CamposContrato {
 const t = (v: unknown) => (v === null || v === undefined ? "" : String(v));
 
 /** Primer llenado: lo que ya está en el sistema (empresa, cliente, moto, contrato y la cuenta BCP de la empresa). */
+/** Meses que dura cada cuota (para el plazo en meses del contrato). */
+export const MESES_POR_CUOTA: Record<Frecuencia, number> = { diario: 1 / 30.44, semanal: 7 / 30.44, quincenal: 0.5, mensual: 1 };
+/** Cómo se escribe la frecuencia en el contrato impreso. */
+export const FRECUENCIA_CONTRATO: Record<Frecuencia, CamposContrato["frecuencia"]> = { diario: "DIARIA", semanal: "SEMANAL", quincenal: "QUINCENAL", mensual: "MENSUAL" };
+
 export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Moto, contrato: Contrato, cuentas: Cuenta[], hoy: string): CamposContrato {
   const propias = cuentas.filter((c) => c.empresa_id === empresa.id && c.activa);
   const cuenta = propias.find((c) => c.medio === "banco" && c.nombre.startsWith("BCP") && !c.nombre.includes("·")) ?? propias.find((c) => c.medio === "banco") ?? propias[0];
@@ -64,10 +69,10 @@ export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Mot
     serie: t(moto.serie),
     motor: t(moto.motor),
     carroceria: t(moto.carroceria),
-    plazo_meses: String(Math.max(1, Math.round(contrato.frecuencia === "mensual" ? contrato.nro_cuotas : contrato.frecuencia === "quincenal" ? contrato.nro_cuotas / 2 : (contrato.nro_cuotas * 7) / 30.44))),
+    plazo_meses: String(Math.max(1, Math.round(contrato.nro_cuotas * MESES_POR_CUOTA[contrato.frecuencia ?? "semanal"]))),
     inicio: contrato.fecha_inicio,
     renta: String(contrato.monto_cuota),
-    frecuencia: contrato.frecuencia === "mensual" ? "MENSUAL" : contrato.frecuencia === "quincenal" ? "QUINCENAL" : "SEMANAL",
+    frecuencia: FRECUENCIA_CONTRATO[contrato.frecuencia ?? "semanal"],
     cuenta: cuenta?.nombre ?? "",
     inicial: t(contrato.inicial),
     ciudad: "Lima",

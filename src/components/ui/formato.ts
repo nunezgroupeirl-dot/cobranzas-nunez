@@ -1,4 +1,4 @@
-import type { Color, EstadoCuota, MedioPago, TipoDocumento } from "@/types/database";
+import type { Color, EstadoCuota, Frecuencia, MedioPago, TipoDocumento } from "@/types/database";
 
 const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN", minimumFractionDigits: 2 });
 
@@ -57,8 +57,16 @@ export const DETALLE_PUESTO = {
   ruta: "Cobra puerta a puerta: empieza en “¿Quién no paga?”, con dirección y mapa de cada cliente.",
 } as const;
 
-/** "Cuota semanal" / "Cuota quincenal" / "Cuota mensual" */
-export const nombreCuota = (f: string | null | undefined) => `Cuota ${f === "mensual" || f === "quincenal" ? f : "semanal"}`;
+/** "Cuota diaria" / "Cuota semanal" / "Cuota quincenal" / "Cuota mensual" */
+export const nombreCuota = (f: string | null | undefined) => `Cuota ${f === "diario" ? "diaria" : f === "mensual" || f === "quincenal" ? f : "semanal"}`;
+
+/** Frecuencias de cobro, en orden. */
+export const FRECUENCIAS: { valor: Frecuencia; texto: string; plural: string }[] = [
+  { valor: "diario", texto: "Diario", plural: "diarias" },
+  { valor: "semanal", texto: "Semanal", plural: "semanales" },
+  { valor: "quincenal", texto: "Quincenal", plural: "quincenales" },
+  { valor: "mensual", texto: "Mensual", plural: "mensuales" },
+];
 /** "DNI 12345678", "C.E. 001234567" o "Sin DNI" (clientes del cuaderno que aún no lo tienen) */
 export const textoDocumento = (n: string | null | undefined) => (n ? `${nombreDocumento(n)} ${n}` : "Sin DNI");
 

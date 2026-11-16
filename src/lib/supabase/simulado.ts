@@ -626,8 +626,8 @@ export function crearDatosSimulados(): Datos {
       const con = s.contratos.find((x) => x.id === id);
       if (!con) throw new ErrorDatos("NO_EXISTE", "El contrato no existe.");
       if (con.estado === "anulado") throw new ErrorDatos("CERRADO", "El contrato está cerrado: no se puede editar.");
-      if (!(c.monto_cuota > 0)) throw new ErrorDatos("DATOS", "La cuota semanal debe ser mayor a 0.");
-      if (!(c.nro_cuotas >= 1 && c.nro_cuotas <= 260)) throw new ErrorDatos("DATOS", "El número de cuotas debe estar entre 1 y 260.");
+      if (!(c.monto_cuota > 0)) throw new ErrorDatos("DATOS", "La cuota debe ser mayor a 0.");
+      if (!(c.nro_cuotas >= 1 && c.nro_cuotas <= 1000)) throw new ErrorDatos("DATOS", "El número de cuotas debe estar entre 1 y 1000.");
       if (c.cuotas_pagadas < 0 || c.cuotas_pagadas > c.nro_cuotas)
         throw new ErrorDatos("DATOS", "Las cuotas ya pagadas no pueden ser más que el número de cuotas.");
       Object.assign(con, {
@@ -638,6 +638,7 @@ export function crearDatosSimulados(): Datos {
         inicial: c.inicial,
         cuotas_pagadas_inicial: c.cuotas_pagadas,
         observaciones: c.observaciones?.trim() || null,
+        frecuencia: c.frecuencia ?? con.frecuencia,
       });
       // Igual que en la base: cronograma nuevo; los pagos se reaplican al calcular las cuotas
       s.cuotas = s.cuotas.filter((q) => q.contrato_id !== id);
@@ -746,7 +747,7 @@ export function crearDatosSimulados(): Datos {
         monto_cuota: f.cuota,
         nro_cuotas: f.nro_cuotas,
         fecha_inicio: f.fecha_inicio,
-        frecuencia: (["mensual", "quincenal"] as const).find((x) => x === f.frecuencia.toLowerCase()) ?? "semanal",
+        frecuencia: f.frecuencia.toLowerCase() === "diaria" ? "diario" : ((["diario", "mensual", "quincenal"] as const).find((x) => x === f.frecuencia.toLowerCase()) ?? "semanal"),
         precio_total: f.precio ?? null,
         inicial: f.inicial ?? null,
         cuotas_pagadas_inicial: pagadas,

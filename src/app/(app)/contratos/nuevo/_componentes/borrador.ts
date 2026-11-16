@@ -1,4 +1,4 @@
-import { etiquetaCampo, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
+import { FRECUENCIA_CONTRATO, MESES_POR_CUOTA, etiquetaCampo, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
 import type { Cliente, Cuenta, Empresa, Frecuencia, Moto } from "@/types/database";
 import { fechaCuota } from "@/lib/supabase/reglas";
 import { PASOS, type Paso } from "../../documento/_componentes/pasos";
@@ -26,7 +26,6 @@ const ETIQUETA_PROPIA: Partial<Record<ClaveBorrador, string>> = { renta: "Monto 
 export const etiquetaBorrador = (k: ClaveBorrador) =>
   ETIQUETA_PROPIA[k] ?? (k in EXTRA ? EXTRA[k as keyof typeof EXTRA] : etiquetaCampo(k as keyof CamposContrato));
 
-const MESES_POR_CUOTA: Record<Frecuencia, number> = { semanal: 7 / 30.44, quincenal: 0.5, mensual: 1 };
 /** Plazo del contrato en meses, según cuántas cuotas y cada cuánto. */
 export const plazoMeses = (b: Pick<Borrador, "frec" | "nro_cuotas">) => {
   const n = Number(b.nro_cuotas);
@@ -43,7 +42,7 @@ export function aCampos(b: Borrador): CamposContrato {
   const resto = Object.fromEntries(Object.entries(b).filter(([k]) => !["frec", "nro_cuotas", "celular", "precio"].includes(k))) as Omit<Borrador, "frec" | "nro_cuotas" | "celular" | "precio">;
   const frec = b.frec;
   const plazo = plazoMeses(b);
-  return { ...resto, plazo_meses: plazo ? String(plazo) : "", frecuencia: frec === "mensual" ? "MENSUAL" : frec === "quincenal" ? "QUINCENAL" : "SEMANAL" };
+  return { ...resto, plazo_meses: plazo ? String(plazo) : "", frecuencia: FRECUENCIA_CONTRATO[frec] };
 }
 
 export function problemaBorrador(b: Borrador, k: ClaveBorrador): string | null {
@@ -55,7 +54,7 @@ export function problemaBorrador(b: Borrador, k: ClaveBorrador): string | null {
       return !x || Number(x) >= 0 ? null : "Escribe un monto válido.";
     case "nro_cuotas": {
       const n = Number(x);
-      return Number.isInteger(n) && n >= 1 && n <= 260 ? null : "Entre 1 y 260 cuotas.";
+      return Number.isInteger(n) && n >= 1 && n <= 1000 ? null : "Entre 1 y 1000 cuotas.";
     }
     case "frec":
       return null;
@@ -86,6 +85,7 @@ export const PASOS_NUEVO: Paso<C>[] = [
         tipo: "opciones",
         ancho: true,
         opciones: [
+          { valor: "diario", texto: "Cada día" },
           { valor: "semanal", texto: "Cada semana" },
           { valor: "quincenal", texto: "Cada quincena" },
           { valor: "mensual", texto: "Cada mes" },
