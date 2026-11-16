@@ -40,7 +40,7 @@ export const NOMBRE_DOCUMENTO: Record<TipoDocumento, string> = {
   cliente: "Foto del cliente",
   dni: "DNI o Carné de Extranjería (frente)",
   dni_reverso: "DNI o Carné de Extranjería (reverso)",
-  moto: "Moto",
+  moto: "Vehículo",
   fachada: "Fachada",
   recibo: "Recibo de luz/agua",
   otro: "Otro",

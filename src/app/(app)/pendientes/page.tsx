@@ -13,18 +13,18 @@ import { AvisoContratos, PestanasVista } from "./_componentes/PestanasVista";
 
 const GRUPOS = [
   { clave: "cliente", titulo: "Del cliente" },
-  { clave: "moto", titulo: "De la moto" },
+  { clave: "moto", titulo: "Del vehículo" },
   { clave: "contrato", titulo: "Del contrato" },
 ] as const;
 const POR_PAGINA = 40;
 const TODO_COMPLETO: Record<Vista, string> = {
-  cliente: "Todo completo: a ningún cliente ni moto le falta un dato.",
+  cliente: "Todo completo: a ningún cliente ni vehículo le falta un dato.",
   contratos: "Todos los contratos activos están llenados y firmados.",
 };
 const CUENTA: Record<Vista, string> = { cliente: "contratos con datos pendientes", contratos: "contratos sin llenar o sin firmar" };
 
 function Pendientes() {
-  const { datos } = useSesion();
+  const { datos, empresas } = useSesion();
   const empresa = useEmpresa();
   const router = useRouter();
   const conEmpresa = useConEmpresa();
@@ -43,8 +43,9 @@ function Pendientes() {
       datos.motos(),
       datos.resumenDocumentos(),
     ]);
-    return calcularPendientes({ estados, contratos, clientes, motos, documentos }).map((f) => ({ ...f, clave: claveBusqueda(f.cliente, f.placa) }));
-  }, [datos]);
+    const nombres = new Map(empresas.map((e) => [e.id, e.nombre]));
+    return calcularPendientes({ estados, contratos, clientes, motos, documentos, empresas: nombres }).map((f) => ({ ...f, clave: claveBusqueda(f.cliente, f.placa) }));
+  }, [datos, empresas]);
 
   const porVista = useMemo(() => {
     const base = filtrarPorEmpresa(todas ?? [], empresa);
@@ -159,7 +160,7 @@ function Pendientes() {
           ) : (
             <ul className="flex flex-col gap-3">
               {lista.slice(0, cuantos).map((f) => (
-                <TarjetaPendiente key={f.contrato_id} fila={f} resaltado={dato} alEditarMoto={() => setEditandoMoto(f)} />
+                <TarjetaPendiente key={f.contrato_id || `cli-${f.cliente_id}`} fila={f} resaltado={dato} alEditarMoto={() => setEditandoMoto(f)} />
               ))}
             </ul>
           )}
@@ -173,7 +174,7 @@ function Pendientes() {
         </>
       )}
 
-      <Modal abierto={editandoMoto !== null} titulo={`Completar moto · ${editandoMoto?.cliente ?? ""}`} alCerrar={() => setEditandoMoto(null)}>
+      <Modal abierto={editandoMoto !== null} titulo={`Completar vehículo · ${editandoMoto?.cliente ?? ""}`} alCerrar={() => setEditandoMoto(null)}>
         {editandoMoto?.moto && (
           <FormMoto
             moto={editandoMoto.moto}

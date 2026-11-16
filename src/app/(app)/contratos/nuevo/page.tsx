@@ -1,4 +1,5 @@
 "use client";
+import { vigentes } from "@/lib/placa";
 import { useSearchParams } from "next/navigation";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
 import { Aviso, Cargando, TituloPagina, hoyLima, sumarDias, useCarga } from "@/components/ui";
@@ -10,7 +11,7 @@ function NuevoContrato() {
   const clienteId = useSearchParams().get("cliente");
   const { datos: info, cargando, error } = useCarga(async () => {
     const [clientes, motos, contratos, cuentas] = await Promise.all([datos.clientes(), datos.motos(), datos.contratos(), datos.cuentas()]);
-    return { clientes, motos, contratos, cuentas };
+    return { clientes: vigentes(clientes), motos: vigentes(motos), contratos, cuentas };
   }, [datos]);
 
   if (cargando && !info) return <Cargando />;
@@ -20,8 +21,8 @@ function NuevoContrato() {
   return (
     <>
       <TituloPagina
-        titulo={clienteId ? "Paso 2 de 2: moto, placa y contrato" : "Nuevo contrato"}
-        sub="Llena el contrato paso a paso: moto y placa, cuotas y fechas. Al final se crea con su cronograma de pagos y sale listo para imprimir; aparte solo queda subir el contrato firmado."
+        titulo={clienteId ? "Paso 2 de 2: vehículo, placa y contrato" : "Nuevo contrato"}
+        sub="Llena el contrato paso a paso: vehículo y placa, cuotas y fechas. Al final se crea con su cronograma de pagos y sale listo para imprimir; aparte solo queda subir el contrato firmado."
       />
       <AsistenteContrato
         {...info}

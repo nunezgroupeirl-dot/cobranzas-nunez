@@ -8,6 +8,8 @@ import { ModalEditarUsuario } from "./_componentes/ModalEditarUsuario";
 function Usuarios() {
   const { datos, perfil: yo } = useSesion();
   const { datos: usuarios, cargando, error, recargar } = useCarga(() => datos.usuarios(), [datos]);
+  // solo el dueño nombra o quita administradores
+  const { datos: soyDueno } = useCarga(() => datos.soyDueno(), [datos]);
   const [abierto, setAbierto] = useState(false);
   const [f, setF] = useState<{ nombre: string; email: string; clave: string; puesto: Puesto | "" }>({ nombre: "", email: "", clave: "", puesto: "" });
   const [errForm, setErrForm] = useState<string | null>(null);
@@ -58,7 +60,7 @@ function Usuarios() {
       titulo: "Puesto",
       celda: (u) =>
         u.rol === "administrador" ? (
-          <span className="rounded-full bg-marca-suave px-2.5 py-0.5 text-sm font-semibold text-marca-oscura">Dueño</span>
+          <span className="rounded-full bg-marca-suave px-2.5 py-0.5 text-sm font-semibold text-marca-oscura">Administrador</span>
         ) : (
           <span>{u.puesto ? NOMBRE_PUESTO[u.puesto] : <span className="text-amarillo">Cobrador · falta elegir puesto</span>}</span>
         ),
@@ -72,12 +74,32 @@ function Usuarios() {
       clave: "acciones",
       titulo: "",
       celda: (u) =>
-        // La cuenta del dueño no se desactiva ni cambia de rol (lo exige la base de datos)
-        u.id === yo.id || u.rol === "administrador" ? null : (
+        // La cuenta propia no se toca aquí; a otro administrador solo lo maneja el dueño (lo exige la base de datos)
+        u.id === yo.id || (u.rol === "administrador" && !soyDueno) ? null : (
           <div className="flex flex-wrap justify-end gap-1">
-            <Boton variante="secundario" tamano="chico" onClick={() => setEditando(u)}>
-              Editar
-            </Boton>
+            {u.rol !== "administrador" && (
+              <Boton variante="secundario" tamano="chico" onClick={() => setEditando(u)}>
+                Editar
+              </Boton>
+            )}
+            {soyDueno && (
+              <Boton
+                variante="secundario"
+                tamano="chico"
+                cargando={ocupado === u.id}
+                onClick={() =>
+                  cambiar(
+                    u,
+                    { rol: u.rol === "administrador" ? "cobrador" : "administrador" },
+                    u.rol === "administrador"
+                      ? `¿Quitarle el acceso de administrador a ${u.nombre}? Quedará como trabajador: luego elige su puesto con "Editar".`
+                      : `¿Hacer administrador a ${u.nombre}? Podrá ver y cambiar todo el sistema (clientes, contratos, pagos, panel y usuarios).`,
+                  )
+                }
+              >
+                {u.rol === "administrador" ? "Quitar administrador" : "Hacer administrador"}
+              </Boton>
+            )}
             <Boton
               variante={u.activo ? "fantasma" : "secundario"}
               tamano="chico"
@@ -96,7 +118,7 @@ function Usuarios() {
     <>
       <TituloPagina
         titulo="Usuarios"
-        sub="Solo el dueño administra el sistema. Cada trabajador entra con su propio usuario: el cajero de oficina o el cobrador de ruta."
+        sub="Los administradores manejan todo el sistema; solo el dueño nombra o quita administradores. Cada trabajador entra con su propio usuario: el cajero de oficina o el cobrador de ruta."
         accion={
           <>
             <Boton variante="secundario" tamano="grande" onClick={() => setEditando("yo")}>

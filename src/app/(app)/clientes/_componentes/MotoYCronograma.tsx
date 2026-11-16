@@ -16,24 +16,37 @@ interface Props {
   v: Venta;
   errores: Record<string, string>;
   alCambiar: (cambio: Partial<Venta>) => void;
-  /** editando un cliente que ya tiene cronograma */
+  /** editando un vehículo que ya tiene cronograma */
   conContrato: boolean;
-  otrosContratos: number;
+  /** "Vehículo", "Vehículo 2"… */
+  titulo: string;
+  /** para quitar un vehículo nuevo que se agregó de más */
+  alQuitar?: () => void;
 }
 
 /**
  * La moto (placa) y el cronograma de pagos del cliente, en dos tarjetas.
  * Sirve al crear y al editar; el contrato en papel se llena aparte.
  */
-export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, otrosContratos }: Props) {
+export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, titulo, alQuitar }: Props) {
   const visible = activa !== false;
+  const id = titulo.replace(/\W+/g, "-").toLowerCase();
   return (
     <>
-      <Tarjeta titulo="Moto">
+      <Tarjeta
+        titulo={titulo}
+        accion={
+          alQuitar && (
+            <button type="button" onClick={alQuitar} className="text-sm font-semibold text-rojo">
+              Quitar este vehículo
+            </button>
+          )
+        }
+      >
         {activa !== null && (
           <label className="mb-4 flex min-h-11 cursor-pointer items-center gap-2 font-semibold">
             <input type="checkbox" checked={activa} onChange={(e) => alActivar(e.target.checked)} className="size-5 shrink-0 accent-marca" />
-            Registrar ya su moto y su cronograma de pagos (aunque todavía no tenga el contrato firmado)
+            Registrar ya su vehículo y su cronograma de pagos (aunque todavía no tenga el contrato firmado)
           </label>
         )}
         {visible ? (
@@ -47,9 +60,9 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
                 alCambiarPlaca={(placa) => alCambiar({ placa })}
                 alCambiarTramite={(tramite) => alCambiar({ tramite })}
               />
-              <Campo etiqueta="Marca" value={v.marca} onChange={(e) => alCambiar({ marca: e.target.value })} error={errores.marca} obligatorio list="marcas-moto-cliente" />
+              <Campo etiqueta="Marca" value={v.marca} onChange={(e) => alCambiar({ marca: e.target.value })} error={errores.marca} obligatorio list={`marcas-${id}`} />
               <Campo etiqueta="Color" value={v.color} onChange={(e) => alCambiar({ color: e.target.value })} />
-              <datalist id="marcas-moto-cliente">
+              <datalist id={`marcas-${id}`}>
                 {MARCAS.map((m) => (
                   <option key={m} value={m} />
                 ))}
@@ -57,18 +70,17 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
             </div>
           </div>
         ) : (
-          <p className="text-sm text-tenue">Sin moto ni cronograma por ahora: podrás registrarlos después.</p>
+          <p className="text-sm text-tenue">Sin vehículo ni cronograma por ahora: podrás registrarlos después.</p>
         )}
       </Tarjeta>
 
       {visible && (
-        <Tarjeta titulo="Cronograma de pagos">
+        <Tarjeta titulo={`Cronograma de pagos${titulo === "Vehículo" ? "" : ` · ${titulo}`}`}>
           <CamposCronograma v={v} errores={errores} alCambiar={alCambiar} />
           <p className="mt-4 text-sm text-tenue">
             {conContrato
               ? "Si cambias la cuota, el número de cuotas, la fecha o la frecuencia, el cronograma se vuelve a armar y los pagos ya registrados se aplican de nuevo."
               : "El contrato en papel se llena después: el cliente saldrá en Datos pendientes → Contratos hasta que lo llenes, lo imprimas y subas el firmado."}
-            {otrosContratos > 0 && ` Este cliente tiene ${otrosContratos} contrato(s) más: esos se editan desde la pantalla de cada contrato.`}
           </p>
         </Tarjeta>
       )}

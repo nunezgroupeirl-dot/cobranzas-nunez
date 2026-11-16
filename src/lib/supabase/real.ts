@@ -9,6 +9,7 @@
 import { normalizarPlaca } from "@/lib/placa";
 import type { PostgrestError } from "@supabase/supabase-js";
 import type {
+  Auditoria,
   Cliente,
   ConsultaPublica,
   Contrato,
@@ -34,7 +35,7 @@ import { mesAnterior, siguienteMes } from "@/lib/letras";
 /** Códigos que lanza la base de datos y que la pantalla traduce (ver MENSAJE_ERROR) */
 const CODIGOS = ["OPERACION_REPETIDA", "IMAGEN_REPETIDA", "MONTO_INVALIDO", "SIN_FOTO", "SIN_PERMISO"];
 const TAMANO_PAGINA = 1000;
-const COLUMNAS_MOTO = "id, cliente_id, empresa_id, placa, placa_tramite, tipo, marca, color, modelo, anio, clase, combustible, serie, motor, carroceria";
+const COLUMNAS_MOTO = "id, cliente_id, empresa_id, placa, placa_tramite, archivado, archivado_en, archivado_motivo, tipo, marca, color, modelo, anio, clase, combustible, serie, motor, carroceria";
 
 type ErrorSupabase = Pick<PostgrestError, "message" | "code"> | { message: string; code?: string };
 
@@ -55,7 +56,7 @@ function lanzar(error: ErrorSupabase | null | undefined): void {
 
 function traducirUnico(mensaje: string): string {
   if (mensaje.includes("clientes_dni")) return "Ya existe un cliente con ese DNI.";
-  if (mensaje.includes("motos_placa")) return "Ya existe una moto con esa placa.";
+  if (mensaje.includes("motos_placa")) return "Ya existe un vehículo con esa placa.";
   if (mensaje.includes("empresas_nombre")) return "Ya existe una empresa con ese nombre.";
   return "Ese dato ya está registrado.";
 }
@@ -179,7 +180,7 @@ export function crearDatosReales(): Datos {
       lanzar((e.id ? await sb.from("empresas").update(datos).eq("id", e.id) : await sb.from("empresas").insert(datos)).error);
     },
     async eliminarEmpresa(id) {
-      await borrarFila("empresas", id, "La empresa todavía tiene clientes, motos, cuentas o contratos. Elimínalos o muévelos a otra empresa primero.");
+      await borrarFila("empresas", id, "La empresa todavía tiene clientes, vehículos, cuentas o contratos. Elimínalos o muévelos a otra empresa primero.");
     },
     async eliminarCuenta(id) {
       await borrarFila("cuentas", id, "Esta cuenta ya tiene pagos registrados. Desactívala en vez de eliminarla, así se conserva el historial.");
@@ -284,7 +285,7 @@ export function crearDatosReales(): Datos {
         : await sb.from("motos").insert(datos).select(COLUMNAS_MOTO).single();
       return fila<Moto>(r) as Moto;
     },    async eliminarMoto(id) {
-      await borrarFila("motos", id, "Esta moto tiene contratos. Elimina o cierra su contrato primero.");
+      await borrarFila("motos", id, "Este vehículo tiene contratos. Elimina o cierra su contrato primero.");
     },
     async eliminarCliente(id) {
       const r = await sb.rpc("eliminar_cliente", { p_cliente_id: id });
@@ -324,6 +325,19 @@ export function crearDatosReales(): Datos {
     async contratos() {
       const filas = await todas<Contrato>((a, b) => sb.from("contratos").select("*").order("creado_en", { ascending: false }).range(a, b));
       return filas.map(normalizarContrato);
+    },
+    async archivar(tipo, id, archivar, motivo) {
+      lanzar((await sb.rpc("archivar", { p_tipo: tipo, p_id: id, p_archivar: archivar, p_motivo: motivo ?? null })).error);
+    },
+    async auditoria(f) {
+      let q = sb.from("auditoria").select("id, usuario_id, accion, tabla, registro_id, detalle, creado_en").order("creado_en", { ascending: false });
+      if (f.tabla) q = q.eq("tabla", f.tabla);
+      if (f.usuario_id) q = q.eq("usuario_id", f.usuario_id);
+      if (f.desde) q = q.gte("creado_en", `${f.desde}T00:00:00-05:00`);
+      if (f.hasta) q = q.lte("creado_en", `${f.hasta}T23:59:59-05:00`);
+      const r = await q.range(f.offset ?? 0, (f.offset ?? 0) + (f.limite ?? 100) - 1);
+      lanzar(r.error);
+      return (r.data ?? []) as Auditoria[];
     },
     async contratosPorFirmar() {
       // sin traer los contratos completos: ids de los activos llenados, cuántos faltan llenar y cuáles tienen el firmado
@@ -481,6 +495,10 @@ export function crearDatosReales(): Datos {
       if (/weak|pwned|characters/i.test(m)) throw new ErrorDatos("CLAVE", "Esa contraseña es muy fácil de adivinar. Usa una más larga, con letras y números.");
       if (/reauth|session|jwt|expired/i.test(m)) throw new ErrorDatos("CLAVE", "Tu sesión es antigua: sal, vuelve a ingresar y cambia la contraseña de nuevo.");
       throw new ErrorDatos("CLAVE", "No se pudo cambiar la contraseña. Inténtalo otra vez.");
+    },
+    async soyDueno() {
+      const r = await sb.rpc("es_dueno");
+      return r.data === true;
     },
     async actualizarUsuario(id, cambios) {
       lanzar((await sb.rpc("actualizar_usuario", { p_id: id, p_rol: cambios.rol ?? null, p_activo: cambios.activo ?? null })).error);

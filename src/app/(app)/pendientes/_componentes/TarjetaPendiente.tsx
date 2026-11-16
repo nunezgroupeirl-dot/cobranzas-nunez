@@ -28,7 +28,7 @@ export function TarjetaPendiente({ fila: f, resaltado, alEditarMoto }: Props) {
             <span>{f.empresa}</span>
           </p>
         </div>
-        <EtiquetaSemaforo color={f.color} semanas={f.semanas} />
+        {f.contrato_id ? <EtiquetaSemaforo color={f.color} semanas={f.semanas} /> : <span className="rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Sin contrato</span>}
       </div>
 
       <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Le falta">
@@ -51,9 +51,14 @@ export function TarjetaPendiente({ fila: f, resaltado, alEditarMoto }: Props) {
             Completar cliente
           </BotonEnlace>
         )}
+        {f.faltan.includes("sin_vehiculo") && (
+          <BotonEnlace href={`/clientes/editar?id=${f.cliente_id}`} variante="secundario" tamano="chico">
+            Registrar vehículo y cronograma
+          </BotonEnlace>
+        )}
         {falta("moto") && f.moto && (
           <Boton variante="secundario" tamano="chico" onClick={alEditarMoto}>
-            Completar moto
+            Completar vehículo
           </Boton>
         )}
         {contratoSinLlenar && (

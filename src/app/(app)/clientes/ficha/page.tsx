@@ -1,11 +1,12 @@
 "use client";
-import type { Moto } from "@/types/database";
+import type { Cliente, Moto } from "@/types/database";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, Cargando, IconoVehiculo, Placa, textoDocumento, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Cargando, IconoVehiculo, Placa, formatoFecha, mensajeDeError, textoDocumento, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { ModalArchivar } from "../../archivados/_componentes/ModalArchivar";
 import { HistorialPagos } from "../../pagos/_componentes/HistorialPagos";
 import { EliminarCliente } from "../_componentes/EliminarCliente";
 import { TarjetaCronograma, TarjetaDatos, TarjetaSituacion } from "../_componentes/FichaTarjetas";
@@ -75,6 +76,7 @@ export default function FichaCliente() {
         }
         accion={
           <>
+            {esAdmin && <ArchivarCliente cliente={cliente} alCambiar={recargar} />}
             <EliminarCliente cliente={cliente} contratos={contratos.length} pagos={pagos.length} />
             {esAdmin && (
               <BotonEnlace href={`/clientes/editar?id=${cliente.id}`} variante="secundario">
@@ -86,6 +88,7 @@ export default function FichaCliente() {
         }
       />
 
+      <AvisoArchivado cliente={cliente} />
       <div className="grid gap-4 lg:grid-cols-3">
         <TarjetaSituacion estado={estado} deudaTotal={deudaTotal} />
         <TarjetaDatos cliente={cliente} documentos={documentos} />
@@ -150,10 +153,65 @@ function FaltaContrato({ clienteId }: { clienteId: string }) {
   return (
     <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-amarillo bg-amarillo-suave p-4 sm:flex-row sm:items-center">
       <div className="flex-1">
-        <p className="font-bold">Falta el paso 2: moto, placa y contrato</p>
-        <p className="text-sm">Este cliente aún no tiene moto ni cronograma de pagos. Regístralos con el contrato: sale listo para imprimir y firmar.</p>
+        <p className="font-bold">Falta el paso 2: vehículo, placa y cronograma</p>
+        <p className="text-sm">Este cliente aún no tiene vehículo ni cronograma de pagos. Regístralos con el contrato: sale listo para imprimir y firmar.</p>
       </div>
-      <BotonEnlace href={`/contratos/nuevo?cliente=${clienteId}`}>Registrar moto y contrato →</BotonEnlace>
+      <BotonEnlace href={`/contratos/nuevo?cliente=${clienteId}`}>Registrar vehículo y contrato →</BotonEnlace>
+    </div>
+  );
+}
+
+/** Botón "Archivar" (el cliente ya no está en la empresa). Si ya está archivado, "Restaurar". */
+function ArchivarCliente({ cliente, alCambiar }: { cliente: Cliente; alCambiar: () => void }) {
+  const { datos } = useSesion();
+  const [abierto, setAbierto] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (cliente.archivado)
+    return (
+      <Boton
+        variante="secundario"
+        onClick={async () => {
+          try {
+            await datos.archivar("cliente", cliente.id, false);
+            alCambiar();
+          } catch (e) {
+            setError(mensajeDeError(e));
+          }
+        }}
+      >
+        {error ?? "Restaurar"}
+      </Boton>
+    );
+  return (
+    <>
+      <Boton variante="fantasma" onClick={() => setAbierto(true)}>
+        Archivar
+      </Boton>
+      {abierto && (
+        <ModalArchivar
+          tipo="cliente"
+          id={cliente.id}
+          nombre={cliente.nombres}
+          alCerrar={() => setAbierto(false)}
+          alTerminar={() => {
+            setAbierto(false);
+            alCambiar();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function AvisoArchivado({ cliente }: { cliente: Cliente }) {
+  if (!cliente.archivado) return null;
+  const cuando = cliente.archivado_en ? ` el ${formatoFecha(cliente.archivado_en.slice(0, 10))}` : "";
+  return (
+    <div className="mb-4">
+      <Aviso tipo="alerta">
+        Cliente archivado{cuando}
+        {cliente.archivado_motivo ? ` · ${cliente.archivado_motivo}` : ""}. No sale en las listas; se restaura desde Archivados.
+      </Aviso>
     </div>
   );
 }

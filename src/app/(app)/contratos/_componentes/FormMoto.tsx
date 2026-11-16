@@ -18,11 +18,13 @@ interface Props {
   alCancelar?: () => void;
   /** Solo el dueño: borra la moto si no tiene contratos. */
   alEliminar?: () => void;
+  /** Solo el dueño: el vehículo ya no está en la empresa (se guarda en Archivados). */
+  alArchivar?: () => void;
   /** Muestra la ficha técnica abierta (desde "Datos pendientes"). */
   abrirFicha?: boolean;
 }
 
-export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancelar, alEliminar, abrirFicha }: Props) {
+export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancelar, alEliminar, alArchivar, abrirFicha }: Props) {
   const { datos, empresas } = useSesion();
   const filtro = useEmpresa();
   const [f, setF] = useState({
@@ -113,20 +115,34 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
       <CamposFichaTecnica abierta={abrirFicha} valores={ficha} alCambiar={(k, v) => setFicha((x) => ({ ...x, [k]: v }))} />
       {errores.anio && <Aviso tipo="error">{errores.anio}</Aviso>}
       <div className="flex flex-wrap justify-end gap-2">
-        {alEliminar && (
-          <Boton variante="borrar" className="mr-auto" onClick={alEliminar}>
-            Eliminar moto
-          </Boton>
-        )}
+        <AccionesDueno alEliminar={alEliminar} alArchivar={alArchivar} />
         {alCancelar && (
           <Boton variante="secundario" onClick={alCancelar}>
             Cancelar
           </Boton>
         )}
         <Boton onClick={guardar} cargando={guardando}>
-          {moto ? "Guardar moto" : "Registrar moto"}
+          {moto ? "Guardar vehículo" : "Registrar vehículo"}
         </Boton>
       </div>
     </div>
+  );
+}
+
+/** Eliminar (solo sin contratos) o archivar (ya no está en la empresa): solo el dueño. */
+function AccionesDueno({ alEliminar, alArchivar }: { alEliminar?: () => void; alArchivar?: () => void }) {
+  return (
+    <>
+      {alEliminar && (
+        <Boton variante="borrar" className="mr-auto" onClick={alEliminar}>
+          Eliminar vehículo
+        </Boton>
+      )}
+      {alArchivar && (
+        <Boton variante="secundario" onClick={alArchivar}>
+          Archivar
+        </Boton>
+      )}
+    </>
   );
 }

@@ -7,7 +7,7 @@ import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, Titul
 import type { Color, EstadoCliente, Moto } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
 
-type Fila = EstadoCliente & { sin_contrato?: boolean; moto?: Moto };
+type Fila = EstadoCliente & { sin_contrato?: boolean; moto?: Moto; /** ya terminó (o cerró) sus contratos */ tuvo?: boolean };
 
 const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo"]);
 
@@ -28,8 +28,9 @@ export default function PaginaClientes() {
     const motoPorId = new Map(motos.map((m) => [m.id, m]));
     const motoDeContrato = new Map(contratos.map((c) => [c.id, motoPorId.get(c.moto_id)]));
     const motoDeCliente = new Map(motos.filter((m) => m.cliente_id).map((m) => [m.cliente_id, m]));
+    const tuvieron = new Set(contratos.map((c) => c.cliente_id));
     const sinContrato: Fila[] = clientes
-      .filter((c) => !conContrato.has(c.id))
+      .filter((c) => !conContrato.has(c.id) && !c.archivado)
       .map((c) => ({
         contrato_id: "",
         cliente_id: c.id,
@@ -46,6 +47,7 @@ export default function PaginaClientes() {
         ultimo_pago: null,
         proxima_cuota: null,
         sin_contrato: true,
+        tuvo: tuvieron.has(c.id),
         moto: motoDeCliente.get(c.id),
       }));
     return [...estado.map((e) => ({ ...e, moto: motoDeContrato.get(e.contrato_id) })), ...sinContrato] as Fila[];
@@ -59,7 +61,7 @@ export default function PaginaClientes() {
     return filtrarPorEmpresa(filas ?? [], empresa)
       .filter((f) => (!color || (!f.sin_contrato && f.color === color)) && coincide(indice.get(f) ?? "", q))
       // los que aún no tienen contrato van primero: así el cliente recién registrado se ve arriba
-      .sort((a, b) => Number(b.sin_contrato ?? false) - Number(a.sin_contrato ?? false) || a.cliente.localeCompare(b.cliente));
+      .sort((a, b) => Number(!!b.sin_contrato && !b.tuvo) - Number(!!a.sin_contrato && !a.tuvo) || a.cliente.localeCompare(b.cliente));
   }, [filas, indice, texto, color, empresa]);
 
   const columnas: Columna<Fila>[] = [
@@ -84,7 +86,11 @@ export default function PaginaClientes() {
       titulo: "Estado",
       celda: (f) =>
         f.sin_contrato ? (
-          <span className="rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Falta contrato</span>
+          f.tuvo ? (
+            <span className="rounded-full bg-marca-suave px-2.5 py-1 text-xs font-bold text-marca-oscura">Sin contrato activo</span>
+          ) : (
+            <span className="rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Falta contrato</span>
+          )
         ) : (
           <EtiquetaSemaforo color={f.color} semanas={f.semanas_atraso} />
         ),

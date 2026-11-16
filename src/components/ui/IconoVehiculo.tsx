@@ -1,6 +1,6 @@
 /**
  * Ícono del vehículo que el cliente tiene en su poder, según el tipo de la moto
- * (Mototaxi, Lineal, Scooter, Trimoto u Otro). Trazos simples para reconocerlo de un vistazo.
+ * (Mototaxi, Lineal, Scooter, Auto, Camioneta, Combi, Minivan, Trimoto u Otro). Trazos simples para reconocerlo de un vistazo.
  */
 
 // Trazos en una caja de 32 × 24
@@ -13,6 +13,14 @@ const TRAZOS: Record<string, string> = {
   Scooter: "M6 17h12a5 5 0 0 1 5-5h-2.5L18 4h-3M10 17c0-3 1.5-5 4-5h4.5M21 12l2.5 5",
   // trimoto de carga: tolva atrás
   Trimoto: "M13 9h15v6H13zM5 17l3-7h5M8 10V7.5M9.5 17h12M13 15v2",
+  // auto: sedán con ventanas
+  Auto: "M3 17v-4l3.5-1.5L10.5 7h10l4.5 4.5 3.5 1V17M3 17h3.5M11.5 17h9M25.5 17H28.5M10 11.5h15M15.5 7v4.5",
+  // camioneta: cabina y tolva abierta
+  Camioneta: "M2.5 17v-5H15V7h6l5 5h3v5M15 12h11M2.5 17h4M11.5 17h9M25.5 17H29",
+  // combi: caja alta con ventanas
+  Combi: "M3 17V6h19l6 5v6M3 17h3.5M11.5 17h9M25.5 17H28M3 11h25M9.5 6v5M16 6v5",
+  // minivan: frente inclinado
+  Minivan: "M3 17v-6l4.5-5h13l6.5 5h1v6M3 17h3.5M11.5 17h9M25.5 17H28M7.5 11h19.5M14 6v5",
   // otro: vehículo genérico
   Otro: "M5 17V11l3-5h13l4 5h2v6M5 11h22M9.5 17h12",
 };
@@ -23,6 +31,10 @@ const RUEDAS: Record<string, [number, number, number][]> = {
   Lineal: [[6, 17, 3.5], [24, 17, 3.5]],
   Scooter: [[6, 17.5, 3], [24, 17.5, 3]],
   Trimoto: [[5.5, 18, 2.5], [24.5, 18, 2.5]],
+  Auto: [[9, 17, 2.5], [23, 17, 2.5]],
+  Camioneta: [[9, 17, 2.5], [23, 17, 2.5]],
+  Combi: [[9, 17, 2.5], [23, 17, 2.5]],
+  Minivan: [[9, 17, 2.5], [23, 17, 2.5]],
   Otro: [[8, 18, 2.5], [23, 18, 2.5]],
 };
 

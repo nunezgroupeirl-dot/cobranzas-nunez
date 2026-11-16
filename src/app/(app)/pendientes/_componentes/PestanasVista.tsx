@@ -2,7 +2,7 @@ import { VISTAS, type Vista } from "./faltantes";
 
 const NOMBRES_VISTA = Object.keys(VISTAS) as Vista[];
 
-/** Pestañas "Cliente y moto" / "Contratos": el contrato va aparte. */
+/** Pestañas "Cliente y vehículo" / "Contratos": el contrato va aparte. */
 export function PestanasVista({ vista, cuentas, alCambiar }: { vista: Vista; cuentas: Record<Vista, number>; alCambiar: (v: Vista) => void }) {
   return (
     <div role="tablist" aria-label="Qué completar" className="mb-4 flex gap-1 rounded-2xl border border-borde bg-superficie p-1">

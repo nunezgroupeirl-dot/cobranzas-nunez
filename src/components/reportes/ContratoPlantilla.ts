@@ -132,7 +132,7 @@ b{font-weight:700}
 <div class="firma"><div class="linea">Empresa: ${r(165, d.empresa)}<br>RUC: ${r(185, d.ruc)}<br>Gerente: ${r(170, d.representante)}<br>DNI: ${r(175, d.representante_dni)}<br><b>EL ARRENDADOR</b></div><div class="huella">Huella</div></div>
 <div class="firma"><div class="linea">Nombre: ${r(170, d.cliente)}<br>${casilla("DNI", lleno && d.doc_tipo === "DNI")} ${casilla("C.E.", lleno && d.doc_tipo === "CE")} N.º ${r(105, d.doc_numero)}<br><b>EL ARRENDATARIO</b></div><div class="huella">Huella</div></div>
 </div>
-<div class="pie">Inversiones Nuñez &amp; Asociados — Una vez firmado, escanea o fotografía cada hoja y súbela en la app: Motos y contratos → el contrato → “Contrato firmado”.</div>
+<div class="pie">Inversiones Nuñez &amp; Asociados — Una vez firmado, escanea o fotografía cada hoja y súbela en la app: Vehículos y contratos → el contrato → “Contrato firmado”.</div>
 ${vistaPrevia ? "" : "<script>window.onload=function(){setTimeout(function(){window.print()},400)}</script>"}
 </body></html>`;
 }

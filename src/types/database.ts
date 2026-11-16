@@ -52,6 +52,10 @@ export interface Cliente {
   referencia: string | null;
   ubicacion?: string | null; // enlace de Google Maps o "lat,lng"
   creado_en: string;
+  /** ya no está en la empresa: no sale en las listas, sí en Archivados e Histórico */
+  archivado?: boolean;
+  archivado_en?: string | null;
+  archivado_motivo?: string | null;
 }
 
 export interface Documento {
@@ -81,6 +85,9 @@ export interface Moto {
   serie?: string | null;
   motor?: string | null;
   carroceria?: string | null;
+  archivado?: boolean;
+  archivado_en?: string | null;
+  archivado_motivo?: string | null;
 }
 
 export interface Contrato {
@@ -273,4 +280,24 @@ export interface ContratoPublico {
 export interface ConsultaPublica {
   nombre: string;
   contratos: ContratoPublico[];
+}
+
+/** Un movimiento de la auditoría (lo escribe la base de datos sola en cada cambio). */
+export interface Auditoria {
+  id: number;
+  usuario_id: string | null;
+  accion: "insert" | "update" | "delete";
+  tabla: string;
+  registro_id: string | null;
+  detalle: Record<string, unknown> | null;
+  creado_en: string;
+}
+
+export interface FiltroAuditoria {
+  tabla?: string;
+  usuario_id?: string;
+  desde?: string;
+  hasta?: string;
+  limite?: number;
+  offset?: number;
 }

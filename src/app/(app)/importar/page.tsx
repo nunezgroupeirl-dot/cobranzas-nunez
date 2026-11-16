@@ -1,5 +1,5 @@
 "use client";
-import { ES_TRAMITE } from "@/lib/placa";
+import { ES_TRAMITE, TIPOS_MOTO } from "@/lib/placa";
 import { useMemo, useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
 import { Aviso, Boton, Tabla, Tarjeta, TituloPagina, formatoFecha, formatoSoles, mensajeDeError, textoDocumento, type Columna, Placa } from "@/components/ui";
@@ -15,7 +15,7 @@ const COLUMNAS: Record<keyof Omit<FilaImportacion, "fila">, string> = {
   celular: "CELULAR",
   direccion: "DIRECCION",
   referencia: "REFERENCIA",
-  tipo: "TIPO DE MOTO",
+  tipo: "TIPO DE", // "TIPO DE VEHICULO" (o la antigua "TIPO DE MOTO")
   placa: "PLACA",
   marca: "MARCA",
   color: "COLOR",
@@ -31,6 +31,8 @@ const COLUMNAS: Record<keyof Omit<FilaImportacion, "fila">, string> = {
 };
 
 type Valor = string | number | boolean | Date | null;
+
+const tipoVehiculo = (t: string) => TIPOS_MOTO.find((x) => normalizarEncabezado(x) === normalizarEncabezado(t)) ?? t.trim();
 
 type Estado = "lista" | "error" | "ejemplo" | "importada" | "fallida";
 interface FilaVista {
@@ -111,6 +113,7 @@ function Importar() {
       const indice = {} as Record<keyof typeof COLUMNAS, number>;
       for (const [clave, nombre] of Object.entries(COLUMNAS) as [keyof typeof COLUMNAS, string][]) {
         indice[clave] = encabezados.findIndex((h) => h === nombre || h.startsWith(`${nombre} `));
+        if (clave === "tipo") indice.tipo = encabezados.findIndex((h) => h === "TIPO DE VEHICULO" || h === "TIPO DE MOTO" || h === "TIPO");
       }
       const faltan = (["empresa", "nombres", "cuota"] as const).filter((c) => indice[c] < 0);
       if (faltan.length) throw new Error(`No es la plantilla de clientes: faltan las columnas ${faltan.map((c) => COLUMNAS[c]).join(", ")}.`);
@@ -127,7 +130,8 @@ function Importar() {
           celular: texto(valor(r, "celular")).replace(/\D/g, ""),
           direccion: texto(valor(r, "direccion")),
           referencia: texto(valor(r, "referencia")),
-          tipo: texto(valor(r, "tipo")),
+          // "combi" / "MOTOTAXI" → "Combi" / "Mototaxi" (así cada uno sale con su ícono)
+          tipo: tipoVehiculo(texto(valor(r, "tipo"))),
           placa: texto(valor(r, "placa")).toUpperCase(),
           marca: texto(valor(r, "marca")),
           color: texto(valor(r, "color")),

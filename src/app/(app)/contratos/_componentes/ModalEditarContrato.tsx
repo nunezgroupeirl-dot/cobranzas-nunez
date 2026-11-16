@@ -83,7 +83,7 @@ export function ModalEditarContrato({ contrato, abierto, alCerrar, alTerminar }:
           <Campo etiqueta="Número de cuotas" type="number" inputMode="numeric" min="1" max="1000" value={f.nro} onChange={(e) => poner("nro", e.target.value)} obligatorio />
           <Campo etiqueta="Fecha de la 1.ª cuota" type="date" value={f.inicio} onChange={(e) => poner("inicio", e.target.value)} obligatorio />
           <Campo etiqueta="Cuotas ya pagadas (cuaderno)" type="number" inputMode="numeric" min="0" value={f.pagadas} onChange={(e) => poner("pagadas", e.target.value)} />
-          <Campo etiqueta="Precio de la moto (S/)" type="number" inputMode="decimal" min="0" value={f.precio} onChange={(e) => poner("precio", e.target.value)} />
+          <Campo etiqueta="Precio del vehículo (S/)" type="number" inputMode="decimal" min="0" value={f.precio} onChange={(e) => poner("precio", e.target.value)} />
           <Campo etiqueta="Inicial (S/)" type="number" inputMode="decimal" min="0" value={f.inicial} onChange={(e) => poner("inicial", e.target.value)} />
         </div>
         <AreaTexto etiqueta="Observaciones" value={f.obs} onChange={(e) => poner("obs", e.target.value)} />

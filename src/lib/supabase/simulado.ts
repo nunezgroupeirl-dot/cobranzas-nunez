@@ -40,6 +40,8 @@ import { mesAnterior, siguienteMes } from "@/lib/letras";
 
 const CLAVE_ESTADO = "cn_simulado_v3";
 const CLAVE_SESION = "cn_simulado_sesion";
+/** En modo prueba, este es "el dueño" (el único que nombra administradores). */
+const EMAIL_DUENO_PRUEBA = "admin@prueba.pe";
 
 /** Las 4 empresas de Andrés (iguales a supabase/esquema.sql). */
 const EMPRESAS: [nombre: string, ruc: string][] = [
@@ -380,7 +382,7 @@ export function crearDatosSimulados(): Datos {
       exigirAdmin(s);
       const usada = [s.clientes, s.motos, s.cuentas, s.contratos].some((lista) => lista.some((x) => x.empresa_id === id));
       if (usada)
-        throw new ErrorDatos("EN_USO", "La empresa todavía tiene clientes, motos, cuentas o contratos. Elimínalos o muévelos a otra empresa primero.");
+        throw new ErrorDatos("EN_USO", "La empresa todavía tiene clientes, vehículos, cuentas o contratos. Elimínalos o muévelos a otra empresa primero.");
       s.empresas = s.empresas.filter((x) => x.id !== id);
       guardar(s);
     },
@@ -566,7 +568,7 @@ export function crearDatosSimulados(): Datos {
       const s = leer();
       exigirAdmin(s);
       const { placa, placa_tramite } = normalizarPlaca(m.placa, m.placa_tramite);
-      if (placa && s.motos.some((x) => x.placa === placa && x.id !== m.id)) throw new ErrorDatos("PLACA_REPETIDA", "Ya existe una moto con esa placa.");
+      if (placa && s.motos.some((x) => x.placa === placa && x.id !== m.id)) throw new ErrorDatos("PLACA_REPETIDA", "Ya existe un vehículo con esa placa.");
       if (m.id) {
         const i = s.motos.findIndex((x) => x.id === m.id);
         s.motos[i] = { ...s.motos[i], ...m, placa, placa_tramite, id: m.id };
@@ -581,7 +583,7 @@ export function crearDatosSimulados(): Datos {
       await pausa();
       const s = leer();
       exigirAdmin(s);
-      if (s.contratos.some((c) => c.moto_id === id)) throw new ErrorDatos("EN_USO", "Esta moto tiene contratos. Elimina o cierra su contrato primero.");
+      if (s.contratos.some((c) => c.moto_id === id)) throw new ErrorDatos("EN_USO", "Este vehículo tiene contratos. Elimina o cierra su contrato primero.");
       s.motos = s.motos.filter((m) => m.id !== id);
       guardar(s);
     },
@@ -650,6 +652,31 @@ export function crearDatosSimulados(): Datos {
     async contratos() {
       return leer().contratos;
     },
+    async archivar(tipo, id, archivar, motivo) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      const lista: { id: string; archivado?: boolean; archivado_en?: string | null; archivado_motivo?: string | null }[] = tipo === "cliente" ? s.clientes : s.motos;
+      const x = lista.find((y) => y.id === id);
+      if (!x) throw new ErrorDatos("NO_EXISTE", "No existe.");
+      const activo = s.contratos.some((c) => c.estado === "activo" && (tipo === "cliente" ? c.cliente_id === id : c.moto_id === id));
+      if (archivar && activo) throw new ErrorDatos("ACTIVO", "Tiene un contrato activo: primero ciérralo (o que termine de pagar) para poder archivarlo.");
+      Object.assign(x, { archivado: archivar, archivado_en: archivar ? new Date().toISOString() : null, archivado_motivo: archivar ? motivo?.trim() || null : null });
+      if (archivar && tipo === "cliente")
+        for (const m of s.motos)
+          if (m.cliente_id === id && !m.archivado && !s.contratos.some((c) => c.moto_id === m.id && c.estado === "activo"))
+            Object.assign(m, { archivado: true, archivado_en: new Date().toISOString(), archivado_motivo: "Archivado con su cliente" });
+      guardar(s);
+    },
+    async auditoria(f) {
+      // en modo prueba solo se arma con los pagos (la base de verdad anota todos los cambios)
+      if (f.tabla && f.tabla !== "pagos") return [];
+      return leer()
+        .pagos.filter((p) => (!f.usuario_id || p.registrado_por === f.usuario_id) && (!f.desde || p.creado_en.slice(0, 10) >= f.desde) && (!f.hasta || p.creado_en.slice(0, 10) <= f.hasta))
+        .sort((a, b) => b.creado_en.localeCompare(a.creado_en))
+        .slice(0, f.limite ?? 100)
+        .map((p, i) => ({ id: i + 1, usuario_id: p.registrado_por, accion: "insert" as const, tabla: "pagos", registro_id: p.id, detalle: { ...p }, creado_en: p.creado_en }));
+    },
     async contratosPorFirmar() {
       const s = leer();
       const conFirma = new Set(s.documentos.filter((d) => d.tipo === "contrato").map((d) => d.contrato_id));
@@ -663,9 +690,9 @@ export function crearDatosSimulados(): Datos {
       const s = leer();
       exigirAdmin(s);
       const moto = s.motos.find((m) => m.id === args.moto_id);
-      if (!moto) throw new ErrorDatos("MOTO", "Elige una moto.");
+      if (!moto) throw new ErrorDatos("MOTO", "Elige un vehículo.");
       if (s.contratos.some((c) => c.moto_id === moto.id && c.estado === "activo" && c.cliente_id !== args.cliente_id))
-        throw new ErrorDatos("MOTO_OCUPADA", "Esa moto ya tiene un contrato activo de otro cliente.");
+        throw new ErrorDatos("MOTO_OCUPADA", "Ese vehículo ya tiene un contrato activo de otro cliente.");
       if (!(args.monto_cuota > 0) || !(args.nro_cuotas > 0)) throw new ErrorDatos("DATOS", "Revisa la cuota y el número de cuotas.");
       const contrato: Contrato = {
         id: nuevoId(),
@@ -947,15 +974,19 @@ export function crearDatosSimulados(): Datos {
       if (p) p.clave = clave;
       guardar(s);
     },
+    async soyDueno() {
+      return exigirSesion(leer()).email === EMAIL_DUENO_PRUEBA;
+    },
     async actualizarUsuario(id, cambios) {
       await pausa();
       const s = leer();
       const yo = exigirAdmin(s);
-      if (id === yo.id) throw new ErrorDatos("PROPIO", "La cuenta del dueño no se puede desactivar ni cambiar de rol.");
-      if (cambios.rol === "administrador") throw new ErrorDatos("UN_SOLO_DUENO", "Solo el dueño puede ser administrador.");
       const p = s.perfiles.find((x) => x.id === id);
       if (!p) throw new ErrorDatos("NO_EXISTE", "El usuario no existe.");
-      Object.assign(p, cambios);
+      if (p.email === EMAIL_DUENO_PRUEBA) throw new ErrorDatos("PROPIO", "La cuenta del dueño no se puede desactivar ni cambiar de rol.");
+      if ((cambios.rol === "administrador" || p.rol === "administrador") && yo.email !== EMAIL_DUENO_PRUEBA)
+        throw new ErrorDatos("SIN_PERMISO", "Solo el dueño puede nombrar o quitar administradores.");
+      Object.assign(p, cambios, cambios.rol === "administrador" ? { puesto: null } : {});
       guardar(s);
     },
 

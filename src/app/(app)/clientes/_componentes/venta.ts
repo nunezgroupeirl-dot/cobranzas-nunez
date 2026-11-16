@@ -79,23 +79,24 @@ export async function guardarVenta(datos: Datos, cliente: Cliente, v: Venta, hec
   return hechos.contratoId;
 }
 
-/** Lo que el cliente ya tiene: su moto y su contrato (el activo más reciente). */
+/** Un vehículo que el cliente ya tiene, con su contrato (si tiene). */
 export interface VentaActual {
   moto: Moto | null;
   contrato: Contrato | null;
-  /** cuántos contratos más tiene (esos se editan desde su contrato) */
-  otros: number;
 }
 
-/** Busca la moto y el contrato que se muestran al editar un cliente. */
-export async function cargarVentaActual(datos: Datos, clienteId: string): Promise<VentaActual> {
+/** Los vehículos del cliente para editarlos: uno por contrato (los activos primero) y los que aún no tienen contrato. */
+export async function cargarVehiculos(datos: Datos, clienteId: string): Promise<VentaActual[]> {
   const [contratos, motos] = await Promise.all([datos.contratos(), datos.motos()]);
   const suyos = contratos
     .filter((c) => c.cliente_id === clienteId && c.estado !== "anulado")
-    .sort((a, b) => Number(b.estado === "activo") - Number(a.estado === "activo") || b.creado_en.localeCompare(a.creado_en));
-  const contrato = suyos[0] ?? null;
-  const moto = (contrato ? motos.find((m) => m.id === contrato.moto_id) : motos.find((m) => m.cliente_id === clienteId)) ?? null;
-  return { moto, contrato, otros: Math.max(0, suyos.length - 1) };
+    .sort((a, b) => Number(b.estado === "activo") - Number(a.estado === "activo") || a.creado_en.localeCompare(b.creado_en));
+  const conContrato = new Set(suyos.map((c) => c.moto_id));
+  const porId = new Map(motos.map((m) => [m.id, m]));
+  return [
+    ...suyos.map((contrato) => ({ moto: porId.get(contrato.moto_id) ?? null, contrato })),
+    ...motos.filter((m) => m.cliente_id === clienteId && !m.archivado && !conContrato.has(m.id)).map((moto) => ({ moto, contrato: null })),
+  ];
 }
 
 const texto = (n: number | null | undefined) => (n == null ? "" : String(n));

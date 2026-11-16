@@ -1,4 +1,6 @@
 "use client";
+import { ModalArchivar } from "../archivados/_componentes/ModalArchivar";
+import { vigentes } from "@/lib/placa";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
@@ -20,6 +22,7 @@ export default function PaginaContratos() {
   const [pestana, setPestana] = useState<Pestana>("contratos");
   const [texto, setTexto] = useState("");
   const [editando, setEditando] = useState<Moto | "nueva" | null>(null);
+  const [archivando, setArchivando] = useState<Moto | null>(null);
 
   const { datos: info, cargando, error, recargar } = useCarga(async () => {
     const [contratos, motos, clientes, empresas] = await Promise.all([datos.contratos(), datos.motos(), datos.clientes(), datos.empresas()]);
@@ -54,7 +57,7 @@ export default function PaginaContratos() {
   );
   const motos = useMemo(
     () =>
-      filtrarPorEmpresa(info?.motos ?? [], empresa)
+      filtrarPorEmpresa(vigentes(info?.motos ?? []), empresa)
         .filter((m) => coincide(mapas.claveMoto.get(m.id) ?? "", q))
         .sort((a, b) => (a.placa ?? "~").localeCompare(b.placa ?? "~")),
     [info, mapas, empresa, q],
@@ -90,7 +93,7 @@ export default function PaginaContratos() {
   return (
     <>
       <TituloPagina
-        titulo="Motos y contratos"
+        titulo="Vehículos y contratos"
         accion={
           <>
             <BotonPlantillaContrato tamano="grande" />
@@ -111,9 +114,9 @@ export default function PaginaContratos() {
               role="tab"
               aria-selected={pestana === p}
               onClick={() => setPestana(p)}
-              className={`min-h-11 flex-1 rounded-xl px-5 font-semibold capitalize ${pestana === p ? "bg-tinta text-white" : ""}`}
+              className={`min-h-11 flex-1 rounded-xl px-5 font-semibold ${pestana === p ? "bg-tinta text-white" : ""}`}
             >
-              {p} {info && `(${p === "contratos" ? contratos.length : motos.length})`}
+              {p === "contratos" ? "Contratos" : "Vehículos"} {info && `(${p === "contratos" ? contratos.length : motos.length})`}
             </button>
           ))}
         </div>
@@ -138,10 +141,10 @@ export default function PaginaContratos() {
       ) : pestana === "contratos" ? (
         <Tabla columnas={colContratos} filas={contratos} claveFila={(c) => c.id} alTocar={(c) => router.push(conEmpresa(`/contratos/ver?id=${c.id}`))} vacio="No hay contratos." />
       ) : (
-        <Tabla columnas={colMotos} filas={motos} claveFila={(m) => m.id} alTocar={(m) => setEditando(m)} vacio="No hay motos." />
+        <Tabla columnas={colMotos} filas={motos} claveFila={(m) => m.id} alTocar={(m) => setEditando(m)} vacio="No hay vehículos." />
       )}
 
-      <Modal abierto={editando !== null} titulo={editando === "nueva" ? "Registrar moto" : "Editar moto"} alCerrar={() => setEditando(null)}>
+      <Modal abierto={editando !== null} titulo={editando === "nueva" ? "Registrar vehículo" : "Editar vehículo"} alCerrar={() => setEditando(null)}>
         {editando !== null && (
           <FormMoto
             moto={editando === "nueva" ? undefined : editando}
@@ -150,7 +153,7 @@ export default function PaginaContratos() {
               esAdmin && editando !== "nueva"
                 ? async () => {
                     const m = editando;
-                    if (!confirm(`¿Eliminar la moto ${m.placa ?? "sin placa"}? Solo se puede si no tiene contratos.`)) return;
+                    if (!confirm(`¿Eliminar el vehículo ${m.placa ?? "sin placa"}? Solo se puede si no tiene contratos.`)) return;
                     setEditando(null);
                     try {
                       await datos.eliminarMoto(m.id);
@@ -162,6 +165,14 @@ export default function PaginaContratos() {
                   }
                 : undefined
             }
+            alArchivar={
+              esAdmin && editando !== "nueva"
+                ? () => {
+                    setArchivando(editando);
+                    setEditando(null);
+                  }
+                : undefined
+            }
             alGuardar={() => {
               setEditando(null);
               recargar();
@@ -169,6 +180,18 @@ export default function PaginaContratos() {
           />
         )}
       </Modal>
+      {archivando && (
+        <ModalArchivar
+          tipo="moto"
+          id={archivando.id}
+          nombre={`El vehículo ${archivando.placa ?? "sin placa"}`}
+          alCerrar={() => setArchivando(null)}
+          alTerminar={() => {
+            setArchivando(null);
+            recargar();
+          }}
+        />
+      )}
     </>
   );
 }

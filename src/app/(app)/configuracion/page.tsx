@@ -108,7 +108,7 @@ function Configuracion() {
             variante="borrar"
             tamano="chico"
             onClick={() =>
-              eliminar(`¿Eliminar la empresa "${e.nombre}"? Solo se puede si no tiene clientes, motos, cuentas ni contratos.`, () => datos.eliminarEmpresa(e.id), `Empresa "${e.nombre}" eliminada. Recarga la página para quitarla del filtro.`)
+              eliminar(`¿Eliminar la empresa "${e.nombre}"? Solo se puede si no tiene clientes, vehículos, cuentas ni contratos.`, () => datos.eliminarEmpresa(e.id), `Empresa "${e.nombre}" eliminada. Recarga la página para quitarla del filtro.`)
             }
           >
             Eliminar

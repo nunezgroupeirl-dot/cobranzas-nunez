@@ -3,15 +3,15 @@ import { useSearchParams } from "next/navigation";
 import { useSesion } from "@/components/layout/Sesion";
 import { Aviso, Cargando, TituloPagina, useCarga } from "@/components/ui";
 import { FormCliente } from "../_componentes/FormCliente";
-import { cargarVentaActual } from "../_componentes/venta";
+import { cargarVehiculos } from "../_componentes/venta";
 
 export default function EditarCliente() {
   const id = useSearchParams().get("id") ?? "";
   const { datos } = useSesion();
   // el cliente, con su moto y su contrato para editarlos en el mismo formulario
   const { datos: info, cargando, error } = useCarga(async () => {
-    const [cliente, actual] = await Promise.all([datos.cliente(id), cargarVentaActual(datos, id)]);
-    return { cliente, actual };
+    const [cliente, actuales] = await Promise.all([datos.cliente(id), cargarVehiculos(datos, id)]);
+    return { cliente, actuales };
   }, [datos, id]);
   const cliente = info?.cliente;
 
@@ -21,7 +21,7 @@ export default function EditarCliente() {
   return (
     <>
       <TituloPagina titulo="Editar cliente" sub={cliente.nombres} />
-      <FormCliente cliente={cliente} actual={info?.actual} />
+      <FormCliente cliente={cliente} actuales={info?.actuales} />
     </>
   );
 }

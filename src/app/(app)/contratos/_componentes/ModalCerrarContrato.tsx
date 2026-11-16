@@ -20,7 +20,7 @@ export function ModalCerrarContrato({ contratoId, placa, abierto, alCerrar, alTe
 
   const cerrar = async () => {
     if (!motivo.trim()) {
-      setError("Escribe el motivo (por ejemplo: moto recuperada).");
+      setError("Escribe el motivo (por ejemplo: vehículo recuperado).");
       return;
     }
     setOcupado(true);
@@ -57,7 +57,7 @@ export function ModalCerrarContrato({ contratoId, placa, abierto, alCerrar, alTe
           El contrato deja de contar como deuda y sale de ¿Quién no paga?. La moto <b>{placa}</b> queda libre para un contrato nuevo. Los pagos registrados se
           conservan.
         </p>
-        <AreaTexto etiqueta="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej.: moto recuperada por falta de pago" obligatorio />
+        <AreaTexto etiqueta="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej.: vehículo recuperado por falta de pago" obligatorio />
         {error && <Aviso tipo="error">{error}</Aviso>}
       </div>
     </Modal>

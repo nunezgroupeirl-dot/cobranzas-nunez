@@ -185,7 +185,7 @@ export function AsistenteContrato({ clientes, motos, contratos, cuentas, hoy, pr
               {aviso}
             </Aviso>
           )}
-          {paso === ULTIMO && <p className="text-sm text-tenue">Al crear se registran el cliente y la moto (si son nuevos), se arma el cronograma y se abre el contrato para imprimir y firmar.</p>}
+          {paso === ULTIMO && <p className="text-sm text-tenue">Al crear se registran el cliente y el vehículo (si son nuevos), se arma el cronograma y se abre el contrato para imprimir y firmar.</p>}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Boton variante="fantasma" onClick={() => (paso === 0 ? router.back() : ir(paso - 1))}>
               {paso === 0 ? "Cancelar" : "← Atrás"}

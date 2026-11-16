@@ -8,10 +8,11 @@ export const FALTANTES = {
   ubicacion: { texto: "Ubicación en el mapa", grupo: "cliente" },
   foto_cliente: { texto: "Foto del cliente", grupo: "cliente" },
   foto_dni: { texto: "Fotos del DNI o Carné (2 caras)", grupo: "cliente" },
+  sin_vehiculo: { texto: "Sin vehículo ni cronograma", grupo: "moto" },
   placa: { texto: "Placa", grupo: "moto" },
   tipo: { texto: "Tipo de vehículo", grupo: "moto" },
   ficha: { texto: "Ficha técnica (serie y motor)", grupo: "moto" },
-  foto_moto: { texto: "Foto de la moto", grupo: "moto" },
+  foto_moto: { texto: "Foto del vehículo", grupo: "moto" },
   contrato_llenado: { texto: "Contrato sin llenar", grupo: "contrato" },
   contrato_firmado: { texto: "Contrato firmado sin subir", grupo: "contrato" },
   revisar: { texto: "Revisar en el cuaderno", grupo: "cliente" },
@@ -54,10 +55,24 @@ interface Entrada {
   clientes: Cliente[];
   motos: Moto[];
   documentos: Pick<Documento, "cliente_id" | "tipo" | "contrato_id">[];
+  /** id → nombre, para los clientes que aún no tienen contrato */
+  empresas?: Map<string, string>;
+}
+
+/** Lo que le falta al cliente en sí (sus datos y sus fotos). */
+function faltaDelCliente(cliente: Cliente | undefined, tiene: Set<string> | undefined): Faltante[] {
+  const faltan: Faltante[] = [];
+  if (!cliente?.dni) faltan.push("dni");
+  if (!cliente?.celular) faltan.push("celular");
+  if (!cliente?.direccion) faltan.push("direccion");
+  if (!cliente?.ubicacion) faltan.push("ubicacion");
+  if (!tiene?.has("cliente")) faltan.push("foto_cliente");
+  if (!tiene?.has("dni") || !tiene?.has("dni_reverso")) faltan.push("foto_dni");
+  return faltan;
 }
 
 /** Una fila por contrato activo con la lista de lo que le falta. Los que están completos no salen. */
-export function calcularPendientes({ estados, contratos, clientes, motos, documentos }: Entrada): FilaPendiente[] {
+export function calcularPendientes({ estados, contratos, clientes, motos, documentos, empresas }: Entrada): FilaPendiente[] {
   const contratoPorId = new Map(contratos.map((c) => [c.id, c]));
   const clientePorId = new Map(clientes.map((c) => [c.id, c]));
   const motoPorId = new Map(motos.map((m) => [m.id, m]));
@@ -75,13 +90,7 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
     const moto = contrato ? (motoPorId.get(contrato.moto_id) ?? null) : null;
     const tiene = fotos.get(e.cliente_id);
     const nota = notaRevisar(contrato?.observaciones);
-    const faltan: Faltante[] = [];
-    if (!cliente?.dni) faltan.push("dni");
-    if (!cliente?.celular) faltan.push("celular");
-    if (!cliente?.direccion) faltan.push("direccion");
-    if (!cliente?.ubicacion) faltan.push("ubicacion");
-    if (!tiene?.has("cliente")) faltan.push("foto_cliente");
-    if (!tiene?.has("dni") || !tiene?.has("dni_reverso")) faltan.push("foto_dni");
+    const faltan = faltaDelCliente(cliente, tiene);
     if (!moto?.placa && !moto?.placa_tramite) faltan.push("placa");
     // el cuaderno no decía qué vehículo es: hasta elegirlo, el ícono sale genérico
     if (!moto?.tipo || moto.tipo === "Otro") faltan.push("tipo");
@@ -105,13 +114,32 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
       nota,
     });
   }
+  // Clientes registrados que aún no tienen ningún contrato (ni archivados): también les faltan datos
+  const conContrato = new Set(contratos.map((c) => c.cliente_id));
+  for (const c of clientes) {
+    if (c.archivado || conContrato.has(c.id)) continue;
+    filas.push({
+      contrato_id: "",
+      cliente_id: c.id,
+      empresa_id: c.empresa_id,
+      empresa: empresas?.get(c.empresa_id) ?? "",
+      cliente: c.nombres,
+      placa: null,
+      color: "verde",
+      semanas: 0,
+      moto: null,
+      faltan: [...faltaDelCliente(c, fotos.get(c.id)), "sin_vehiculo"],
+      nota: null,
+    });
+  }
+
   // Primero a quien le falta más
   return filas.sort((a, b) => b.faltan.length - a.faltan.length || a.cliente.localeCompare(b.cliente));
 }
 
 /** Las dos pestañas de "Datos pendientes": el contrato va aparte porque se completa en otro momento (imprimir y firmar). */
 export const VISTAS = {
-  cliente: { titulo: "Cliente y moto", grupos: ["cliente", "moto"] },
+  cliente: { titulo: "Cliente y vehículo", grupos: ["cliente", "moto"] },
   contratos: { titulo: "Contratos", grupos: ["contrato"] },
 } as const;
 export type Vista = keyof typeof VISTAS;

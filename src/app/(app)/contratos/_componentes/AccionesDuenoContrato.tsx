@@ -53,7 +53,7 @@ export function AccionesDuenoContrato({ contrato, placa, clienteId, alCambiar }:
         <p>
           Se borra el contrato de la moto <b>{placa}</b>, su cronograma y <b>todos sus pagos con sus fotos</b>. El cliente y la moto se conservan.
         </p>
-        <p className="text-sm text-tenue">Si solo quieres que deje de contar como deuda (moto recuperada), usa “Cerrar contrato”.</p>
+        <p className="text-sm text-tenue">Si solo quieres que deje de contar como deuda (vehículo recuperado), usa “Cerrar contrato”.</p>
       </ModalEliminar>
     </>
   );

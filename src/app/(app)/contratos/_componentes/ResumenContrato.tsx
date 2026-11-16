@@ -26,7 +26,7 @@ export function ResumenContrato({ contrato, cuotas, estado, moto }: Props) {
         <Dato etiqueta="Deuda vencida">{formatoSoles(estado?.deuda ?? 0)}</Dato>
         <Dato etiqueta="Pagado">{formatoSoles(pagado)}</Dato>
         <Dato etiqueta="Total contrato">{formatoSoles(total)}</Dato>
-        <Dato etiqueta="Moto">{moto ? `${moto.marca} ${moto.tipo} ${moto.color}` : "—"}</Dato>
+        <Dato etiqueta="Vehículo">{moto ? `${moto.marca} ${moto.tipo} ${moto.color}` : "—"}</Dato>
       </dl>
       <p className="mt-3 text-sm text-tenue">
         Primera cuota {formatoFecha(contrato.fecha_inicio)} · última {formatoFecha(cuotas.at(-1)?.fecha_vencimiento)}

@@ -30,7 +30,7 @@ export const PASOS: Paso[] = [
   {
     corto: "Empresa",
     titulo: "1. El arrendador (la empresa)",
-    guia: "La empresa dueña de la moto y quien firma por ella. Tal como figura en la ficha RUC.",
+    guia: "La empresa dueña del vehículo y quien firma por ella. Tal como figura en la ficha RUC.",
     campos: [
       { clave: "empresa", ancho: true, mayusculas: true, ejemplo: "INVERSIONES ANNE E.I.R.L." },
       { clave: "ruc", soloNumeros: 11, ejemplo: "20615867161" },
@@ -42,7 +42,7 @@ export const PASOS: Paso[] = [
   {
     corto: "Cliente",
     titulo: "2. El arrendatario (el cliente)",
-    guia: "Quien recibe la moto. Copia el nombre y el número tal como están en su documento.",
+    guia: "Quien recibe el vehículo. Copia el nombre y el número tal como están en su documento.",
     campos: [
       { clave: "cliente", ancho: true, ejemplo: "Josman Enrique Lobo Uribe" },
       {
@@ -60,7 +60,7 @@ export const PASOS: Paso[] = [
   {
     corto: "Vehículo",
     titulo: "3. El vehículo",
-    guia: "Cópialo de la tarjeta de propiedad de la moto.",
+    guia: "Cópialo de la tarjeta de propiedad del vehículo.",
     campos: [
       {
         clave: "vehiculo",

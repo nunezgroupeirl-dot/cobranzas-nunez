@@ -7,6 +7,7 @@ import type { Cliente, Contrato, Empresa, Moto } from "@/types/database";
 import { Foto } from "../../clientes/_componentes/Foto";
 import { BotonPlantillaContrato } from "./BotonPlantillaContrato";
 import { imprimirHojas } from "./imprimirHojas";
+import { esPdf } from "@/lib/pdf";
 
 interface Props {
   contrato: Contrato;
@@ -58,7 +59,8 @@ function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: 
     setError(null);
     setImprimiendo(true);
     try {
-      await imprimirHojas(datos, paginas.map((p) => p.ruta), `Contrato firmado ${placa ?? "sin placa"} - ${cliente.nombres}`);
+      // los PDF se abren o descargan desde su miniatura; aquí se imprimen las hojas en foto
+      await imprimirHojas(datos, paginas.filter((p) => !esPdf(p.ruta)).map((p) => p.ruta), `Contrato firmado ${placa ?? "sin placa"} - ${cliente.nombres}`);
     } catch (e) {
       setError(mensajeDeError(e));
     } finally {
@@ -79,7 +81,7 @@ function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: 
   return (
     <Tarjeta
       className="mt-4"
-      titulo={`Contrato firmado ${paginas.length ? `(${paginas.length} ${paginas.length === 1 ? "página" : "páginas"})` : ""}`}
+      titulo={`Contrato firmado${placa ? ` · ${placa}` : ""} ${paginas.length ? `(${paginas.length} ${paginas.length === 1 ? "página" : "páginas"})` : ""}`}
       accion={
         <div className="flex flex-wrap gap-2">
           <BotonPlantillaContrato />
@@ -120,7 +122,7 @@ function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: 
         {subiendo ?? (paginas.length ? "+ Agregar más páginas" : "+ Subir hojas firmadas")}
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,application/pdf"
           multiple
           className="sr-only"
           aria-label="Subir hojas del contrato firmado"
@@ -132,7 +134,7 @@ function Contenido({ contrato, cliente, placa }: { contrato: Contrato; cliente: 
         />
       </label>
       </div>
-      <p className="mt-2 text-xs text-tenue">Fotos o escaneos en JPG o PNG. Puedes elegir varias hojas a la vez.</p>
+      <p className="mt-2 text-xs text-tenue">Fotos, escaneos o PDF. Puedes elegir varias hojas a la vez.</p>
       {error && (
         <div className="mt-3">
           <Aviso tipo="error">{error}</Aviso>

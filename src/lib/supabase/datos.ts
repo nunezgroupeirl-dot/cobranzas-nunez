@@ -7,7 +7,9 @@
  * Las pantallas solo importan getDatos(); así el modo no las toca.
  */
 import type {
+  Auditoria,
   Bucket,
+  FiltroAuditoria,
   Cliente,
   ConsultaPublica,
   Contrato,
@@ -108,6 +110,10 @@ export interface Datos {
   /** Cambia cuota, n.º de cuotas o fecha: rehace el cronograma y reaplica los pagos (solo el dueño). */
   editarContrato(id: string, c: EditarContratoArgs): Promise<void>;
   contratos(): Promise<Contrato[]>;
+  /** Archivar (ya no está en la empresa) o restaurar un cliente o un vehículo. Solo sin contrato activo. */
+  archivar(tipo: "cliente" | "moto", id: string, archivar: boolean, motivo?: string): Promise<void>;
+  /** Últimos movimientos registrados (quién hizo qué), del más nuevo al más viejo. Solo administradores. */
+  auditoria(filtro: FiltroAuditoria): Promise<Auditoria[]>;
   /** Contratos activos sin llenar o sin el firmado subido (aviso del menú, solo el dueño). */
   contratosPorFirmar(): Promise<number>;
   contrato(id: string): Promise<Contrato | null>;
@@ -131,6 +137,8 @@ export interface Datos {
   editarUsuario(id: string, cambios: { nombre?: string; clave?: string; puesto?: Puesto }): Promise<void>;
   /** Contraseña de la persona que tiene la sesión abierta. */
   cambiarMiClave(clave: string): Promise<void>;
+  /** ¿Soy EL dueño? Solo él nombra o quita administradores. */
+  soyDueno(): Promise<boolean>;
   // archivos
   subirArchivo(bucket: Bucket, ruta: string, archivo: Blob): Promise<void>;
   borrarArchivo(bucket: Bucket, ruta: string): Promise<void>;

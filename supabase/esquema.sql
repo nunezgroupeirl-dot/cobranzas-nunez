@@ -121,6 +121,10 @@ create table if not exists public.documentos (
   creado_en   timestamptz not null default now()
 );
 create index if not exists documentos_cliente_idx on public.documentos (cliente_id);
+-- Archivados: ya no están en la empresa, pero se guardan para el histórico
+alter table public.clientes add column if not exists archivado boolean not null default false;
+alter table public.clientes add column if not exists archivado_en timestamptz;
+alter table public.clientes add column if not exists archivado_motivo text;
 
 create table if not exists public.motos (
   id          uuid primary key default gen_random_uuid(),
@@ -148,6 +152,9 @@ alter table public.motos drop constraint if exists motos_anio_check;
 alter table public.motos add constraint motos_anio_check check (anio is null or anio between 1990 and 2100);
 -- Placa en trámite: la moto ya se entregó pero la placa aún no sale (no cuenta como dato pendiente)
 alter table public.motos add column if not exists placa_tramite boolean not null default false;
+alter table public.motos add column if not exists archivado boolean not null default false;
+alter table public.motos add column if not exists archivado_en timestamptz;
+alter table public.motos add column if not exists archivado_motivo text;
 
 create table if not exists public.contratos (
   id                      uuid primary key default gen_random_uuid(),
@@ -313,9 +320,23 @@ as $$
   select 'nunezgroupeirl@gmail.com'::text;
 $$;
 
--- ¿El usuario conectado es el dueño (administrador activo con el correo del dueño)?
--- El correo se toma de auth.users: nadie puede cambiárselo desde la app.
+-- ¿El usuario conectado es administrador activo? (el dueño y quienes él nombre administradores)
 create or replace function public.es_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfiles p
+    where p.id = auth.uid() and p.activo and p.rol = 'administrador'
+  );
+$$;
+
+-- ¿El usuario conectado es EL dueño (el correo del dueño)? Solo él nombra o quita administradores.
+-- El correo se toma de auth.users: nadie puede cambiárselo desde la app.
+create or replace function public.es_dueno()
 returns boolean
 language sql
 stable
@@ -326,19 +347,12 @@ as $$
     select 1
     from public.perfiles p
     join auth.users u on u.id = p.id
-    where p.id = auth.uid()
-      and p.activo
-      and p.rol = 'administrador'
-      and lower(u.email) = public.correo_dueno()
+    where p.id = auth.uid() and p.activo and p.rol = 'administrador' and lower(u.email) = public.correo_dueno()
   );
 $$;
 
--- Defensa en la propia tabla: aunque alguien intente un UPDATE directo,
--- ningún perfil que no sea el del dueño puede tener rol administrador.
-update public.perfiles set rol = 'cobrador' where rol = 'administrador' and lower(email) <> public.correo_dueno();
+-- Antes solo el dueño podía ser administrador; ahora él puede nombrar a otros (p. ej. su primo Elvis).
 alter table public.perfiles drop constraint if exists solo_el_dueno_es_administrador;
-alter table public.perfiles add constraint solo_el_dueno_es_administrador
-  check (rol <> 'administrador' or lower(email) = public.correo_dueno());
 
 
 -- =============================================================================
@@ -784,11 +798,14 @@ begin
   if exists (select 1 from auth.users where id = p_id and lower(email) = public.correo_dueno()) then
     raise exception 'La cuenta del dueño no se puede desactivar ni cambiar de rol.';
   end if;
-  if p_rol = 'administrador' then
-    raise exception 'Solo el dueño puede ser administrador.';
+  -- nombrar, quitar, desactivar o reactivar a un administrador: solo el dueño
+  if (p_rol = 'administrador' or exists (select 1 from public.perfiles where id = p_id and rol = 'administrador'))
+     and not public.es_dueno() then
+    raise exception 'Solo el dueño puede nombrar o quitar administradores.';
   end if;
   update public.perfiles
-  set rol = coalesce(p_rol, rol), activo = coalesce(p_activo, activo)
+  set rol = coalesce(p_rol, rol), activo = coalesce(p_activo, activo),
+      puesto = case when coalesce(p_rol, rol) = 'administrador' then null else puesto end
   where id = p_id;
   if not found then
     raise exception 'El usuario no existe.';
@@ -906,6 +923,51 @@ begin
   update public.contratos set documento = p_documento where id = p_contrato_id;
   if not found then
     raise exception 'El contrato no existe.';
+  end if;
+end;
+$$;
+
+-- Archivar: el cliente o el vehículo ya no está en la empresa. Sigue guardado (histórico, auditoría),
+-- pero deja de salir en las listas. Solo sin contrato activo. Se puede restaurar.
+create or replace function public.archivar(p_tipo text, p_id uuid, p_archivar boolean, p_motivo text default null)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  if p_tipo not in ('cliente', 'moto') then
+    raise exception 'Tipo no válido.';
+  end if;
+  if (p_tipo = 'cliente' and not exists (select 1 from public.clientes where id = p_id))
+     or (p_tipo = 'moto' and not exists (select 1 from public.motos where id = p_id)) then
+    raise exception 'No existe.';
+  end if;
+  if p_archivar and exists (
+    select 1 from public.contratos
+    where estado = 'activo' and ((p_tipo = 'cliente' and cliente_id = p_id) or (p_tipo = 'moto' and moto_id = p_id))
+  ) then
+    raise exception 'Tiene un contrato activo: primero ciérralo (o que termine de pagar) para poder archivarlo.';
+  end if;
+  if p_tipo = 'cliente' then
+    update public.clientes
+    set archivado = p_archivar, archivado_en = case when p_archivar then now() end,
+        archivado_motivo = case when p_archivar then nullif(trim(p_motivo), '') end
+    where id = p_id;
+    -- sus vehículos libres se archivan con él
+    if p_archivar then
+      update public.motos m set archivado = true, archivado_en = now(), archivado_motivo = 'Archivado con su cliente'
+      where m.cliente_id = p_id and not m.archivado
+        and not exists (select 1 from public.contratos c where c.moto_id = m.id and c.estado = 'activo');
+    end if;
+  else
+    update public.motos
+    set archivado = p_archivar, archivado_en = case when p_archivar then now() end,
+        archivado_motivo = case when p_archivar then nullif(trim(p_motivo), '') end
+    where id = p_id;
   end if;
 end;
 $$;
@@ -1528,6 +1590,10 @@ revoke all on function public.actualizar_usuario(uuid, public.rol_usuario, boole
 revoke all on function public.importar_cliente(jsonb) from public, anon;
 revoke all on function public.es_staff() from public, anon;
 revoke all on function public.es_admin() from public, anon;
+revoke all on function public.es_dueno() from public, anon;
+grant execute on function public.es_dueno() to authenticated;
+revoke all on function public.archivar(text, uuid, boolean, text) from public, anon;
+grant execute on function public.archivar(text, uuid, boolean, text) to authenticated;
 
 grant execute on function public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text, text) to authenticated;
 grant execute on function public.registrar_pago(uuid, numeric, date, public.medio_pago, uuid, text, text, text) to authenticated;

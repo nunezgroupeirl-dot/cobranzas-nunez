@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BuscadorGlobal } from "./BuscadorGlobal";
 import { useConEmpresa } from "./empresa";
 import { Marca } from "./Marca";
@@ -33,7 +33,7 @@ function Contador({ n }: { n: number }) {
   );
 }
 
-const puestoDe = (p: Perfil) => (p.rol === "administrador" ? "Dueño" : p.puesto ? NOMBRE_PUESTO[p.puesto] : "Cobrador");
+const puestoDe = (p: Perfil, dueno: boolean) => (p.rol === "administrador" ? (dueno ? "Dueño" : "Administrador") : p.puesto ? NOMBRE_PUESTO[p.puesto] : "Cobrador");
 
 function activo(rutaActual: string, items: ItemMenu[]): string | null {
   const ruta = rutaActual.length > 1 ? rutaActual.replace(/\/$/, "") : rutaActual;
@@ -52,6 +52,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [cambiandoClave, setCambiandoClave] = useState(false);
   const [avisoClave, setAvisoClave] = useState<string | null>(null);
   const esDueno = perfil.rol === "administrador";
+  // el dueño se distingue de los demás administradores (solo para el rótulo)
+  const [soyDueno, setSoyDueno] = useState(false);
+  useEffect(() => {
+    if (!esDueno) return;
+    datos.soyDueno().then(setSoyDueno, () => undefined);
+  }, [datos, esDueno]);
   const abrirClave = () => {
     setMasAbierto(false);
     setCambiandoClave(true);
@@ -92,7 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="shrink-0 border-t border-white/10 p-4">
           {datos.modoPrueba && <p className="mb-3 rounded-lg bg-amarillo-suave px-2.5 py-1.5 text-xs font-semibold text-amarillo">Modo prueba: datos falsos</p>}
           <p className="truncate font-semibold">{perfil.nombre}</p>
-          <p className="text-sm text-white/60">{puestoDe(perfil)}</p>
+          <p className="text-sm text-white/60">{puestoDe(perfil, soyDueno)}</p>
           {esDueno && (
             <button onClick={abrirClave} className="mt-1 text-sm font-semibold text-oro underline-offset-2 hover:underline">
               Cambiar mi contraseña

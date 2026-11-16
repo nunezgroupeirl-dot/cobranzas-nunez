@@ -19,7 +19,7 @@ const EXTRA: Record<"frec" | "nro_cuotas" | "celular" | "precio", string> = {
   frec: "Se paga",
   nro_cuotas: "Número de cuotas",
   celular: "Celular del cliente",
-  precio: "Precio de la moto (S/)",
+  precio: "Precio del vehículo (S/)",
 };
 const ETIQUETA_PROPIA: Partial<Record<ClaveBorrador, string>> = { renta: "Monto de cada cuota (S/)", inicio: "Fecha de la 1.ª cuota", inicial: "Inicial entregada (S/)" };
 
@@ -74,7 +74,7 @@ export const PASOS_NUEVO: Paso<C>[] = [
     guia: "Busca al cliente si ya está registrado, o escribe sus datos tal como están en su documento.",
     campos: [...campos(1).slice(0, 3), { clave: "celular", soloNumeros: 9, opcional: true, ejemplo: "987654321" }, campos(1)[3]],
   },
-  { ...PASOS[2], guia: "Cópialo de la tarjeta de propiedad. Si el cliente ya tiene una moto registrada, elígela arriba.", campos: campos(2) },
+  { ...PASOS[2], guia: "Cópialo de la tarjeta de propiedad. Si el cliente ya tiene un vehículo registrado, elígela arriba.", campos: campos(2) },
   {
     corto: "Cuotas y renta",
     titulo: "4. Cuotas, renta y firma",

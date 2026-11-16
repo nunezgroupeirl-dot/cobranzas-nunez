@@ -11,6 +11,9 @@ const MAXIMO = 8;
 /** Los datos de la búsqueda se reutilizan 1 minuto para que abrir y cerrar sea instantáneo. */
 const VIGENCIA_MS = 60_000;
 
+/** Cliente con contrato activo, o registrado sin contrato (solo para quien ve fichas). */
+type Fila = EstadoCliente & { sin_contrato?: boolean };
+
 const esCampoDeTexto = (el: EventTarget | null) =>
   el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
 
@@ -23,10 +26,10 @@ export function BuscadorGlobal() {
   const conFicha = veClientes(perfil);
   const router = useRouter();
   const dialogo = useRef<HTMLDialogElement>(null);
-  const cache = useRef<{ en: number; filas: EstadoCliente[] } | null>(null);
+  const cache = useRef<{ en: number; filas: Fila[] } | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [texto, setTexto] = useState("");
-  const [filas, setFilas] = useState<EstadoCliente[] | null>(null);
+  const [filas, setFilas] = useState<Fila[] | null>(null);
   const [marcado, setMarcado] = useState(0);
 
   const abrir = () => {
@@ -38,9 +41,14 @@ export function BuscadorGlobal() {
       setFilas(cache.current.filas);
       return;
     }
-    datos
-      .estadoClientes()
-      .then((r) => {
+    Promise.all([datos.estadoClientes(), conFicha ? datos.clientes() : Promise.resolve([])])
+      .then(([estado, clientes]) => {
+        // también los clientes recién registrados que aún no tienen contrato (sin los archivados)
+        const conContrato = new Set(estado.map((e) => e.cliente_id));
+        const sinContrato: Fila[] = clientes
+          .filter((c) => !c.archivado && !conContrato.has(c.id))
+          .map((c) => ({ ...estado[0], contrato_id: "", cliente_id: c.id, cliente: c.nombres, dni: c.dni, placa: null, empresa: "", sin_contrato: true }));
+        const r: Fila[] = [...estado, ...sinContrato];
         cache.current = { en: Date.now(), filas: r };
         setFilas(r);
       })
@@ -74,7 +82,7 @@ export function BuscadorGlobal() {
   const resultados = useMemo(() => {
     const q = normalizar(texto);
     if (!q) return [];
-    const r: EstadoCliente[] = [];
+    const r: Fila[] = [];
     for (const { e, clave } of indice) {
       if (coincide(clave, q)) r.push(e);
       if (r.length === MAXIMO) break;
@@ -86,9 +94,9 @@ export function BuscadorGlobal() {
     setAbierto(false);
     router.push(href);
   };
-  const cobrar = (e: EstadoCliente) => ir(`/pagos/nuevo?contrato=${e.contrato_id}`);
+  const cobrar = (e: Fila) => (e.sin_contrato ? ir(`/clientes/ficha?id=${e.cliente_id}`) : ir(`/pagos/nuevo?contrato=${e.contrato_id}`));
   // el cobrador de ruta no entra a la ficha: tocar al cliente lo lleva a cobrarle
-  const ficha = (e: EstadoCliente) => (conFicha ? ir(`/clientes/ficha?id=${e.cliente_id}`) : cobrar(e));
+  const ficha = (e: Fila) => (conFicha ? ir(`/clientes/ficha?id=${e.cliente_id}`) : cobrar(e));
 
   const teclas = (ev: KeyboardEvent<HTMLInputElement>) => {
     if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
@@ -150,7 +158,7 @@ export function BuscadorGlobal() {
             <ul id="resultados-busqueda" className="overflow-y-auto p-2" aria-label="Resultados">
               {filas === null && <li className="p-4 text-center text-tenue">Cargando clientes…</li>}
               {filas !== null && texto && resultados.length === 0 && (
-                <li className="p-4 text-center text-tenue">Nadie con contrato activo coincide con «{texto}».</li>
+                <li className="p-4 text-center text-tenue">Ningún cliente coincide con «{texto}».</li>
               )}
               {filas !== null && !texto && (
                 <li className="p-4 text-center text-sm text-tenue">
@@ -166,7 +174,7 @@ export function BuscadorGlobal() {
                 </li>
               )}
               {resultados.map((e, i) => (
-                <li key={e.contrato_id}>
+                <li key={e.contrato_id || `cli-${e.cliente_id}`}>
                   <div
                     className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${i === marcado ? "bg-marca-suave" : ""}`}
                     onMouseEnter={() => setMarcado(i)}
@@ -176,12 +184,17 @@ export function BuscadorGlobal() {
                       <span className="min-w-0">
                         <span className="block truncate font-semibold">{e.cliente}</span>
                         <span className="block truncate text-sm text-tenue">
-                          {textoDocumento(e.dni)} · {e.empresa}
+                          {textoDocumento(e.dni)}
+                          {e.empresa ? ` · ${e.empresa}` : ""}
                         </span>
                       </span>
                     </button>
-                    <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} />
-                    <button type="button" onClick={() => cobrar(e)} className="min-h-10 shrink-0 rounded-lg bg-marca px-3 text-sm font-semibold text-white hover:bg-marca-oscura">
+                    {e.sin_contrato ? (
+                      <span className="shrink-0 rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Sin contrato</span>
+                    ) : (
+                      <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} />
+                    )}
+                    <button type="button" hidden={e.sin_contrato} onClick={() => cobrar(e)} className="min-h-10 shrink-0 rounded-lg bg-marca px-3 text-sm font-semibold text-white hover:bg-marca-oscura">
                       Cobrar
                     </button>
                   </div>

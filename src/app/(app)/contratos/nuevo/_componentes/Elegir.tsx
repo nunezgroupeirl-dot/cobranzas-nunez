@@ -84,7 +84,7 @@ export function ElegirMoto({ motos, elegida, alElegir }: { motos: Moto[]; elegid
   if (!motos.length) return null;
   return (
     <div className="mb-4 flex flex-col gap-2">
-      <p className="text-sm font-semibold">Motos de este cliente sin contrato</p>
+      <p className="text-sm font-semibold">Vehículos de este cliente sin contrato</p>
       <div className="flex flex-wrap gap-2">
         {motos.map((m) => (
           <button
