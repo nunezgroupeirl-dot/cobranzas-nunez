@@ -46,6 +46,9 @@ alter type public.tipo_documento add value if not exists 'moto_atras';
 alter type public.tipo_documento add value if not exists 'moto_izquierda';
 alter type public.tipo_documento add value if not exists 'moto_derecha';
 alter type public.tipo_documento add value if not exists 'cliente_contrato';
+-- Tarjeta de propiedad del vehículo por las 2 caras (a veces la traen en foto)
+alter type public.tipo_documento add value if not exists 'tarjeta_frente';
+alter type public.tipo_documento add value if not exists 'tarjeta_reverso';
 
 -- activo: se está pagando · terminado: pagó todo · anulado: cerrado por el administrador (moto recuperada, etc.)
 do $$ begin create type public.estado_contrato as enum ('activo', 'terminado', 'anulado');

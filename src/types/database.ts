@@ -19,6 +19,8 @@ export type TipoDocumento =
   | "moto_atras"
   | "moto_izquierda"
   | "moto_derecha"
+  | "tarjeta_frente" // tarjeta de propiedad del vehículo
+  | "tarjeta_reverso"
   | "fachada"
   | "recibo"
   | "otro"

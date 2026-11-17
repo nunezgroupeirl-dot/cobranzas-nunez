@@ -19,12 +19,14 @@ export const GRUPOS_FOTOS: { titulo: string; ayuda: string; espacios: { tipo: Ti
   },
   {
     titulo: "Vehículo",
-    ayuda: "Los 4 lados; de frente y de atrás, con la placa visible.",
+    ayuda: "Los 4 lados (de frente y de atrás, con la placa visible) y la tarjeta de propiedad por las 2 caras, si la traen. Foto o PDF.",
     espacios: [
       { tipo: "moto", etiqueta: "Frente" },
       { tipo: "moto_atras", etiqueta: "Atrás" },
       { tipo: "moto_izquierda", etiqueta: "Izquierda" },
       { tipo: "moto_derecha", etiqueta: "Derecha" },
+      { tipo: "tarjeta_frente", etiqueta: "Tarjeta (frente)" },
+      { tipo: "tarjeta_reverso", etiqueta: "Tarjeta (reverso)" },
     ],
   },
   {

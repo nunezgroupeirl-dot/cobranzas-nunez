@@ -45,6 +45,8 @@ export const NOMBRE_DOCUMENTO: Record<TipoDocumento, string> = {
   moto_atras: "Vehículo (atrás)",
   moto_izquierda: "Vehículo (lado izquierdo)",
   moto_derecha: "Vehículo (lado derecho)",
+  tarjeta_frente: "Tarjeta de propiedad (frente)",
+  tarjeta_reverso: "Tarjeta de propiedad (reverso)",
   fachada: "Fachada",
   recibo: "Recibo de luz/agua",
   otro: "Otro",
