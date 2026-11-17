@@ -7,6 +7,7 @@
  *   que las listas grandes (clientes, pagos de un mes) lleguen completas.
  */
 import { normalizarPlaca } from "@/lib/placa";
+import { alfabetico } from "@/lib/texto";
 import type { PostgrestError } from "@supabase/supabase-js";
 import type {
   Auditoria,
@@ -194,7 +195,7 @@ export function crearDatosReales(): Datos {
     /* ---------------- vistas ---------------- */
     async estadoClientes() {
       const filas = await todas<EstadoCliente>((a, b) => sb.from("v_estado_cliente").select("*").order("cliente").range(a, b));
-      return filas.map(normalizarEstado);
+      return filas.map(normalizarEstado).sort((a, b) => alfabetico(a.cliente, b.cliente));
     },
     async morosos() {
       const filas = await todas<EstadoCliente>((a, b) =>
@@ -243,7 +244,7 @@ export function crearDatosReales(): Datos {
 
     /* ---------------- clientes ---------------- */
     async clientes() {
-      return todas<Cliente>((a, b) => sb.from("clientes").select("*").order("nombres").range(a, b));
+      return (await todas<Cliente>((a, b) => sb.from("clientes").select("*").order("nombres").range(a, b))).sort((a, b) => alfabetico(a.nombres, b.nombres));
     },
     async cliente(id) {
       return fila<Cliente>(await sb.from("clientes").select("*").eq("id", id).maybeSingle());
@@ -341,14 +342,18 @@ export function crearDatosReales(): Datos {
     },
     async contratosPorFirmar() {
       // sin traer los contratos completos: ids de los activos llenados, cuántos faltan llenar y cuáles tienen el firmado
-      const [llenados, sinLlenar, firmados] = await Promise.all([
+      const [llenados, sinLlenar, firmados, clientes, conContrato] = await Promise.all([
         todas<{ id: string }>((a, b) => sb.from("contratos").select("id").eq("estado", "activo").not("documento", "is", null).order("id").range(a, b)),
         sb.from("contratos").select("id", { count: "exact", head: true }).eq("estado", "activo").is("documento", null),
         todas<{ contrato_id: string }>((a, b) => sb.from("documentos").select("contrato_id").eq("tipo", "contrato").not("contrato_id", "is", null).order("id").range(a, b)),
+        // clientes nuevos que aún no tienen ningún contrato también cuentan
+        todas<{ id: string }>((a, b) => sb.from("clientes").select("id").eq("archivado", false).order("id").range(a, b)),
+        todas<{ cliente_id: string }>((a, b) => sb.from("contratos").select("cliente_id").order("id").range(a, b)),
       ]);
       lanzar(sinLlenar.error);
       const conFirma = new Set(firmados.map((d) => d.contrato_id));
-      return (sinLlenar.count ?? 0) + llenados.filter((c) => !conFirma.has(c.id)).length;
+      const tienen = new Set(conContrato.map((c) => c.cliente_id));
+      return (sinLlenar.count ?? 0) + llenados.filter((c) => !conFirma.has(c.id)).length + clientes.filter((c) => !tienen.has(c.id)).length;
     },
     async contrato(id) {
       const c = fila<Contrato>(await sb.from("contratos").select("*").eq("id", id).maybeSingle());
@@ -478,7 +483,7 @@ export function crearDatosReales(): Datos {
 
     /* ---------------- usuarios ---------------- */
     async usuarios() {
-      return todas<Perfil>((a, b) => sb.from("perfiles").select("*").order("nombre").range(a, b));
+      return (await todas<Perfil>((a, b) => sb.from("perfiles").select("*").order("nombre").range(a, b))).sort((a, b) => alfabetico(a.nombre, b.nombre));
     },
     async crearUsuario(u) {
       await funcionUsuarios({ accion: "crear", ...u }, "No se pudo crear el usuario.");

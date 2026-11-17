@@ -6,6 +6,7 @@ import { useEmpresa } from "@/components/layout/empresa";
 import { DIAS_ATRAS_TRABAJADOR, sumarDias } from "@/lib/supabase/reglas";
 import { Aviso, Boton, Campo, Cargando, NOMBRE_MEDIO, OpcionesBoton, Selector, Tarjeta, TituloPagina, formatoSoles, hoyLima, mensajeDeError, useCarga } from "@/components/ui";
 import { borrarFoto, prepararFotoPago } from "@/lib/fotos";
+import { alfabetico } from "@/lib/texto";
 import type { MedioPago, RegistrarPagoResultado } from "@/types/database";
 import { BuscarContrato } from "../_componentes/BuscarContrato";
 import { FotoComprobante } from "../_componentes/FotoComprobante";
@@ -74,7 +75,7 @@ export default function RegistrarPago() {
     const propia = (id: string) => Number(id === elegido?.empresa_id);
     return (info?.cuentas ?? [])
       .filter((c) => c.medio === medio || (medio === "agente" && c.medio === "banco"))
-      .sort((a, b) => propia(b.empresa_id) - propia(a.empresa_id) || a.nombre.localeCompare(b.nombre));
+      .sort((a, b) => propia(b.empresa_id) - propia(a.empresa_id) || alfabetico(a.nombre, b.nombre));
   }, [info, elegido, medio]);
 
   // elegir automáticamente la cuenta si solo hay una

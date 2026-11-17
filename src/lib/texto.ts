@@ -12,6 +12,13 @@ export const normalizar = (t: string) =>
  */
 export const claveEmpresa = (t: string) => normalizar(t).replace(/[^a-z0-9]/g, "");
 
+/**
+ * Orden alfabético en español para nombres: sin importar mayúsculas ni tildes ("KELVIN" va con la K, "Álvaro" con la A),
+ * la Ñ después de la N y los números en su orden ("2" antes que "10").
+ */
+const COTEJO = new Intl.Collator("es", { sensitivity: "base", numeric: true });
+export const alfabetico = (a: string | null | undefined, b: string | null | undefined) => COTEJO.compare((a ?? "").trim(), (b ?? "").trim());
+
 /** Une los campos buscables en un solo texto normalizado. Se calcula una vez por fila, no en cada tecla. */
 export const claveBusqueda = (...partes: (string | null | undefined)[]) => partes.map((p) => normalizar(p ?? "")).join("|");
 

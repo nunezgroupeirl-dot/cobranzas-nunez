@@ -19,9 +19,9 @@ const GRUPOS = [
 const POR_PAGINA = 40;
 const TODO_COMPLETO: Record<Vista, string> = {
   cliente: "Todo completo: a ningún cliente ni vehículo le falta un dato.",
-  contratos: "Todos los contratos activos están llenados y firmados.",
+  contratos: "Todos los clientes tienen su contrato llenado y firmado.",
 };
-const CUENTA: Record<Vista, string> = { cliente: "contratos con datos pendientes", contratos: "contratos sin llenar o sin firmar" };
+const CUENTA: Record<Vista, string> = { cliente: "con datos pendientes", contratos: "sin contrato, sin llenar o sin firmar" };
 
 function Pendientes() {
   const { datos, empresas } = useSesion();
@@ -90,7 +90,7 @@ function Pendientes() {
     <>
       <TituloPagina
         titulo="Datos pendientes"
-        sub="De cada contrato activo, lo que falta completar. El contrato va en su propia pestaña. Toca un dato para ver solo a quiénes les falta."
+        sub="De cada cliente y contrato activo, lo que falta completar (también los clientes nuevos que se guardaron a medias). El contrato va en su propia pestaña. Toca un dato para ver solo a quiénes les falta."
         accion={
           <Boton variante="secundario" tamano="grande" onClick={excel} disabled={!lista.length}>
             Descargar lista (Excel)
@@ -103,7 +103,10 @@ function Pendientes() {
       ) : (
         <>
           <PestanasVista vista={vista} cuentas={{ cliente: porVista.cliente.length, contratos: porVista.contratos.length }} alCambiar={cambiarVista} />
-          {vista === "contratos" && porVista.contratos.length > 0 && <AvisoContratos cuantos={porVista.contratos.length} />}
+          {vista === "contratos" && porVista.contratos.length > 0 && <AvisoContratos
+              cuantos={porVista.contratos.filter((f) => f.contrato_id).length}
+              sinContrato={porVista.contratos.filter((f) => !f.contrato_id).length}
+            />}
 
           <div className={`mb-4 grid gap-3 ${grupos.length > 1 ? "md:grid-cols-2" : ""}`}>
             {grupos.map((g) => (

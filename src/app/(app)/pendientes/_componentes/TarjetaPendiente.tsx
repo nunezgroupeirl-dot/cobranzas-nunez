@@ -51,9 +51,9 @@ export function TarjetaPendiente({ fila: f, resaltado, alEditarMoto }: Props) {
             Completar cliente
           </BotonEnlace>
         )}
-        {f.faltan.includes("sin_vehiculo") && (
+        {!f.contrato_id && (f.faltan.includes("sin_vehiculo") || f.faltan.includes("sin_contrato")) && (
           <BotonEnlace href={`/clientes/editar?id=${f.cliente_id}`} variante="secundario" tamano="chico">
-            Registrar vehículo y cronograma
+            {f.moto ? "Registrar cronograma y contrato" : "Registrar vehículo y cronograma"}
           </BotonEnlace>
         )}
         {falta("moto") && f.moto && (

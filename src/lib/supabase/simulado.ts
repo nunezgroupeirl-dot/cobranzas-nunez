@@ -36,7 +36,7 @@ import {
   DIAS_ATRAS_TRABAJADOR,
   validarPago,
 } from "./reglas";
-import { claveEmpresa, nombreReservado } from "@/lib/texto";
+import { alfabetico, claveEmpresa, nombreReservado } from "@/lib/texto";
 import { mesAnterior, siguienteMes } from "@/lib/letras";
 
 const CLAVE_ESTADO = "cn_simulado_v3";
@@ -412,7 +412,7 @@ export function crearDatosSimulados(): Datos {
 
     async estadoClientes() {
       await pausa();
-      return estadoClientes(leer());
+      return estadoClientes(leer()).sort((a, b) => alfabetico(a.cliente, b.cliente));
     },
     async morosos() {
       await pausa();
@@ -515,7 +515,7 @@ export function crearDatosSimulados(): Datos {
     },
 
     async clientes() {
-      return leer().clientes;
+      return [...leer().clientes].sort((a, b) => alfabetico(a.nombres, b.nombres));
     },
     async cliente(id) {
       return leer().clientes.find((c) => c.id === id) ?? null;
@@ -681,7 +681,10 @@ export function crearDatosSimulados(): Datos {
     async contratosPorFirmar() {
       const s = leer();
       const conFirma = new Set(s.documentos.filter((d) => d.tipo === "contrato").map((d) => d.contrato_id));
-      return s.contratos.filter((c) => c.estado === "activo" && (!c.documento || !conFirma.has(c.id))).length;
+      const tienen = new Set(s.contratos.map((c) => c.cliente_id));
+      return (
+        s.contratos.filter((c) => c.estado === "activo" && (!c.documento || !conFirma.has(c.id))).length + s.clientes.filter((c) => !c.archivado && !tienen.has(c.id)).length
+      );
     },
     async contrato(id) {
       return leer().contratos.find((c) => c.id === id) ?? null;
@@ -938,7 +941,7 @@ export function crearDatosSimulados(): Datos {
     async usuarios() {
       const s = leer();
       exigirAdmin(s);
-      return s.perfiles.map(({ clave: _c, ...p }) => {
+      return [...s.perfiles].sort((a, b) => alfabetico(a.nombre, b.nombre)).map(({ clave: _c, ...p }) => {
         void _c;
         return p;
       });

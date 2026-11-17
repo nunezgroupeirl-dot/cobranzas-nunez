@@ -5,6 +5,7 @@ import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
 import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, Placa, IconoVehiculo } from "@/components/ui";
 import type { Color, EstadoCliente, Moto } from "@/types/database";
+import { alfabetico } from "@/lib/texto";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
 
 type Fila = EstadoCliente & { sin_contrato?: boolean; moto?: Moto; /** ya terminó (o cerró) sus contratos */ tuvo?: boolean };
@@ -12,7 +13,7 @@ type Fila = EstadoCliente & { sin_contrato?: boolean; moto?: Moto; /** ya termin
 const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo"]);
 
 export default function PaginaClientes() {
-  const { datos, esAdmin } = useSesion();
+  const { datos, esAdmin, empresas } = useSesion();
   const router = useRouter();
   const empresa = useEmpresa();
   const conEmpresa = useConEmpresa();
@@ -36,10 +37,10 @@ export default function PaginaClientes() {
         cliente_id: c.id,
         cliente: c.nombres,
         dni: c.dni,
-        placa: "",
+        placa: motoDeCliente.get(c.id)?.placa ?? "",
         celular: c.celular,
         empresa_id: c.empresa_id,
-        empresa: "",
+        empresa: empresas.find((e) => e.id === c.empresa_id)?.nombre ?? "",
         cuota: 0,
         semanas_atraso: 0,
         deuda: 0,
@@ -51,7 +52,7 @@ export default function PaginaClientes() {
         moto: motoDeCliente.get(c.id),
       }));
     return [...estado.map((e) => ({ ...e, moto: motoDeContrato.get(e.contrato_id) })), ...sinContrato] as Fila[];
-  }, [datos]);
+  }, [datos, empresas]);
 
   // clave de búsqueda por fila, calculada solo cuando llegan los datos
   const indice = useMemo(() => new Map((filas ?? []).map((f) => [f, claveBusqueda(f.cliente, f.dni, f.placa)])), [filas]);
@@ -61,7 +62,7 @@ export default function PaginaClientes() {
     return filtrarPorEmpresa(filas ?? [], empresa)
       .filter((f) => (!color || (!f.sin_contrato && f.color === color)) && coincide(indice.get(f) ?? "", q))
       // los que aún no tienen contrato van primero: así el cliente recién registrado se ve arriba
-      .sort((a, b) => Number(!!b.sin_contrato && !b.tuvo) - Number(!!a.sin_contrato && !a.tuvo) || a.cliente.localeCompare(b.cliente));
+      .sort((a, b) => alfabetico(a.cliente, b.cliente));
   }, [filas, indice, texto, color, empresa]);
 
   const columnas: Columna<Fila>[] = [

@@ -30,7 +30,7 @@ export function PestanasVista({ vista, cuentas, alCambiar }: { vista: Vista; cue
 }
 
 /** Aviso "Importante" de la pestaña Contratos. */
-export function AvisoContratos({ cuantos }: { cuantos: number }) {
+export function AvisoContratos({ cuantos, sinContrato }: { cuantos: number; sinContrato: number }) {
   return (
     <div role="alert" className="mb-4 flex gap-3 rounded-2xl border-2 border-rojo/50 bg-rojo-suave p-4">
       <span className="grid size-9 shrink-0 place-items-center rounded-full bg-rojo text-lg font-extrabold text-white" aria-hidden>
@@ -38,10 +38,16 @@ export function AvisoContratos({ cuantos }: { cuantos: number }) {
       </span>
       <div className="flex flex-col gap-1">
         <p className="font-bold text-rojo">
-          Importante: {cuantos} {cuantos === 1 ? "contrato aún no está firmado" : "contratos aún no están firmados"} en el sistema
+          Importante:{" "}
+          {[
+            cuantos > 0 && `${cuantos} ${cuantos === 1 ? "contrato aún no está firmado" : "contratos aún no están firmados"} en el sistema`,
+            sinContrato > 0 && `${sinContrato} ${sinContrato === 1 ? "cliente nuevo aún no tiene contrato" : "clientes nuevos aún no tienen contrato"}`,
+          ]
+            .filter(Boolean)
+            .join(" y ")}
         </p>
         <p className="text-sm text-tinta">
-          Un contrato sin firmar no respalda la entrega de la moto si hay que reclamarla. Cada uno se llena aquí, se imprime, lo firma el cliente con su huella y
+          Un contrato sin firmar no respalda la entrega del vehículo si hay que reclamarla. Cada uno se llena aquí, se imprime, lo firma el cliente con su huella y
           se sube escaneado. El número rojo del menú avisa hasta que no quede ninguno.
         </p>
       </div>
