@@ -125,7 +125,7 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
             </select>
           )}
           {contrato && cuotas && moto && (
-            <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} tipoDoc={cliente.tipo_doc} placa={moto.placa ?? (moto.placa_tramite ? "EN TRÁMITE" : null)} empresa={empresa ?? ""} contrato={contrato} cuotas={cuotas} />
+            <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} tipoDoc={cliente.tipo_doc} placa={moto.placa ?? (moto.placa_tramite ? "PLACA EN TRÁMITE" : null)} empresa={empresa ?? ""} contrato={contrato} cuotas={cuotas} />
           )}
           {contrato && soloLectura !== true && (
             <BotonEnlace href={`/contratos/ver?id=${contrato.id}`} variante="fantasma" tamano="chico">

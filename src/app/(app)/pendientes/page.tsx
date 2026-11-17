@@ -78,7 +78,7 @@ function Pendientes() {
         columnas: ["Cliente", "Placa", "Empresa", ...claves.map((k) => FALTANTES[k].texto), ...(vista === "cliente" ? ["Qué revisar"] : [])],
         filas: lista.map((f) => [
           f.cliente,
-          f.placa ?? (f.moto?.placa_tramite ? "EN TRÁMITE" : ""),
+          f.placa ?? (f.moto?.placa_tramite ? "PLACA EN TRÁMITE" : ""),
           f.empresa,
           ...claves.map((k) => (f.faltan.includes(k) ? "FALTA" : "")),
           ...(vista === "cliente" ? [f.nota ?? ""] : []),

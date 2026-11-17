@@ -18,7 +18,7 @@ export function CampoPlaca({ placa, tramite, error, alCambiarPlaca, alCambiarTra
         onChange={(e) => alCambiarPlaca(e.target.value.toUpperCase())}
         error={error}
         disabled={tramite}
-        placeholder={tramite ? "En trámite" : undefined}
+        placeholder={tramite ? "Placa en trámite" : undefined}
         ayuda={placa || tramite ? undefined : "Si aún no la sabes, déjala vacía: saldrá en “Datos pendientes”."}
         className="font-display text-lg font-bold tracking-[0.06em] uppercase"
         autoCapitalize="characters"

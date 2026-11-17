@@ -17,7 +17,7 @@ export function Placa({ placa, tramite, tamano = "normal" }: { placa?: string | 
         className={`inline-block rounded-[4px] border-[1.5px] border-dashed border-amarillo bg-amarillo-suave font-display leading-none font-bold tracking-[0.04em] whitespace-nowrap text-amarillo uppercase ${TAMANOS[tamano]}`}
         title="La placa aún no sale"
       >
-        En trámite
+        Placa en trámite
       </span>
     );
   if (!placa) return <span className="text-tenue">—</span>;
