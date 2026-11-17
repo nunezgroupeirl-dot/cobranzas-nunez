@@ -1,13 +1,14 @@
-import { FRECUENCIA_CONTRATO, MESES_POR_CUOTA, vehiculoDeTipo, etiquetaCampo, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
+import { FRECUENCIA_CONTRATO, UNIDAD_PLAZO, vehiculoDeTipo, etiquetaCampo, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
 import type { Cliente, Cuenta, Empresa, Frecuencia, Moto } from "@/types/database";
 import { fechaCuota } from "@/lib/supabase/reglas";
+import { DUENO_REPRESENTANTE } from "@/lib/negocio";
 import { PASOS, type Paso } from "../../documento/_componentes/pasos";
 
 /**
  * Todo lo que se llena al crear un contrato nuevo: los datos del contrato impreso
  * más lo que necesita el sistema (celular, n.º de cuotas, frecuencia del cronograma, precio).
  */
-export type Borrador = Omit<CamposContrato, "frecuencia" | "plazo_meses"> & {
+export type Borrador = Omit<CamposContrato, "frecuencia" | "plazo"> & {
   frec: Frecuencia;
   nro_cuotas: string;
   celular: string;
@@ -26,10 +27,12 @@ const ETIQUETA_PROPIA: Partial<Record<ClaveBorrador, string>> = { renta: "Monto 
 export const etiquetaBorrador = (k: ClaveBorrador) =>
   ETIQUETA_PROPIA[k] ?? (k in EXTRA ? EXTRA[k as keyof typeof EXTRA] : etiquetaCampo(k as keyof CamposContrato));
 
-/** Plazo del contrato en meses, según cuántas cuotas y cada cuánto. */
-export const plazoMeses = (b: Pick<Borrador, "frec" | "nro_cuotas">) => {
+/** Plazo del contrato: tantas como cuotas, en la unidad en que paga (9 cuotas semanales = 9 semanas). */
+export const plazoContrato = (b: Pick<Borrador, "frec" | "nro_cuotas">) => {
   const n = Number(b.nro_cuotas);
-  return Number.isInteger(n) && n > 0 ? Math.max(1, Math.round(n * MESES_POR_CUOTA[b.frec])) : 0;
+  if (!(Number.isInteger(n) && n > 0)) return "";
+  const u = UNIDAD_PLAZO[FRECUENCIA_CONTRATO[b.frec]];
+  return `${n} ${n === 1 ? u.una : u.varias}`;
 };
 /** Fecha de la última cuota (igual que el cronograma). */
 export const ultimaCuota = (b: Pick<Borrador, "frec" | "nro_cuotas" | "inicio">) => {
@@ -41,8 +44,8 @@ export const ultimaCuota = (b: Pick<Borrador, "frec" | "nro_cuotas" | "inicio">)
 export function aCampos(b: Borrador): CamposContrato {
   const resto = Object.fromEntries(Object.entries(b).filter(([k]) => !["frec", "nro_cuotas", "celular", "precio"].includes(k))) as Omit<Borrador, "frec" | "nro_cuotas" | "celular" | "precio">;
   const frec = b.frec;
-  const plazo = plazoMeses(b);
-  return { ...resto, plazo_meses: plazo ? String(plazo) : "", frecuencia: FRECUENCIA_CONTRATO[frec] };
+  const n = Number(b.nro_cuotas);
+  return { ...resto, plazo: Number.isInteger(n) && n > 0 ? String(n) : "", frecuencia: FRECUENCIA_CONTRATO[frec] };
 }
 
 export function problemaBorrador(b: Borrador, k: ClaveBorrador): string | null {
@@ -117,8 +120,9 @@ export function cuentaPorDefecto(cuentas: Cuenta[], empresaId: string): string {
 export const datosEmpresa = (e: Empresa) => ({
   empresa: e.nombre.toUpperCase(),
   ruc: t(e.ruc),
-  representante: t(e.representante),
-  representante_dni: t(e.representante_dni),
+  // el dueño firma por defecto; si la empresa tiene otro representante registrado, sale ese
+  representante: t(e.representante) || DUENO_REPRESENTANTE.nombre,
+  representante_dni: t(e.representante_dni) || DUENO_REPRESENTANTE.dni,
   domicilio_empresa: t(e.domicilio),
 });
 
@@ -146,7 +150,7 @@ export const datosMoto = (m: Moto | null) => ({
 
 export function borradorInicial(hoy: string, primeraCuota: string): Borrador {
   return {
-    ...{ empresa: "", ruc: "", representante: "", representante_dni: "", domicilio_empresa: "" },
+    ...{ empresa: "", ruc: "", representante: DUENO_REPRESENTANTE.nombre, representante_dni: DUENO_REPRESENTANTE.dni, domicilio_empresa: "" },
     ...datosCliente(null),
     ...datosMoto(null),
     frec: "semanal",

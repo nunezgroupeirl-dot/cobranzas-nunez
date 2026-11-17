@@ -109,6 +109,11 @@ export function mensajeDeError(e: unknown): string {
 }
 
 /** Fecha de hoy en Lima (YYYY-MM-DD). Lo registrado después de las 10:00 p.m. cuenta para el día siguiente. */
+/** Fecha de hoy en Lima, sin más (para contratos y documentos). La regla de las 10 p.m. es solo para pagos: ver hoyLima. */
+export function fechaLima(ahora: Date = new Date()): string {
+  return new Date(ahora.getTime() - 5 * 3_600_000).toISOString().slice(0, 10);
+}
+
 export function hoyLima(ahora: Date = new Date()): string {
   const lima = new Date(ahora.getTime() - 5 * 3_600_000);
   const minutos = lima.getUTCHours() * 60 + lima.getUTCMinutes();

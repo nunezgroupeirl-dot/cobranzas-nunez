@@ -18,7 +18,7 @@ import {
   datosMoto,
   etiquetaBorrador,
   pasoNuevoListo,
-  plazoMeses,
+  plazoContrato,
   problemaBorrador,
   ultimaCuota,
   type Borrador,
@@ -124,10 +124,10 @@ export function AsistenteContrato({ clientes, motos, contratos, cuentas, hoy, pr
     }
   };
 
-  const plazo = plazoMeses(b);
+  const plazo = plazoContrato(b);
   const resumenCuotas = plazo ? (
     <p className="mt-4 rounded-xl bg-fondo p-3 text-sm">
-      Plazo del contrato: <b>{plazo} meses</b>
+      Plazo del contrato: <b>{plazo}</b>
       {ultimaCuota(b) && (
         <>
           {" "}· última cuota el <b>{formatoFecha(ultimaCuota(b))}</b>
@@ -171,7 +171,7 @@ export function AsistenteContrato({ clientes, motos, contratos, cuentas, hoy, pr
             etiqueta={etiquetaBorrador}
             problema={problema}
             titulo="Revisa y crea el contrato"
-            extra={(i) => (i === 3 && plazo ? <Dato t="Plazo" v={`${plazo} meses · última cuota ${formatoFecha(ultimaCuota(b))}`} /> : null)}
+            extra={(i) => (i === 3 && plazo ? <Dato t="Plazo" v={`${plazo} · última cuota ${formatoFecha(ultimaCuota(b))}`} /> : null)}
             alEditar={(i) => {
               setIntentado((s) => new Set(s).add(i));
               ir(i);

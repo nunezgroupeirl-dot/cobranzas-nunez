@@ -34,8 +34,8 @@ export const PASOS: Paso[] = [
     campos: [
       { clave: "empresa", ancho: true, mayusculas: true, ejemplo: "INVERSIONES ANNE E.I.R.L." },
       { clave: "ruc", soloNumeros: 11, ejemplo: "20615867161" },
-      { clave: "representante_dni", soloNumeros: 8, ejemplo: "48140469" },
-      { clave: "representante", ancho: true, ejemplo: "Andrés Alexander Nuñez Torres" },
+      { clave: "representante_dni", soloNumeros: 8, ejemplo: "48140469", guia: "Por defecto, el del dueño." },
+      { clave: "representante", ancho: true, ejemplo: "Andrés Alexander Nuñez Torres", guia: "Por defecto firma el dueño; si firma otro, cambia el nombre y el DNI." },
       { clave: "domicilio_empresa", ancho: true, guia: "Con distrito y provincia.", ejemplo: "Mz 6 Lt 4 Santiago Antúnez de Mayolo, Pamplona Alta, San Juan de Miraflores - Lima" },
     ],
   },
@@ -87,7 +87,7 @@ export const PASOS: Paso[] = [
     titulo: "4. Plazo, renta y firma",
     guia: "Lo acordado con el cliente. El monto se escribe solo en letras en el contrato.",
     campos: [
-      { clave: "plazo_meses", soloNumeros: 3, ejemplo: "12" },
+      { clave: "plazo", soloNumeros: 4, guia: "Cuántas cuotas: en días, semanas, quincenas o meses según cómo paga (abajo).", ejemplo: "52" },
       { clave: "inicio", tipo: "fecha" },
       { clave: "renta", tipo: "numero", guia: "En soles, lo que paga en cada depósito (por día, semana, quincena o mes).", ejemplo: "57.80" },
       {

@@ -1,5 +1,6 @@
-import { sumarMeses } from "@/lib/letras";
-import { htmlPlantillaContrato } from "./ContratoPlantilla";
+import { DUENO_REPRESENTANTE } from "@/lib/negocio";
+import { finContrato, htmlPlantillaContrato } from "./ContratoPlantilla";
+export { UNIDAD_PLAZO } from "./ContratoPlantilla";
 import type { Cliente, Contrato, Cuenta, Empresa, Frecuencia, Moto, TipoDoc } from "@/types/database";
 import { DOCUMENTOS, esDocumentoValido } from "@/components/ui/formato";
 
@@ -32,7 +33,8 @@ export interface CamposContrato {
   serie: string;
   motor: string;
   carroceria: string;
-  plazo_meses: string;
+  /** n.º de cuotas: días, semanas, quincenas o meses según la frecuencia */
+  plazo: string;
   inicio: string; // YYYY-MM-DD
   renta: string;
   frecuencia: "DIARIA" | "SEMANAL" | "QUINCENAL" | "MENSUAL";
@@ -45,8 +47,6 @@ export interface CamposContrato {
 const t = (v: unknown) => (v === null || v === undefined ? "" : String(v));
 
 /** Primer llenado: lo que ya está en el sistema (empresa, cliente, moto, contrato y la cuenta BCP de la empresa). */
-/** Meses que dura cada cuota (para el plazo en meses del contrato). */
-export const MESES_POR_CUOTA: Record<Frecuencia, number> = { diario: 1 / 30.44, semanal: 7 / 30.44, quincenal: 0.5, mensual: 1 };
 /** Cómo se escribe la frecuencia en el contrato impreso. */
 export const FRECUENCIA_CONTRATO: Record<Frecuencia, CamposContrato["frecuencia"]> = { diario: "DIARIA", semanal: "SEMANAL", quincenal: "QUINCENAL", mensual: "MENSUAL" };
 
@@ -56,8 +56,9 @@ export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Mot
   return {
     empresa: empresa.nombre.toUpperCase(),
     ruc: t(empresa.ruc),
-    representante: t(empresa.representante),
-    representante_dni: t(empresa.representante_dni),
+    // el dueño firma por defecto; si la empresa tiene otro representante registrado, sale ese
+    representante: t(empresa.representante) || DUENO_REPRESENTANTE.nombre,
+    representante_dni: t(empresa.representante_dni) || DUENO_REPRESENTANTE.dni,
     domicilio_empresa: t(empresa.domicilio),
     cliente: cliente.nombres,
     doc_tipo: cliente.tipo_doc ?? (!cliente.dni || cliente.dni.length === 8 ? "DNI" : "CE"),
@@ -74,7 +75,7 @@ export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Mot
     serie: t(moto.serie),
     motor: t(moto.motor),
     carroceria: t(moto.carroceria),
-    plazo_meses: String(Math.max(1, Math.round(contrato.nro_cuotas * MESES_POR_CUOTA[contrato.frecuencia ?? "semanal"]))),
+    plazo: String(contrato.nro_cuotas),
     inicio: contrato.fecha_inicio,
     renta: String(contrato.monto_cuota),
     frecuencia: FRECUENCIA_CONTRATO[contrato.frecuencia ?? "semanal"],
@@ -93,11 +94,8 @@ export function camposGuardados(base: CamposContrato, guardado: Record<string, s
   return r;
 }
 
-/** Fecha de fin: inicio + plazo en meses. */
-export function fechaFin(c: Pick<CamposContrato, "inicio" | "plazo_meses">): string {
-  const meses = Number(c.plazo_meses);
-  return c.inicio && meses >= 1 ? sumarMeses(c.inicio, meses) : "";
-}
+/** Fecha de fin: inicio + el plazo (en días, semanas, quincenas o meses según la frecuencia). */
+export const fechaFin = finContrato;
 
 const ETIQUETAS: Record<keyof CamposContrato, string> = {
   empresa: "Empresa (razón social)",
@@ -120,7 +118,7 @@ const ETIQUETAS: Record<keyof CamposContrato, string> = {
   serie: "N.º de serie",
   motor: "N.º de motor",
   carroceria: "Carrocería",
-  plazo_meses: "Plazo (meses)",
+  plazo: "Plazo (n.º de cuotas)",
   inicio: "Fecha de inicio",
   renta: "Renta",
   frecuencia: "Frecuencia de la renta",
@@ -150,8 +148,8 @@ export function problemaCampo(c: CamposContrato, k: keyof CamposContrato): strin
       return esDocumentoValido(x, c.doc_tipo) ? null : DOCUMENTOS[c.doc_tipo]?.ayuda ?? "Revisa el número.";
     case "anio":
       return /^\d{4}$/.test(x) && n >= 1990 && n <= 2100 ? null : "Escribe el año con 4 números (ej.: 2026).";
-    case "plazo_meses":
-      return Number.isInteger(n) && n >= 1 && n <= 120 ? null : "Escribe los meses (1 a 120).";
+    case "plazo":
+      return Number.isInteger(n) && n >= 1 && n <= 1000 ? null : "Escribe cuántas cuotas (1 a 1000).";
     case "renta":
       return n > 0 ? null : "Escribe un monto mayor a 0.";
     case "inicial":

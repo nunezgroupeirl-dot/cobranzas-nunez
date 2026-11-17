@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
 import { camposDesdeSistema, camposGuardados } from "@/components/reportes/ContratoImpreso";
-import { Aviso, Cargando, TituloPagina, hoyLima, useCarga } from "@/components/ui";
+import { Aviso, Cargando, TituloPagina, fechaLima, useCarga } from "@/components/ui";
 import { FormularioContrato } from "./_componentes/FormularioContrato";
 
 /** Llenado guiado del contrato de alquiler venta: se completa aquí y el PDF sale listo para firmar. */
@@ -18,7 +18,7 @@ function DocumentoContrato() {
     const moto = motos.find((m) => m.id === contrato.moto_id) ?? null;
     const empresa = empresas.find((e) => e.id === contrato.empresa_id) ?? null;
     if (!cliente || !moto || !empresa) return null;
-    const base = camposDesdeSistema(empresa, cliente, moto, contrato, cuentas, hoyLima());
+    const base = camposDesdeSistema(empresa, cliente, moto, contrato, cuentas, fechaLima());
     return {
       contrato,
       cliente,

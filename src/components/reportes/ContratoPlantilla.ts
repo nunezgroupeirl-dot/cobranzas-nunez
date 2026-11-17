@@ -4,7 +4,8 @@
  *  · con datos (pasarela de la página) → cada raya sale con su dato y las casillas marcadas.
  * Lo único que siempre queda en blanco: las firmas y las huellas.
  */
-import { enteroEnLetras, sumarMeses } from "@/lib/letras";
+import { enteroEnLetras } from "@/lib/letras";
+import { fechaCuota } from "@/lib/supabase/reglas";
 import type { CamposContrato } from "./ContratoImpreso";
 import { VEHICULOS_CONTRATO } from "./vehiculos";
 
@@ -32,6 +33,9 @@ const numero = (x: string | undefined) => {
   const n = Number(t);
   return t && Number.isFinite(n) && n >= 0 ? n : null;
 };
+/** Cómo se escribe el documento del cliente bajo su firma. */
+const DOC_FIRMA: Record<string, string> = { DNI: "DNI", CE: "Carné de Extranjería", CEDULA: "Cédula", PASAPORTE: "Pasaporte" };
+
 const monto = (n: number) => n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /** "S/ 57.80 (cincuenta y siete con 80/100 soles)" en rayas */
 function montoRayas(x: string | undefined) {
@@ -49,8 +53,25 @@ export function partirCuenta(cuenta: string | undefined): { banco: string; numer
   return { banco: m[1].replace(/[·\s-]+$/, "").trim(), numero: m[2].replace(/\s/g, "") };
 }
 
-/** Fin del contrato: inicio + plazo en meses. */
-const fin = (c: Partial<CamposContrato>) => (c.inicio && Number(c.plazo_meses) >= 1 ? sumarMeses(c.inicio, Number(c.plazo_meses)) : "");
+/** El plazo se cuenta en la misma unidad en que se paga: 9 cuotas semanales = 9 semanas. */
+export const UNIDAD_PLAZO: Record<CamposContrato["frecuencia"], { una: string; varias: string; cronograma: "diario" | "semanal" | "quincenal" | "mensual" }> = {
+  DIARIA: { una: "día", varias: "días", cronograma: "diario" },
+  SEMANAL: { una: "semana", varias: "semanas", cronograma: "semanal" },
+  QUINCENAL: { una: "quincena", varias: "quincenas", cronograma: "quincenal" },
+  MENSUAL: { una: "mes", varias: "meses", cronograma: "mensual" },
+};
+
+/** Fin del contrato: inicio + el plazo en su unidad (igual que el cronograma). */
+export function finContrato(c: Partial<Pick<CamposContrato, "inicio" | "plazo" | "frecuencia">>): string {
+  const n = Number(c.plazo);
+  const u = c.frecuencia ? UNIDAD_PLAZO[c.frecuencia] : undefined;
+  return c.inicio && u && Number.isInteger(n) && n >= 1 ? fechaCuota(c.inicio, n, u.cronograma) : "";
+}
+const fin = finContrato;
+const unidadPlazo = (c: Partial<CamposContrato>, lleno: boolean) => {
+  const u = c.frecuencia ? UNIDAD_PLAZO[c.frecuencia] : undefined;
+  return lleno && u ? (Number(c.plazo) === 1 ? u.una : u.varias) : "días / semanas / quincenas / meses";
+};
 
 interface Opciones {
   /** Para el recuadro de vista previa: sin aviso de pantalla ni impresión automática. */
@@ -69,6 +90,8 @@ export function htmlPlantillaContrato(c?: Partial<CamposContrato> | null, { vist
     ? "Contrato llenado. En la ventana de impresión elige la impresora o <b>Guardar como PDF</b>. Solo faltan las firmas y las huellas."
     : "Plantilla en blanco. En la ventana de impresión elige la impresora o <b>Guardar como PDF</b>.";
 
+  // bajo la firma, los datos van en texto simple (como en el contrato firmado); en blanco, con raya
+  const firmaDato = (x: string | undefined, ancho: number) => (lleno && x?.trim() ? esc(x) : r(ancho));
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
 <style>
 @page{size:A4;margin:14mm 16mm 12mm}
@@ -110,7 +133,7 @@ b{font-weight:700}
 
 <p><b>TERCERO.</b> <b>EL ARRENDATARIO</b> está prohibido de traspasar o subarrendar el vehículo materia del presente contrato, total o parcialmente, a favor de terceros, reservándose <b>EL ARRENDADOR</b> el derecho de resolver el presente contrato.</p>
 
-<p class="llenar"><b>CUARTO.</b> El plazo de duración del presente contrato es de ${r(50, d.plazo_meses)} meses previo acuerdo de ambas partes. La validez del presente contrato empieza el ${fechaRayas(d.inicio)} y termina el ${fechaRayas(fin(d))}. Al no cumplir los términos y condiciones del presente contrato, <b>EL ARRENDATARIO</b> queda obligado a devolver el vehículo en las mismas condiciones en que lo recibió, sin necesidad de notificación, requerimiento o aviso previo de <b>EL ARRENDADOR</b>. De incumplir con las cláusulas precedentes, se resolverá el contrato de pleno derecho, amparado en el artículo 1429 del Código Civil.</p>
+<p class="llenar"><b>CUARTO.</b> El plazo de duración del presente contrato es de ${r(50, d.plazo)} ${unidadPlazo(d, lleno)} previo acuerdo de ambas partes. La validez del presente contrato empieza el ${fechaRayas(d.inicio)} y termina el ${fechaRayas(fin(d))}. Al no cumplir los términos y condiciones del presente contrato, <b>EL ARRENDATARIO</b> queda obligado a devolver el vehículo en las mismas condiciones en que lo recibió, sin necesidad de notificación, requerimiento o aviso previo de <b>EL ARRENDADOR</b>. De incumplir con las cláusulas precedentes, se resolverá el contrato de pleno derecho, amparado en el artículo 1429 del Código Civil.</p>
 
 <p><b>QUINTO.</b> <b>EL ARRENDADOR</b> tiene el derecho a modificar el contrato, si se afectan las cláusulas pactadas en el contrato.</p>
 
@@ -126,15 +149,12 @@ b{font-weight:700}
 
 <p class="llenar"><b>DÉCIMO PRIMERO.</b> <b>EL ARRENDATARIO</b> dejará la suma de ${montoRayas(d.inicial)} como inicial para responder por la integridad del vehículo.</p>
 
-<p><b>DÉCIMO SEGUNDO.</b> <b>EL ARRENDADOR</b> tendrá el derecho de quitar el vehículo por el incumplimiento de alguna de las cláusulas anteriores por parte de <b>EL ARRENDATARIO</b>, exonerándose así del derecho de devolución de la inicial.</p>
-
-<p class="llenar" style="margin-top:12px">En señal de conformidad, las partes firman el presente contrato en ${r(120, d.ciudad)}, el ${fechaRayas(d.fecha_firma)}.</p>
+<p class="llenar"><b>DÉCIMO SEGUNDO.</b> <b>EL ARRENDADOR</b> tendrá el derecho de quitar el vehículo por el incumplimiento de alguna de las cláusulas anteriores por parte de <b>EL ARRENDATARIO</b>, exonerando así el derecho de devolución de los ${lleno && Number(d.inicial) > 0 ? `<b>${monto(Number(d.inicial))}</b>` : r(90)} soles de inicial.</p>
 
 <div class="firmas">
-<div class="firma"><div class="linea">Empresa: ${r(165, d.empresa)}<br>RUC: ${r(185, d.ruc)}<br>Gerente: ${r(170, d.representante)}<br>DNI: ${r(175, d.representante_dni)}<br><b>EL ARRENDADOR</b></div><div class="huella">Huella</div></div>
-<div class="firma"><div class="linea">Nombre: ${r(170, d.cliente)}<br>${casilla("DNI", lleno && d.doc_tipo === "DNI")} ${casilla("C.E.", lleno && d.doc_tipo === "CE")} ${casilla("Céd.", lleno && d.doc_tipo === "CEDULA")} ${casilla("Pas.", lleno && d.doc_tipo === "PASAPORTE")} N.º ${r(105, d.doc_numero)}<br><b>EL ARRENDATARIO</b></div><div class="huella">Huella</div></div>
+<div class="firma"><div class="linea">${firmaDato(d.empresa, 200)}<br>Ruc: ${firmaDato(d.ruc, 160)}<br>Gerente: ${firmaDato(d.representante, 200)}<br>DNI: ${firmaDato(d.representante_dni, 160)}<br><b>EL ARRENDADOR</b></div><div class="huella">Huella</div></div>
+<div class="firma"><div class="linea">${firmaDato(d.cliente, 200)}<br>${lleno ? (DOC_FIRMA[d.doc_tipo ?? "DNI"] ?? "DNI") : `${casilla("DNI")} ${casilla("C.E.")} ${casilla("Céd.")} ${casilla("Pas.")}`}<br>N.º ${firmaDato(d.doc_numero, 160)}<br><b>EL ARRENDATARIO</b></div><div class="huella">Huella</div></div>
 </div>
-<div class="pie">Inversiones Nuñez &amp; Asociados — Una vez firmado, escanea o fotografía cada hoja y súbela en la app: Vehículos y contratos → el contrato → “Contrato firmado”.</div>
 ${vistaPrevia ? "" : "<script>window.onload=function(){setTimeout(function(){window.print()},400)}</script>"}
 </body></html>`;
 }

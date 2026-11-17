@@ -2,7 +2,7 @@
 import { vigentes } from "@/lib/placa";
 import { useSearchParams } from "next/navigation";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
-import { Aviso, Cargando, TituloPagina, hoyLima, sumarDias, useCarga } from "@/components/ui";
+import { Aviso, Cargando, TituloPagina, fechaLima, sumarDias, useCarga } from "@/components/ui";
 import { AsistenteContrato } from "./_componentes/AsistenteContrato";
 
 /** Nuevo contrato: se llena la plantilla del contrato paso a paso (cliente, moto, cuotas) y sale lista para firmar. */
@@ -17,7 +17,7 @@ function NuevoContrato() {
   if (cargando && !info) return <Cargando variante="formulario" />;
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!info) return null;
-  const hoy = hoyLima();
+  const hoy = fechaLima();
   return (
     <>
       <TituloPagina
