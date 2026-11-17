@@ -1647,17 +1647,22 @@ create policy "cn borrar documentos" on storage.objects for delete to authentica
   );
 
 
--- Capital prestado y % de interés de cada contrato (solo administradores; el cliente no lo ve:
--- no sale en la consulta pública ni en el PDF del cronograma). La cuota se calcula en la pantalla:
--- capital × (1 + interés) ÷ n.º de cuotas.
+-- Capital prestado e interés de cada contrato (solo administradores; el cliente no lo ve:
+-- no sale en la consulta pública ni en el PDF del cronograma). Hasta S/ 12 000 el interés va en soles por mes
+-- (por defecto S/ 503, se multiplica por los meses del contrato); de más de S/ 12 000, % fijo del capital (por defecto 50 %).
+-- El precio total (capital + interés) y la cuota se calculan en la pantalla y se pueden corregir.
 alter table public.contratos add column if not exists capital numeric(12, 2);
 alter table public.contratos add column if not exists interes_pct numeric(6, 2);
+alter table public.contratos add column if not exists interes_mes numeric(12, 2);
 alter table public.contratos drop constraint if exists contratos_capital_check;
 alter table public.contratos add constraint contratos_capital_check check (
-  (capital is null or capital > 0) and (interes_pct is null or (interes_pct >= 0 and interes_pct <= 500))
+  (capital is null or capital > 0)
+  and (interes_pct is null or (interes_pct >= 0 and interes_pct <= 500))
+  and (interes_mes is null or interes_mes >= 0)
 );
 
-create or replace function public.guardar_capital(p_contrato_id uuid, p_capital numeric, p_interes numeric)
+drop function if exists public.guardar_capital(uuid, numeric, numeric);
+create or replace function public.guardar_capital(p_contrato_id uuid, p_capital numeric, p_interes numeric, p_interes_mes numeric default null)
 returns void
 language plpgsql
 security definer
@@ -1673,16 +1678,19 @@ begin
   if p_interes is not null and (p_interes < 0 or p_interes > 500) then
     raise exception 'El interés debe estar entre 0 %% y 500 %%.';
   end if;
+  if p_interes_mes is not null and p_interes_mes < 0 then
+    raise exception 'El interés por mes no puede ser negativo.';
+  end if;
   update public.contratos
-  set capital = round(p_capital, 2), interes_pct = round(p_interes, 2)
+  set capital = round(p_capital, 2), interes_pct = round(p_interes, 2), interes_mes = round(p_interes_mes, 2)
   where id = p_contrato_id;
   if not found then
     raise exception 'El contrato no existe.';
   end if;
 end;
 $$;
-revoke all on function public.guardar_capital(uuid, numeric, numeric) from public, anon;
-grant execute on function public.guardar_capital(uuid, numeric, numeric) to authenticated;
+revoke all on function public.guardar_capital(uuid, numeric, numeric, numeric) from public, anon;
+grant execute on function public.guardar_capital(uuid, numeric, numeric, numeric) to authenticated;
 
 
 -- =============================================================================

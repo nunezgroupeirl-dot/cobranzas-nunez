@@ -144,15 +144,20 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
 /** Capital prestado, interés y lo que se gana (solo administradores: el cliente no lo ve). */
 function ResumenCapital({ contrato }: { contrato: Contrato }) {
   const capital = contrato.capital ?? 0;
-  const pct = contrato.interes_pct ?? 0;
   const total = contrato.monto_cuota * contrato.nro_cuotas;
+  const interes =
+    contrato.interes_pct != null
+      ? `${contrato.interes_pct.toLocaleString("es-PE")} % fijo`
+      : contrato.interes_mes != null
+        ? `${formatoSoles(contrato.interes_mes)} por mes`
+        : "—";
   return (
     <dl className="mb-4 grid gap-3 rounded-xl border border-borde bg-fondo p-3 sm:grid-cols-4">
       <Dato etiqueta="Capital prestado">
         <span className="num font-bold">{formatoSoles(capital)}</span>
       </Dato>
       <Dato etiqueta="Interés">
-        <span className="num font-bold">{pct.toLocaleString("es-PE")} %</span>
+        <span className="num font-bold">{interes}</span>
       </Dato>
       <Dato etiqueta="Interés en soles">
         <span className="num font-bold">{formatoSoles(total - capital)}</span>

@@ -626,7 +626,7 @@ export function crearDatosSimulados(): Datos {
       guardar(s);
       await Promise.all([...fotos.map((ruta) => borrarArchivoLocal("evidencias", ruta)), ...escaneos.map((ruta) => borrarArchivoLocal("documentos", ruta))]);
     },
-    async guardarCapital(id, capital, interes) {
+    async guardarCapital(id, capital, interes, interesMes) {
       await pausa();
       const s = leer();
       exigirAdmin(s);
@@ -634,7 +634,8 @@ export function crearDatosSimulados(): Datos {
       if (!con) throw new ErrorDatos("NO_EXISTE", "El contrato no existe.");
       if (capital != null && !(capital > 0)) throw new ErrorDatos("DATOS", "El capital debe ser mayor a 0.");
       if (interes != null && (interes < 0 || interes > 500)) throw new ErrorDatos("DATOS", "El interés debe estar entre 0 % y 500 %.");
-      Object.assign(con, { capital, interes_pct: interes });
+      if (interesMes != null && interesMes < 0) throw new ErrorDatos("DATOS", "El interés por mes no puede ser negativo.");
+      Object.assign(con, { capital, interes_pct: interes, interes_mes: interesMes });
       guardar(s);
     },
     async editarContrato(id, c) {

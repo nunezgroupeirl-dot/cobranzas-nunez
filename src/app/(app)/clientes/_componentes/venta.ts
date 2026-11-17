@@ -16,7 +16,8 @@ export interface Venta {
   precio: string;
   inicial: string;
   pagadas: string;
-  /** capital prestado y % de interés (solo administradores; el cliente no lo ve) */
+  /** capital prestado e interés (solo administradores; el cliente no lo ve).
+   *  Hasta S/ 12 000 el interés va en soles por mes; desde más de S/ 12 000, en % fijo del capital. */
   capital: string;
   interes: string;
 }
@@ -51,28 +52,69 @@ export function validarVenta(v: Venta): Record<string, string> {
   const pagadas = v.pagadas ? Number(v.pagadas) : 0;
   if (!Number.isInteger(pagadas) || pagadas < 0 || (nro > 0 && pagadas > nro)) e.pagadas = "No puede ser más que el número de cuotas.";
   if (v.capital.trim() && !(Number(v.capital) > 0)) e.capital = "El capital debe ser mayor a 0.";
-  if (v.capital.trim() && !v.interes.trim()) e.interes = "Escribe el % de interés (puede ser 0).";
-  if (v.interes.trim() && !(Number(v.interes) >= 0 && Number(v.interes) <= 500)) e.interes = "Entre 0 % y 500 %.";
+  if (v.capital.trim() && !v.interes.trim()) e.interes = "Escribe el interés (puede ser 0).";
+  else if (v.interes.trim() && interesEnPorcentaje(v.capital) && !(Number(v.interes) >= 0 && Number(v.interes) <= 500)) e.interes = "Entre 0 % y 500 %.";
+  else if (v.interes.trim() && !(Number(v.interes) >= 0)) e.interes = "Escribe un monto válido.";
   return e;
 }
 
-/** Total a pagar y cuota a partir del capital y el % de interés: capital × (1 + interés) ÷ n.º de cuotas. */
-export function calcularConInteres(capital: string, interes: string, nroCuotas: string) {
-  const c = Number(capital);
-  const i = Number(interes);
-  const n = Number(nroCuotas);
-  if (!(c > 0) || !interes.trim() || !(i >= 0) || !(Number.isInteger(n) && n > 0)) return null;
-  const interesSoles = Math.round(c * i) / 100;
-  const total = Math.round((c + interesSoles) * 100) / 100;
-  return { interesSoles, total, cuota: Math.round((total / n) * 100) / 100 };
+/** Desde este capital el interés es un % fijo del capital (50 % por defecto); hasta aquí, soles por mes (S/ 503 por defecto). */
+export const CAPITAL_TOPE = 12000;
+export const INTERES_MES_DEFECTO = "503";
+export const INTERES_PCT_DEFECTO = "50";
+export const interesEnPorcentaje = (capital: string) => Number(capital) > CAPITAL_TOPE;
+
+/**
+ * Semanas que tiene cada plazo en meses, tal como lo indicó el administrador (1 mes = 4 semanas … 12 meses = 52).
+ * Más de 12 meses: 52 semanas por año, redondeado.
+ */
+export const SEMANAS_POR_MESES: Record<number, number> = { 1: 4, 2: 9, 3: 13, 4: 17, 5: 21, 6: 26, 7: 30, 8: 34, 9: 39, 10: 43, 11: 47, 12: 52 };
+export const semanasDeMeses = (meses: number) => SEMANAS_POR_MESES[meses] ?? Math.round((meses * 52) / 12);
+
+/** N.º de cuotas para un plazo en meses, según la frecuencia de cobro. */
+export function cuotasDelPlazo(meses: number, frecuencia: Frecuencia): number {
+  if (frecuencia === "mensual") return meses;
+  if (frecuencia === "quincenal") return meses * 2;
+  if (frecuencia === "diario") return meses * 30;
+  return semanasDeMeses(meses);
+}
+
+/** Cuántos meses dura el contrato según el n.º de cuotas y la frecuencia (con la tabla de semanas del administrador). */
+export function mesesDelPlazo(nroCuotas: number, frecuencia: Frecuencia): number {
+  if (frecuencia === "semanal") {
+    const exacto = Object.entries(SEMANAS_POR_MESES).find(([, semanas]) => semanas === nroCuotas);
+    if (exacto) return Number(exacto[0]);
+  }
+  const meses = frecuencia === "mensual" ? nroCuotas : frecuencia === "quincenal" ? nroCuotas / 2 : frecuencia === "diario" ? nroCuotas / 30 : (nroCuotas * 12) / 52;
+  return Math.round(meses * 100) / 100;
+}
+
+const centimos = (x: number) => Math.round(x * 100) / 100;
+
+/**
+ * Interés y precio total (capital + interés) a partir del capital:
+ * hasta S/ 12 000 → interés en soles por mes × meses del plazo; más de S/ 12 000 → % fijo del capital.
+ */
+export function calcularConInteres(v: Pick<Venta, "capital" | "interes" | "nro_cuotas" | "frecuencia">) {
+  const c = Number(v.capital);
+  const i = Number(v.interes);
+  const n = Number(v.nro_cuotas);
+  if (!(c > 0) || !v.interes.trim() || !(i >= 0) || !(Number.isInteger(n) && n > 0)) return null;
+  const meses = mesesDelPlazo(n, v.frecuencia);
+  const porcentaje = interesEnPorcentaje(v.capital);
+  const interesSoles = centimos(porcentaje ? (c * i) / 100 : i * meses);
+  const total = centimos(c + interesSoles);
+  return { porcentaje, meses, interesSoles, total, cuota: centimos(total / n) };
 }
 
 /** Si cambió el capital o el interés, se guarda aparte (lo hace solo un administrador). */
-async function guardarCapitalSiCambio(datos: Datos, contratoId: string, v: Venta, antes?: Pick<Contrato, "capital" | "interes_pct">) {
+async function guardarCapitalSiCambio(datos: Datos, contratoId: string, v: Venta, antes?: Pick<Contrato, "capital" | "interes_pct" | "interes_mes">) {
   const capital = v.capital.trim() ? Number(v.capital) : null;
   const interes = v.interes.trim() ? Number(v.interes) : null;
-  if (capital === (antes?.capital ?? null) && interes === (antes?.interes_pct ?? null)) return;
-  await datos.guardarCapital(contratoId, capital, interes);
+  const pct = interesEnPorcentaje(v.capital) ? interes : null;
+  const mes = interesEnPorcentaje(v.capital) ? null : interes;
+  if (capital === (antes?.capital ?? null) && pct === (antes?.interes_pct ?? null) && mes === (antes?.interes_mes ?? null)) return;
+  await datos.guardarCapital(contratoId, capital, pct, mes);
 }
 
 /** Lo ya guardado en un intento anterior: si algo falla a la mitad, al reintentar no se duplica la moto. */
@@ -148,7 +190,7 @@ export function ventaDe(hoy: string, { moto, contrato }: VentaActual): Venta {
           inicial: texto(contrato.inicial),
           pagadas: contrato.cuotas_pagadas_inicial ? String(contrato.cuotas_pagadas_inicial) : "",
           capital: texto(contrato.capital),
-          interes: texto(contrato.interes_pct),
+          interes: texto(contrato.interes_pct ?? contrato.interes_mes),
         }
       : {}),
   };
