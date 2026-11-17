@@ -16,10 +16,15 @@ export interface Venta {
   precio: string;
   inicial: string;
   pagadas: string;
-  /** capital prestado e interés (solo administradores; el cliente no lo ve).
-   *  Hasta S/ 12 000 el interés va en soles por mes; desde más de S/ 12 000, en % fijo del capital. */
+  /** capital e interés (solo administradores; el cliente no lo ve). Se activa con un botón: apagado, la cuota se pone a mano.
+   *  Hasta S/ 12 000 el interés va en soles por mes; desde S/ 12 001, en % anual proporcional al plazo. */
+  usar_capital: boolean;
   capital: string;
   interes: string;
+  /** GPS en soles por mes ("" = sin GPS); se suma al precio total */
+  gps: string;
+  /** fecha en que se entrega el vehículo */
+  fecha_entrega: string;
 }
 
 export const ventaVacia = (hoy: string): Venta => ({
@@ -35,8 +40,11 @@ export const ventaVacia = (hoy: string): Venta => ({
   precio: "",
   inicial: "",
   pagadas: "",
+  usar_capital: false,
   capital: "",
   interes: "",
+  gps: "",
+  fecha_entrega: "",
 });
 
 /** Errores por campo (vacío = todo bien). */
@@ -51,17 +59,23 @@ export function validarVenta(v: Venta): Record<string, string> {
   if (!v.fecha_inicio) e.fecha_inicio = "Elige la fecha de la 1.ª cuota.";
   const pagadas = v.pagadas ? Number(v.pagadas) : 0;
   if (!Number.isInteger(pagadas) || pagadas < 0 || (nro > 0 && pagadas > nro)) e.pagadas = "No puede ser más que el número de cuotas.";
-  if (v.capital.trim() && !(Number(v.capital) > 0)) e.capital = "El capital debe ser mayor a 0.";
+  if (!v.usar_capital) return e;
+  if (!(Number(v.capital) > 0)) e.capital = "Escribe el capital prestado.";
+  if (v.gps.trim() && !(Number(v.gps) >= 0)) e.gps = "Escribe un monto válido.";
   if (v.capital.trim() && !v.interes.trim()) e.interes = "Escribe el interés (puede ser 0).";
   else if (v.interes.trim() && interesEnPorcentaje(v.capital) && !(Number(v.interes) >= 0 && Number(v.interes) <= 500)) e.interes = "Entre 0 % y 500 %.";
   else if (v.interes.trim() && !(Number(v.interes) >= 0)) e.interes = "Escribe un monto válido.";
   return e;
 }
 
-/** Desde este capital el interés es un % fijo del capital (50 % por defecto); hasta aquí, soles por mes (S/ 503 por defecto). */
+/** Hasta este capital el interés va en soles por mes (sugerido: 20 % del capital por mes);
+ *  desde S/ 12 001, en % anual proporcional al plazo (50 % al año por defecto). */
 export const CAPITAL_TOPE = 12000;
-export const INTERES_MES_DEFECTO = "503";
+export const INTERES_MES_PCT_SUGERIDO = 20;
 export const INTERES_PCT_DEFECTO = "50";
+export const GPS_MES_DEFECTO = "3.30";
+/** Interés por mes sugerido para un capital de hasta S/ 12 000 (S/ 1,500 → S/ 300). */
+export const interesMesSugerido = (capital: string) => (Math.round(Number(capital) * INTERES_MES_PCT_SUGERIDO) / 100).toFixed(2);
 export const interesEnPorcentaje = (capital: string) => Number(capital) > CAPITAL_TOPE;
 
 /**
@@ -92,29 +106,48 @@ export function mesesDelPlazo(nroCuotas: number, frecuencia: Frecuencia): number
 const centimos = (x: number) => Math.round(x * 100) / 100;
 
 /**
- * Interés y precio total (capital + interés) a partir del capital:
- * hasta S/ 12 000 → interés en soles por mes × meses del plazo; más de S/ 12 000 → % fijo del capital.
+ * Interés y precio total (capital + interés + GPS) a partir del capital:
+ * hasta S/ 12 000 → interés en soles por mes × meses del plazo;
+ * desde S/ 12 001 → % al año, proporcional al plazo (S/ 15 000 al 50 % en 7 meses = S/ 4 375);
+ * GPS → soles por mes × meses del plazo.
  */
-export function calcularConInteres(v: Pick<Venta, "capital" | "interes" | "nro_cuotas" | "frecuencia">) {
+export function calcularConInteres(v: Pick<Venta, "capital" | "interes" | "nro_cuotas" | "frecuencia" | "gps">) {
   const c = Number(v.capital);
   const i = Number(v.interes);
   const n = Number(v.nro_cuotas);
   if (!(c > 0) || !v.interes.trim() || !(i >= 0) || !(Number.isInteger(n) && n > 0)) return null;
   const meses = mesesDelPlazo(n, v.frecuencia);
   const porcentaje = interesEnPorcentaje(v.capital);
-  const interesSoles = centimos(porcentaje ? (c * i) / 100 : i * meses);
-  const total = centimos(c + interesSoles);
-  return { porcentaje, meses, interesSoles, total, cuota: centimos(total / n) };
+  const interesSoles = centimos(porcentaje ? (((c * i) / 100) * meses) / 12 : i * meses);
+  const gpsSoles = centimos((Number(v.gps) || 0) * meses);
+  const total = centimos(c + interesSoles + gpsSoles);
+  return { porcentaje, meses, interesSoles, gpsSoles, total, cuota: centimos(total / n) };
 }
 
 /** Si cambió el capital o el interés, se guarda aparte (lo hace solo un administrador). */
-async function guardarCapitalSiCambio(datos: Datos, contratoId: string, v: Venta, antes?: Pick<Contrato, "capital" | "interes_pct" | "interes_mes">) {
-  const capital = v.capital.trim() ? Number(v.capital) : null;
-  const interes = v.interes.trim() ? Number(v.interes) : null;
-  const pct = interesEnPorcentaje(v.capital) ? interes : null;
-  const mes = interesEnPorcentaje(v.capital) ? null : interes;
-  if (capital === (antes?.capital ?? null) && pct === (antes?.interes_pct ?? null) && mes === (antes?.interes_mes ?? null)) return;
-  await datos.guardarCapital(contratoId, capital, pct, mes);
+async function guardarCapitalSiCambio(
+  datos: Datos,
+  contratoId: string,
+  v: Venta,
+  antes?: Pick<Contrato, "capital" | "interes_pct" | "interes_mes" | "gps_mes" | "fecha_entrega">,
+) {
+  // con el botón apagado no se guarda capital ni interés (si había, se quitan)
+  const usa = v.usar_capital && v.capital.trim() !== "";
+  const capital = usa ? Number(v.capital) : null;
+  const interes = usa && v.interes.trim() ? Number(v.interes) : null;
+  const pct = usa && interesEnPorcentaje(v.capital) ? interes : null;
+  const mes = usa && !interesEnPorcentaje(v.capital) ? interes : null;
+  const gps = usa && v.gps.trim() ? Number(v.gps) : null;
+  const entrega = v.fecha_entrega || null;
+  if (
+    capital === (antes?.capital ?? null) &&
+    pct === (antes?.interes_pct ?? null) &&
+    mes === (antes?.interes_mes ?? null) &&
+    gps === (antes?.gps_mes ?? null) &&
+    entrega === (antes?.fecha_entrega ?? null)
+  )
+    return;
+  await datos.guardarCapital(contratoId, { capital, interesPct: pct, interesMes: mes, gpsMes: gps, fechaEntrega: entrega });
 }
 
 /** Lo ya guardado en un intento anterior: si algo falla a la mitad, al reintentar no se duplica la moto. */
@@ -189,8 +222,11 @@ export function ventaDe(hoy: string, { moto, contrato }: VentaActual): Venta {
           precio: texto(contrato.precio_total),
           inicial: texto(contrato.inicial),
           pagadas: contrato.cuotas_pagadas_inicial ? String(contrato.cuotas_pagadas_inicial) : "",
+          usar_capital: contrato.capital != null,
           capital: texto(contrato.capital),
           interes: texto(contrato.interes_pct ?? contrato.interes_mes),
+          gps: texto(contrato.gps_mes),
+          fecha_entrega: contrato.fecha_entrega ?? "",
         }
       : {}),
   };

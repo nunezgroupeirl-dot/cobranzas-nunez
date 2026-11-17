@@ -66,5 +66,12 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
     return primerNuevo;
   };
 
-  return { items, cambiar, activar, agregar, quitar, validar, guardarTodos, alguno: items.some((x) => x.activo) };
+  /** Vuelve a poner los vehículos de un borrador (sin errores marcados). */
+  const restaurar = (guardados: Omit<ItemVehiculo, "errores">[]) => {
+    if (!guardados.length) return;
+    // los nuevos reciben clave nueva: así "Registrar otro vehículo" no repite una
+    setItems(guardados.map((x) => ({ ...x, clave: x.actual ? x.clave : claveNueva(), v: { ...ventaVacia(hoyLima()), ...x.v }, errores: {} })));
+  };
+
+  return { items, cambiar, activar, agregar, quitar, validar, guardarTodos, restaurar, alguno: items.some((x) => x.activo) };
 }

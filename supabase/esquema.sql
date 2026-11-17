@@ -1651,21 +1651,29 @@ create policy "cn borrar documentos" on storage.objects for delete to authentica
 
 
 -- Capital prestado e interés de cada contrato (solo administradores; el cliente no lo ve:
--- no sale en la consulta pública ni en el PDF del cronograma). Hasta S/ 12 000 el interés va en soles por mes
--- (por defecto S/ 503, se multiplica por los meses del contrato); de más de S/ 12 000, % fijo del capital (por defecto 50 %).
--- El precio total (capital + interés) y la cuota se calculan en la pantalla y se pueden corregir.
+-- no sale en la consulta pública ni en el PDF del cronograma). Se activa con un botón en la pantalla.
+-- Hasta S/ 12 000: interés en soles por mes × meses del plazo (sugerido 20 % del capital por mes).
+-- Desde S/ 12 001: % al año, proporcional al plazo (50 % por defecto). GPS: soles por mes × meses.
+-- El precio total y la cuota se calculan en la pantalla y se pueden corregir. También la fecha de entrega del vehículo.
 alter table public.contratos add column if not exists capital numeric(12, 2);
 alter table public.contratos add column if not exists interes_pct numeric(6, 2);
 alter table public.contratos add column if not exists interes_mes numeric(12, 2);
+alter table public.contratos add column if not exists gps_mes numeric(8, 2);
+alter table public.contratos add column if not exists fecha_entrega date;
 alter table public.contratos drop constraint if exists contratos_capital_check;
 alter table public.contratos add constraint contratos_capital_check check (
   (capital is null or capital > 0)
   and (interes_pct is null or (interes_pct >= 0 and interes_pct <= 500))
   and (interes_mes is null or interes_mes >= 0)
+  and (gps_mes is null or gps_mes >= 0)
 );
 
 drop function if exists public.guardar_capital(uuid, numeric, numeric);
-create or replace function public.guardar_capital(p_contrato_id uuid, p_capital numeric, p_interes numeric, p_interes_mes numeric default null)
+drop function if exists public.guardar_capital(uuid, numeric, numeric, numeric);
+create or replace function public.guardar_capital(
+  p_contrato_id uuid, p_capital numeric, p_interes numeric, p_interes_mes numeric default null,
+  p_gps_mes numeric default null, p_fecha_entrega date default null
+)
 returns void
 language plpgsql
 security definer
@@ -1684,16 +1692,20 @@ begin
   if p_interes_mes is not null and p_interes_mes < 0 then
     raise exception 'El interés por mes no puede ser negativo.';
   end if;
+  if p_gps_mes is not null and p_gps_mes < 0 then
+    raise exception 'El GPS no puede ser negativo.';
+  end if;
   update public.contratos
-  set capital = round(p_capital, 2), interes_pct = round(p_interes, 2), interes_mes = round(p_interes_mes, 2)
+  set capital = round(p_capital, 2), interes_pct = round(p_interes, 2), interes_mes = round(p_interes_mes, 2),
+      gps_mes = round(p_gps_mes, 2), fecha_entrega = p_fecha_entrega
   where id = p_contrato_id;
   if not found then
     raise exception 'El contrato no existe.';
   end if;
 end;
 $$;
-revoke all on function public.guardar_capital(uuid, numeric, numeric, numeric) from public, anon;
-grant execute on function public.guardar_capital(uuid, numeric, numeric, numeric) to authenticated;
+revoke all on function public.guardar_capital(uuid, numeric, numeric, numeric, numeric, date) from public, anon;
+grant execute on function public.guardar_capital(uuid, numeric, numeric, numeric, numeric, date) to authenticated;
 
 
 -- =============================================================================

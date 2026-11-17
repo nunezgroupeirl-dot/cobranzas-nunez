@@ -4,7 +4,17 @@ import { TIPOS_MOTO } from "@/lib/placa";
 import { fechaCuota } from "@/lib/supabase/reglas";
 import type { Frecuencia } from "@/types/database";
 import { CampoPlaca } from "../../contratos/_componentes/CampoPlaca";
-import { CAPITAL_TOPE, INTERES_MES_DEFECTO, INTERES_PCT_DEFECTO, calcularConInteres, cuotasDelPlazo, interesEnPorcentaje, type Venta } from "./venta";
+import {
+  CAPITAL_TOPE,
+  GPS_MES_DEFECTO,
+  INTERES_MES_PCT_SUGERIDO,
+  INTERES_PCT_DEFECTO,
+  calcularConInteres,
+  cuotasDelPlazo,
+  interesEnPorcentaje,
+  interesMesSugerido,
+  type Venta,
+} from "./venta";
 
 const OPCIONES_FRECUENCIA = FRECUENCIAS.map(({ valor, texto }) => ({ valor, texto }));
 const MARCAS = ["Honda", "Bajaj", "Yamaha", "TVS", "Suzuki", "Ronco", "Wanxin", "Lifan"];
@@ -92,19 +102,26 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
   const cuota = Number(v.cuota);
   const nro = Number(v.nro_cuotas);
   const plural = FRECUENCIAS.find((f) => f.valor === v.frecuencia)?.plural ?? "";
-  const calculo = calcularConInteres(v);
+  const calculo = v.usar_capital ? calcularConInteres(v) : null;
   const enPorcentaje = interesEnPorcentaje(v.capital);
-  // al cambiar el capital, el interés, el n.º de cuotas o la frecuencia, el precio total (capital + interés) y la cuota
-  // se calculan solos; los dos se pueden corregir a mano
+  // con el botón prendido, al cambiar el capital, el interés, el GPS, el n.º de cuotas o la frecuencia,
+  // el precio total y la cuota se calculan solos; los dos se pueden corregir a mano
   const conCalculo = (cambio: Partial<Venta>) => {
     const x = { ...v, ...cambio };
-    // al pasar de un tramo al otro (hasta o más de S/ 12 000), el interés toma el valor por defecto de ese tramo
-    if ("capital" in cambio && (interesEnPorcentaje(x.capital) !== interesEnPorcentaje(v.capital) || !v.interes.trim()) && x.capital.trim())
-      x.interes = interesEnPorcentaje(x.capital) ? INTERES_PCT_DEFECTO : INTERES_MES_DEFECTO;
+    if (!x.usar_capital) {
+      alCambiar(cambio);
+      return;
+    }
+    if ("capital" in cambio && x.capital.trim()) {
+      const cambiaTramo = interesEnPorcentaje(x.capital) !== interesEnPorcentaje(v.capital);
+      // hasta S/ 12 000: si el interés estaba vacío o era el sugerido, sigue al capital (20 % por mes)
+      const eraSugerido = !v.interes.trim() || (!interesEnPorcentaje(v.capital) && v.interes === interesMesSugerido(v.capital));
+      if (cambiaTramo || eraSugerido) x.interes = interesEnPorcentaje(x.capital) ? INTERES_PCT_DEFECTO : interesMesSugerido(x.capital);
+    }
     const r = calcularConInteres(x);
     alCambiar(r ? { ...cambio, interes: x.interes, precio: r.total.toFixed(2), cuota: r.cuota.toFixed(2) } : { ...cambio, interes: x.interes });
   };
-  // el plazo se piensa en meses: llena el n.º de cuotas según la frecuencia (semanal: 1 mes = 4, 2 = 9 … 12 = 52)
+  // el plazo se piensa en meses: llena el n.º de cuotas según la frecuencia (semanal: 1 mes = 4, 2 = 9 … 12 = 52; diario: 30 por mes)
   const cambiarMeses = (texto: string) => {
     const meses = Number(texto);
     if (Number.isInteger(meses) && meses > 0 && meses <= 120) conCalculo({ nro_cuotas: String(cuotasDelPlazo(meses, v.frecuencia)) });
@@ -114,75 +131,120 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
     const n = Number(v.nro_cuotas);
     alCambiar(Number(precio) > 0 && Number.isInteger(n) && n > 0 ? { precio, cuota: (Math.round((Number(precio) / n) * 100) / 100).toFixed(2) } : { precio });
   };
+  const totalCuotas = Math.round(cuota * nro * 100) / 100;
+  const precio = Number(v.precio);
+  // lo que vale es cuota × n.º de cuotas (es lo que se cobra y se imprime); si no cuadra con el precio total, se avisa
+  const descuadre = precio > 0 && cuota > 0 && nro > 0 ? Math.round((totalCuotas - precio) * 100) / 100 : 0;
   return (
     <div className="flex flex-col gap-4">
       <OpcionesBoton etiqueta="Cobro" opciones={OPCIONES_FRECUENCIA} valor={v.frecuencia} alCambiar={(f) => conCalculo({ frecuencia: f as Frecuencia })} obligatorio />
       <div className="rounded-xl border border-borde bg-fondo p-3">
-        <p className="mb-2 text-sm font-semibold">
-          Capital e interés <span className="font-normal text-tenue">· solo lo ven los administradores; el cliente no</span>
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Campo
-            etiqueta="Plazo (meses)"
-            type="number"
-            inputMode="numeric"
-            min="1"
-            max="120"
-            defaultValue={calculo && Number.isInteger(calculo.meses) ? calculo.meses : undefined}
-            key={v.frecuencia}
-            onChange={(e) => cambiarMeses(e.target.value)}
-            ayuda="Llena solo el n.º de cuotas (semanal: 1 mes = 4 … 12 meses = 52)."
-            className="num"
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={v.usar_capital}
+            onChange={(e) => alCambiar({ usar_capital: e.target.checked })}
+            className="size-5 shrink-0 accent-marca"
           />
-          <Campo
-            etiqueta="Capital prestado (S/)"
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            value={v.capital}
-            onChange={(e) => conCalculo({ capital: e.target.value })}
-            error={errores.capital}
-            ayuda="Lo que se le prestó para el vehículo."
-            className="num"
-          />
-          <Campo
-            etiqueta={enPorcentaje ? "Interés (%)" : "Interés por mes (S/)"}
-            type="number"
-            inputMode="decimal"
-            min="0"
-            max={enPorcentaje ? "500" : undefined}
-            step="0.01"
-            value={v.interes}
-            onChange={(e) => conCalculo({ interes: e.target.value })}
-            error={errores.interes}
-            ayuda={
-              enPorcentaje
-                ? `Más de ${formatoSoles(CAPITAL_TOPE)}: ${INTERES_PCT_DEFECTO} % fijo del capital (se puede cambiar).`
-                : `Hasta ${formatoSoles(CAPITAL_TOPE)}: soles por mes, se multiplica por los meses del contrato.`
-            }
-            className="num"
-          />
-          <div className="flex flex-col justify-center rounded-xl bg-superficie px-3 py-2 text-sm">
-            {calculo ? (
-              <>
-                {!calculo.porcentaje && (
+          <span className="text-sm font-semibold">
+            Calcular con capital e interés <span className="font-normal text-tenue">· solo lo ven los administradores; el cliente no</span>
+          </span>
+        </label>
+        {!v.usar_capital && <p className="mt-1 ml-8 text-sm text-tenue">Apagado: la cuota y el n.º de cuotas se ponen a mano.</p>}
+        {v.usar_capital && (
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Campo
+              etiqueta="Plazo (meses)"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max="120"
+              defaultValue={calculo && Number.isInteger(calculo.meses) ? calculo.meses : undefined}
+              key={v.frecuencia}
+              onChange={(e) => cambiarMeses(e.target.value)}
+              ayuda="Llena solo el n.º de cuotas (semanal: 1 mes = 4 … 12 = 52; diario: 30 por mes)."
+              className="num"
+            />
+            <Campo
+              etiqueta="Capital prestado (S/)"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={v.capital}
+              onChange={(e) => conCalculo({ capital: e.target.value })}
+              error={errores.capital}
+              ayuda="Lo que se le prestó para el vehículo."
+              className="num"
+            />
+            <Campo
+              etiqueta={enPorcentaje ? "Interés al año (%)" : "Interés por mes (S/)"}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              max={enPorcentaje ? "500" : undefined}
+              step="0.01"
+              value={v.interes}
+              onChange={(e) => conCalculo({ interes: e.target.value })}
+              error={errores.interes}
+              ayuda={
+                enPorcentaje
+                  ? `Desde ${formatoSoles(CAPITAL_TOPE + 1)}: ${INTERES_PCT_DEFECTO} % al año, proporcional al plazo (se puede cambiar).`
+                  : `Hasta ${formatoSoles(CAPITAL_TOPE)}: soles por mes × meses. Sugerido: ${INTERES_MES_PCT_SUGERIDO} % del capital (se puede cambiar).`
+              }
+              className="num"
+            />
+            <div className="flex flex-col gap-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={v.gps.trim() !== ""}
+                  onChange={(e) => conCalculo({ gps: e.target.checked ? GPS_MES_DEFECTO : "" })}
+                  className="size-5 accent-marca"
+                />
+                Sumar GPS
+              </label>
+              {v.gps.trim() !== "" && (
+                <Campo
+                  etiqueta="GPS por mes (S/)"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={v.gps}
+                  onChange={(e) => conCalculo({ gps: e.target.value })}
+                  error={errores.gps}
+                  className="num"
+                />
+              )}
+            </div>
+            <div className="flex flex-col justify-center rounded-xl bg-superficie px-3 py-2 text-sm sm:col-span-2 lg:col-span-4">
+              {calculo ? (
+                <span className="flex flex-wrap gap-x-5 gap-y-1">
                   <span>
                     Plazo: <b className="num">{calculo.meses.toLocaleString("es-PE")} meses</b>
                   </span>
-                )}
-                <span>
-                  Interés: <b className="num">{formatoSoles(calculo.interesSoles)}</b>
+                  <span>
+                    Capital: <b className="num">{formatoSoles(Number(v.capital))}</b>
+                  </span>
+                  <span>
+                    Interés: <b className="num">{formatoSoles(calculo.interesSoles)}</b>
+                  </span>
+                  {calculo.gpsSoles > 0 && (
+                    <span>
+                      GPS: <b className="num">{formatoSoles(calculo.gpsSoles)}</b>
+                    </span>
+                  )}
+                  <span>
+                    Precio total: <b className="num">{formatoSoles(calculo.total)}</b>
+                  </span>
                 </span>
-                <span>
-                  Precio total: <b className="num">{formatoSoles(calculo.total)}</b>
-                </span>
-              </>
-            ) : (
-              <span className="text-tenue">Escribe el capital y el n.º de cuotas: el precio total y la cuota se calculan solos.</span>
-            )}
+              ) : (
+                <span className="text-tenue">Escribe el plazo y el capital: el precio total y la cuota se calculan solos.</span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Campo
@@ -210,16 +272,25 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
           className="num"
         />
         <Campo etiqueta="Fecha de la 1.ª cuota" type="date" value={v.fecha_inicio} onChange={(e) => alCambiar({ fecha_inicio: e.target.value })} error={errores.fecha_inicio} obligatorio />
-        <Campo
-          etiqueta="Precio total (S/)"
-          type="number"
-          inputMode="decimal"
-          min="0"
-          value={v.precio}
-          onChange={(e) => cambiarPrecio(e.target.value)}
-          ayuda={calculo ? "Capital + interés. Si lo cambias, la cuota se recalcula." : "Opcional"}
-          className="num"
-        />
+        <div className="flex flex-col gap-4">
+          <Campo
+            etiqueta="Precio total (S/)"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            value={v.precio}
+            onChange={(e) => cambiarPrecio(e.target.value)}
+            ayuda={calculo ? "Capital + interés (+ GPS). Si lo cambias, la cuota se recalcula." : "Opcional"}
+            className="num"
+          />
+          <Campo
+            etiqueta="Fecha de entrega del vehículo"
+            type="date"
+            value={v.fecha_entrega}
+            onChange={(e) => alCambiar({ fecha_entrega: e.target.value })}
+            ayuda="El día que se le entrega el vehículo."
+          />
+        </div>
         <Campo etiqueta="Inicial (S/)" type="number" inputMode="decimal" min="0" value={v.inicial} onChange={(e) => alCambiar({ inicial: e.target.value })} ayuda="Opcional" className="num" />
         <Campo
           etiqueta="Cuotas que ya pagó"
@@ -236,7 +307,13 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
       {cuota > 0 && nro > 0 && v.fecha_inicio && (
         <p className="rounded-xl bg-marca-suave px-3 py-2 text-sm font-medium">
           {nro} cuotas {plural} de <b className="num">{formatoSoles(cuota)}</b>: del {formatoFecha(v.fecha_inicio)} al{" "}
-          {formatoFecha(fechaCuota(v.fecha_inicio, nro - 1, v.frecuencia))}. Total <b className="num">{formatoSoles(cuota * nro)}</b>.
+          {formatoFecha(fechaCuota(v.fecha_inicio, nro - 1, v.frecuencia))}. Total <b className="num">{formatoSoles(totalCuotas)}</b>.
+          {descuadre !== 0 && (
+            <span className="mt-1 block text-amarillo">
+              Ojo: el total de las cuotas es {formatoSoles(Math.abs(descuadre))} {descuadre > 0 ? "más" : "menos"} que el precio total ({formatoSoles(precio)}). Lo que se cobra
+              y se imprime es el total de las cuotas.
+            </span>
+          )}
         </p>
       )}
     </div>

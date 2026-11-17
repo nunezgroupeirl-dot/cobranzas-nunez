@@ -5,6 +5,7 @@ import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, DOCUMENTOS, TIPOS_DOC, Tarjeta, esDocumentoValido, limpiarDocumento, mensajeDeError } from "@/components/ui";
 import { subirDocumento } from "@/lib/fotos";
+import { borrarBorrador, guardarArchivosBorrador, guardarBorrador, leerArchivosBorrador, leerBorrador } from "@/lib/borrador";
 import { ubicacionValida } from "@/lib/mapa";
 import type { TipoDoc, Cliente, Documento, TipoDocumento } from "@/types/database";
 import { CampoUbicacion } from "./CampoUbicacion";
@@ -47,6 +48,48 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
   useEffect(() => {
     if (cliente) datos.documentos(cliente.id).then((d) => setExistentes(d.filter((x) => x.tipo !== "contrato")));
   }, [cliente, datos]);
+
+  // Borrador: lo que se va llenando queda guardado en este navegador hasta tocar "Guardar".
+  // Si se sale sin querer a otra sección, al volver aparece todo como estaba (también las fotos elegidas).
+  const claveBorrador = `cn-borrador-cliente:${cliente?.id ?? "nuevo"}`;
+  const [recuperado, setRecuperado] = useState(false);
+  const borradorListo = useRef(false);
+  useEffect(() => {
+    const b = leerBorrador<{ f: typeof f; items: Parameters<typeof vehiculos.restaurar>[0] }>(claveBorrador);
+    if (b) {
+      setF((x) => ({ ...x, ...b.f }));
+      vehiculos.restaurar(b.items ?? []);
+      setRecuperado(true);
+    }
+    leerArchivosBorrador(claveBorrador)
+      .then((a) => {
+        if (Object.keys(a).length) {
+          setPendientes(a as Partial<Record<TipoDocumento, File>>);
+          setRecuperado(true);
+        }
+      })
+      .finally(() => {
+        borradorListo.current = true;
+      });
+    // solo al abrir el formulario
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveBorrador]);
+  useEffect(() => {
+    if (!borradorListo.current || guardando) return;
+    const t = window.setTimeout(() => {
+      guardarBorrador(claveBorrador, { f, items: vehiculos.items.map(({ clave, v, actual, activo }) => ({ clave, v, actual, activo })) });
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [claveBorrador, f, vehiculos.items, guardando]);
+  useEffect(() => {
+    if (!borradorListo.current || guardando) return;
+    void guardarArchivosBorrador(claveBorrador, pendientes as Record<string, File>);
+  }, [claveBorrador, pendientes, guardando]);
+  const descartarBorrador = async () => {
+    if (!confirm("¿Borrar lo que llenaste y empezar de nuevo?")) return;
+    await borrarBorrador(claveBorrador);
+    window.location.reload();
+  };
 
   const poner = (campo: keyof typeof f, valor: string) => setF((x) => ({ ...x, [campo]: valor }));
 
@@ -97,6 +140,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
       hechos.current.cliente = guardado;
       setPendientes({});
       const primerNuevo = await vehiculos.guardarTodos(datos, guardado);
+      await borrarBorrador(claveBorrador); // ya quedó guardado de verdad
       if (despues === "contrato" && !cliente) {
         // "Guardar y llenar el contrato": directo al contrato con todo ya puesto (cliente, vehículo y cuotas)
         router.push(primerNuevo ? `/contratos/documento?id=${primerNuevo}` : `/contratos/nuevo?cliente=${guardado.id}`);
@@ -114,6 +158,14 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
   return (
     <form onSubmit={(e) => guardar(e, cliente ? "solo" : "contrato")} className="flex flex-col gap-4" noValidate>
       {error && <Aviso tipo="error">{error}</Aviso>}
+      {recuperado && (
+        <Aviso tipo="exito">
+          Recuperamos lo que estabas llenando (aún sin guardar).{" "}
+          <button type="button" onClick={descartarBorrador} className="font-semibold underline">
+            Empezar de nuevo
+          </button>
+        </Aviso>
+      )}
       <Tarjeta titulo="Datos del cliente">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">

@@ -122,8 +122,10 @@ export interface Contrato {
   precio_total: number | null; // precio de la moto
   inicial: number | null; // cuota inicial entregada
   capital?: number | null; // capital prestado (solo administradores)
-  interes_pct?: number | null; // capital de más de S/ 12 000: % fijo de interés (solo administradores)
+  interes_pct?: number | null; // capital desde S/ 12 001: % de interés al año, proporcional al plazo (solo administradores)
   interes_mes?: number | null; // capital hasta S/ 12 000: interés en soles por mes (solo administradores)
+  gps_mes?: number | null; // GPS en soles por mes, sumado al precio total (solo administradores)
+  fecha_entrega?: string | null; // fecha en que se entrega el vehículo
   cuotas_pagadas_inicial: number; // cuotas que ya estaban pagadas al pasar del cuaderno
   observaciones: string | null;
   estado: "activo" | "terminado" | "anulado"; // anulado = cerrado por el administrador

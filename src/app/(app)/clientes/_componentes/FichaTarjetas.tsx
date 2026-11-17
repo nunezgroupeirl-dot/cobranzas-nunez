@@ -135,36 +135,49 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
         </div>
       }
     >
-      {contrato && esAdmin && contrato.capital != null && <ResumenCapital contrato={contrato} />}
+      {contrato && esAdmin && (contrato.capital != null || contrato.fecha_entrega) && <ResumenCapital contrato={contrato} />}
       {cuotas && contrato ? <CronogramaConComprobantes contrato={contrato} cuotas={cuotas} alGuardar={alCambiar} /> : <Cargando variante="cuotas" />}
     </Tarjeta>
   );
 }
 
-/** Capital prestado, interés y lo que se gana (solo administradores: el cliente no lo ve). */
+/** Capital, interés, GPS y entrega del vehículo (solo administradores: el cliente no lo ve). */
 function ResumenCapital({ contrato }: { contrato: Contrato }) {
-  const capital = contrato.capital ?? 0;
   const total = contrato.monto_cuota * contrato.nro_cuotas;
   const interes =
     contrato.interes_pct != null
-      ? `${contrato.interes_pct.toLocaleString("es-PE")} % fijo`
+      ? `${contrato.interes_pct.toLocaleString("es-PE")} % al año`
       : contrato.interes_mes != null
         ? `${formatoSoles(contrato.interes_mes)} por mes`
         : "—";
   return (
-    <dl className="mb-4 grid gap-3 rounded-xl border border-borde bg-fondo p-3 sm:grid-cols-4">
-      <Dato etiqueta="Capital prestado">
-        <span className="num font-bold">{formatoSoles(capital)}</span>
-      </Dato>
-      <Dato etiqueta="Interés">
-        <span className="num font-bold">{interes}</span>
-      </Dato>
-      <Dato etiqueta="Interés en soles">
-        <span className="num font-bold">{formatoSoles(total - capital)}</span>
-      </Dato>
-      <Dato etiqueta="Total del cronograma">
-        <span className="num font-bold">{formatoSoles(total)}</span>
-      </Dato>
+    <dl className="mb-4 grid gap-3 rounded-xl border border-borde bg-fondo p-3 sm:grid-cols-3 lg:grid-cols-6">
+      {contrato.capital != null && (
+        <>
+          <Dato etiqueta="Capital prestado">
+            <span className="num font-bold">{formatoSoles(contrato.capital)}</span>
+          </Dato>
+          <Dato etiqueta="Interés">
+            <span className="num font-bold">{interes}</span>
+          </Dato>
+          {contrato.gps_mes != null && (
+            <Dato etiqueta="GPS">
+              <span className="num font-bold">{formatoSoles(contrato.gps_mes)} por mes</span>
+            </Dato>
+          )}
+          <Dato etiqueta="Interés y GPS en soles">
+            <span className="num font-bold">{formatoSoles(total - contrato.capital)}</span>
+          </Dato>
+          <Dato etiqueta="Total del cronograma">
+            <span className="num font-bold">{formatoSoles(total)}</span>
+          </Dato>
+        </>
+      )}
+      {contrato.fecha_entrega && (
+        <Dato etiqueta="Entrega del vehículo">
+          <span className="font-bold">{formatoFecha(contrato.fecha_entrega)}</span>
+        </Dato>
+      )}
     </dl>
   );
 }

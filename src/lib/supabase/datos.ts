@@ -42,6 +42,13 @@ export class ErrorDatos extends Error {
   }
 }
 
+export interface CapitalContrato {
+  capital: number | null;
+  interesPct: number | null;
+  interesMes: number | null;
+  gpsMes: number | null;
+  fechaEntrega: string | null;
+}
 export type NuevoCliente = Omit<Cliente, "id" | "creado_en"> & { id?: string };
 export type NuevaMoto = Omit<Moto, "id"> & { id?: string };
 export interface FiltroPagos {
@@ -109,8 +116,8 @@ export interface Datos {
   eliminarContrato(id: string): Promise<void>;
   /** Cambia cuota, n.º de cuotas o fecha: rehace el cronograma y reaplica los pagos (solo el dueño). */
   editarContrato(id: string, c: EditarContratoArgs): Promise<void>;
-  /** Capital prestado e interés: % fijo (más de S/ 12 000) o soles por mes (hasta S/ 12 000). Solo administradores. */
-  guardarCapital(id: string, capital: number | null, interesPct: number | null, interesMes: number | null): Promise<void>;
+  /** Capital, interés (% anual desde S/ 12 001 o soles por mes hasta S/ 12 000), GPS por mes y fecha de entrega. Solo administradores. */
+  guardarCapital(id: string, c: CapitalContrato): Promise<void>;
   contratos(): Promise<Contrato[]>;
   /** Archivar (ya no está en la empresa) o restaurar un cliente o un vehículo. Solo sin contrato activo. */
   archivar(tipo: "cliente" | "moto", id: string, archivar: boolean, motivo?: string): Promise<void>;
