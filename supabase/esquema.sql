@@ -41,6 +41,11 @@ do $$ begin create type public.tipo_documento as enum ('cliente', 'dni', 'moto',
 exception when duplicate_object then null; end $$;
 alter type public.tipo_documento add value if not exists 'contrato';  -- páginas del contrato firmado
 alter type public.tipo_documento add value if not exists 'dni_reverso';  -- DNI o Carné de Extranjería: 'dni' es el frente
+-- Vehículo por sus 4 lados ('moto' es el frente) y el cliente con su contrato
+alter type public.tipo_documento add value if not exists 'moto_atras';
+alter type public.tipo_documento add value if not exists 'moto_izquierda';
+alter type public.tipo_documento add value if not exists 'moto_derecha';
+alter type public.tipo_documento add value if not exists 'cliente_contrato';
 
 -- activo: se está pagando · terminado: pagó todo · anulado: cerrado por el administrador (moto recuperada, etc.)
 do $$ begin create type public.estado_contrato as enum ('activo', 'terminado', 'anulado');

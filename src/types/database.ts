@@ -10,7 +10,19 @@ export type Puesto = "oficina" | "ruta";
 export type Frecuencia = "diario" | "semanal" | "quincenal" | "mensual";
 export type Color = "verde" | "amarillo" | "rojo";
 export type MedioPago = "yape" | "plin" | "banco" | "agente" | "efectivo";
-export type TipoDocumento = "cliente" | "dni" | "dni_reverso" | "moto" | "fachada" | "recibo" | "otro" | "contrato";
+export type TipoDocumento =
+  | "cliente"
+  | "cliente_contrato"
+  | "dni"
+  | "dni_reverso"
+  | "moto" // frente del vehículo
+  | "moto_atras"
+  | "moto_izquierda"
+  | "moto_derecha"
+  | "fachada"
+  | "recibo"
+  | "otro"
+  | "contrato";
 /** DNI o Carné de Extranjería */
 export type TipoDoc = "DNI" | "CE";
 export type Bucket = "evidencias" | "documentos";

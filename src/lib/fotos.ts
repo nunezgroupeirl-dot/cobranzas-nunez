@@ -128,7 +128,8 @@ export async function comprimirImagen(archivo: File | Blob, { lado: ladoMax = LA
 
 export function rutaArchivo(empresaId: string, clienteId: string, prefijo: string, extension: "jpg" | "pdf" = "jpg"): string {
   const azar = Math.random().toString(36).slice(2, 8);
-  const limpio = prefijo.toLowerCase().replace(/[^a-z]/g, "") || "doc"; // "dni_reverso" → "dnireverso"
+  // "dni_reverso" → "dnireverso"; máximo 12 letras (el Worker de fotos no acepta más): "cliente_contrato" → "clientecontr"
+  const limpio = prefijo.toLowerCase().replace(/[^a-z]/g, "").slice(0, 12) || "doc";
   return `${empresaId}/${clienteId}/${limpio}-${Date.now()}-${azar}.${extension}`;
 }
 

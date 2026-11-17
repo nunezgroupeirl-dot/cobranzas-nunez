@@ -15,10 +15,11 @@ export const FALTANTES = {
   marca_color: { texto: "Marca o color", grupo: "moto" },
   tipo: { texto: "Tipo de vehículo", grupo: "moto" },
   ficha: { texto: "Ficha técnica (serie y motor)", grupo: "moto" },
-  foto_moto: { texto: "Foto del vehículo", grupo: "moto" },
+  foto_moto: { texto: "Fotos del vehículo (4 lados)", grupo: "moto" },
   sin_contrato: { texto: "Cliente nuevo sin contrato", grupo: "contrato" },
   contrato_llenado: { texto: "Contrato sin llenar", grupo: "contrato" },
   contrato_firmado: { texto: "Contrato firmado sin subir", grupo: "contrato" },
+  foto_con_contrato: { texto: "Foto del cliente con el contrato", grupo: "contrato" },
   revisar: { texto: "Revisar en el cuaderno", grupo: "cliente" },
 } as const;
 
@@ -53,6 +54,9 @@ export function notaRevisar(observaciones: string | null | undefined): string | 
   return frases.length ? frases.join(" · ") : null;
 }
 
+/** Las 4 fotos del vehículo ("moto" es el frente). */
+const LADOS_VEHICULO = ["moto", "moto_atras", "moto_izquierda", "moto_derecha"] as const;
+
 interface Entrada {
   estados: EstadoCliente[];
   contratos: Contrato[];
@@ -85,7 +89,7 @@ function faltaDelVehiculo(moto: Moto | null, tiene: Set<string> | undefined): Fa
   // el cuaderno no decía qué vehículo es: hasta elegirlo, el ícono sale genérico
   if (!moto?.tipo || moto.tipo === "Otro") faltan.push("tipo");
   if (!moto?.serie || !moto?.motor) faltan.push("ficha");
-  if (!tiene?.has("moto")) faltan.push("foto_moto");
+  if (!LADOS_VEHICULO.every((t) => tiene?.has(t))) faltan.push("foto_moto");
   return faltan;
 }
 
@@ -114,6 +118,7 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
     const faltan = [...faltaDelCliente(cliente, tiene), ...faltaDelVehiculo(moto, tiene)];
     if (!contrato?.documento) faltan.push("contrato_llenado");
     if (!firmados.has(e.contrato_id)) faltan.push("contrato_firmado");
+    if (!tiene?.has("cliente_contrato")) faltan.push("foto_con_contrato");
     if (nota) faltan.push("revisar");
     if (!faltan.length) continue;
     filas.push({

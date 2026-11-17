@@ -9,14 +9,24 @@ export type TipoFoto = Exclude<TipoDocumento, "contrato">;
 export const GRUPOS_FOTOS: { titulo: string; ayuda: string; espacios: { tipo: TipoFoto; etiqueta: string }[] }[] = [
   {
     titulo: "Cliente",
-    ayuda: "Rostro de frente y el documento por las 2 caras (que se lea el número). Foto o PDF.",
+    ayuda: "El cliente solo, el cliente con su contrato y el documento por las 2 caras (que se lea el número).",
     espacios: [
-      { tipo: "cliente", etiqueta: "Rostro" },
+      { tipo: "cliente", etiqueta: "Cliente solo" },
+      { tipo: "cliente_contrato", etiqueta: "Con el contrato" },
       { tipo: "dni", etiqueta: "Documento (frente)" },
       { tipo: "dni_reverso", etiqueta: "Documento (reverso)" },
     ],
   },
-  { titulo: "Vehículo", ayuda: "Con la placa visible.", espacios: [{ tipo: "moto", etiqueta: "Vehículo" }] },
+  {
+    titulo: "Vehículo",
+    ayuda: "Los 4 lados; de frente y de atrás, con la placa visible.",
+    espacios: [
+      { tipo: "moto", etiqueta: "Frente" },
+      { tipo: "moto_atras", etiqueta: "Atrás" },
+      { tipo: "moto_izquierda", etiqueta: "Izquierda" },
+      { tipo: "moto_derecha", etiqueta: "Derecha" },
+    ],
+  },
   {
     titulo: "Casa",
     ayuda: "Frente de la casa y recibo de luz o agua con la dirección.",
