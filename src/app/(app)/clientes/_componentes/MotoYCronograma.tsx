@@ -162,7 +162,7 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
               defaultValue={calculo && Number.isInteger(calculo.meses) ? calculo.meses : undefined}
               key={v.frecuencia}
               onChange={(e) => cambiarMeses(e.target.value)}
-              ayuda="Llena solo el n.º de cuotas (semanal: 1 mes = 4 … 12 = 52; diario: 30 por mes)."
+              ayuda="Llena solo el n.º de cuotas (semanal: 1 mes = 4 … 12 = 52; diario: 12 meses = 364 días)."
               className="num"
             />
             <Campo
@@ -194,6 +194,9 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
               }
               className="num"
             />
+            {v.frecuencia === "diario" ? (
+              <p className="self-center text-sm text-tenue">En diario el GPS son los días de más: la cuota sale de 30 días por mes y se cobran 364 días al año.</p>
+            ) : (
             <div className="flex flex-col gap-2">
               <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
                 <input
@@ -218,6 +221,7 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
                 />
               )}
             </div>
+            )}
             <div className="flex flex-col justify-center rounded-xl bg-superficie px-3 py-2 text-sm sm:col-span-2 lg:col-span-4">
               {calculo ? (
                 <span className="flex flex-wrap gap-x-5 gap-y-1">
@@ -232,7 +236,7 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
                   </span>
                   {calculo.gpsSoles > 0 && (
                     <span>
-                      GPS: <b className="num">{formatoSoles(calculo.gpsSoles)}</b>
+                      GPS{calculo.diasGps ? ` (${calculo.diasGps} días de más)` : ""}: <b className="num">{formatoSoles(calculo.gpsSoles)}</b>
                     </span>
                   )}
                   <span>

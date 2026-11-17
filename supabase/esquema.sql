@@ -417,9 +417,14 @@ declare
   v_objetivo integer[];
   r_pago     record;
   r_cuota    record;
+  v_descuento numeric;
+  v_fecha_desc date;
 begin
-  select cuotas_pagadas_inicial, estado into v_inicial, v_estado
-  from public.contratos where id = p_contrato_id for update;
+  select c.cuotas_pagadas_inicial, c.estado, coalesce(c.descuento, 0), p.fecha_pago
+  into v_inicial, v_estado, v_descuento, v_fecha_desc
+  from public.contratos c
+  left join public.pagos p on p.id = c.descuento_pago_id and not p.anulado
+  where c.id = p_contrato_id for update of c;
   if not found then
     raise exception 'El contrato no existe.';
   end if;
@@ -461,6 +466,24 @@ begin
       v_resto := v_resto - v_aplica;
     end loop;
   end loop;
+
+  -- cancelación anticipada: el interés de los meses que no se usaron se descuenta de las últimas cuotas
+  -- (no es dinero cobrado: no crea pago ni entra en los reportes de cobranza)
+  if v_descuento > 0 and v_fecha_desc is not null then
+    for r_cuota in
+      select id, monto, monto_pagado from public.cuotas_base
+      where contrato_id = p_contrato_id and monto_pagado < monto
+      order by numero desc
+    loop
+      exit when v_descuento <= 0;
+      v_aplica := least(r_cuota.monto - r_cuota.monto_pagado, v_descuento);
+      update public.cuotas_base
+      set monto_pagado = monto_pagado + v_aplica,
+          fecha_pago = case when monto_pagado + v_aplica >= monto then v_fecha_desc else fecha_pago end
+      where id = r_cuota.id;
+      v_descuento := v_descuento - v_aplica;
+    end loop;
+  end if;
 
   -- Un contrato pagado por completo pasa a "terminado" (y vuelve a "activo" si se anula un pago)
   if v_estado in ('activo', 'terminado') then
@@ -788,6 +811,9 @@ begin
   update public.pagos
   set anulado = true, motivo_anulacion = trim(p_motivo), anulado_por = auth.uid(), anulado_en = now()
   where id = p_pago_id;
+
+  -- si era el pago de una cancelación anticipada, el descuento de intereses también se quita
+  update public.contratos set descuento = 0, descuento_pago_id = null where descuento_pago_id = p_pago_id;
 
   perform public.recalcular_contrato(v_pago.contrato_id);
 end;
@@ -1660,6 +1686,13 @@ alter table public.contratos add column if not exists interes_pct numeric(6, 2);
 alter table public.contratos add column if not exists interes_mes numeric(12, 2);
 alter table public.contratos add column if not exists gps_mes numeric(8, 2);
 alter table public.contratos add column if not exists fecha_entrega date;
+-- Cancelación anticipada: interés de los meses no usados que se descuenta, y el pago con que se canceló
+alter table public.contratos add column if not exists descuento numeric(12, 2) not null default 0;
+alter table public.contratos add column if not exists descuento_pago_id uuid;
+alter table public.contratos drop constraint if exists contratos_descuento_pago_fk;
+alter table public.contratos add constraint contratos_descuento_pago_fk foreign key (descuento_pago_id) references public.pagos (id) on delete set null;
+alter table public.contratos drop constraint if exists contratos_descuento_check;
+alter table public.contratos add constraint contratos_descuento_check check (descuento >= 0);
 alter table public.contratos drop constraint if exists contratos_capital_check;
 alter table public.contratos add constraint contratos_capital_check check (
   (capital is null or capital > 0)
@@ -1706,6 +1739,46 @@ end;
 $$;
 revoke all on function public.guardar_capital(uuid, numeric, numeric, numeric, numeric, date) from public, anon;
 grant execute on function public.guardar_capital(uuid, numeric, numeric, numeric, numeric, date) to authenticated;
+
+-- Cancelación anticipada (solo administradores): el cliente paga todo de una vez antes del plazo y solo se le
+-- cobra el interés de los meses que usó (el monto lo calcula la pantalla y se puede corregir). Se registra el pago
+-- con su voucher como cualquier otro; lo que faltaba se descuenta y el contrato queda terminado.
+-- Si después se anula ese pago, el descuento se quita y el contrato vuelve a estar activo.
+create or replace function public.cancelar_anticipado(
+  p_contrato_id uuid, p_monto numeric, p_fecha_pago date, p_medio public.medio_pago,
+  p_cuenta_id uuid, p_nro_operacion text, p_foto_ruta text, p_foto_hash text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_saldo numeric;
+  v_id    uuid;
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  perform 1 from public.contratos where id = p_contrato_id and estado = 'activo' for update;
+  if not found then
+    raise exception 'Este contrato no está activo.';
+  end if;
+  select coalesce(sum(monto - monto_pagado), 0) into v_saldo from public.cuotas_base where contrato_id = p_contrato_id;
+  if p_monto is null or p_monto <= 0 or p_monto > v_saldo then
+    raise exception 'El monto para cancelar debe ser mayor a 0 y no más de lo que debe (S/ %).', v_saldo;
+  end if;
+
+  select pago_id into v_id
+  from public.registrar_pago(p_contrato_id, p_monto, p_fecha_pago, p_medio, p_cuenta_id, p_nro_operacion, p_foto_ruta, p_foto_hash);
+
+  update public.contratos set descuento = round(v_saldo - p_monto, 2), descuento_pago_id = v_id where id = p_contrato_id;
+  perform public.recalcular_contrato(p_contrato_id);
+  return v_id;
+end;
+$$;
+revoke all on function public.cancelar_anticipado(uuid, numeric, date, public.medio_pago, uuid, text, text, text) from public, anon;
+grant execute on function public.cancelar_anticipado(uuid, numeric, date, public.medio_pago, uuid, text, text, text) to authenticated;
 
 
 -- =============================================================================

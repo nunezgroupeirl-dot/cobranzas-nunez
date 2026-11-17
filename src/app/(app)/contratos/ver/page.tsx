@@ -4,9 +4,10 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
-import { Aviso, Boton, BotonEnlace, Cargando, IconoVehiculo, Placa, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Cargando, IconoVehiculo, Placa, Tarjeta, TituloPagina, formatoSoles, useCarga } from "@/components/ui";
 import { CronogramaConComprobantes } from "../_componentes/ComprobanteAnterior";
 import { ModalCerrarContrato } from "../_componentes/ModalCerrarContrato";
+import { ModalCancelarTotal } from "../_componentes/ModalCancelarTotal";
 import { AccionesDuenoContrato } from "../_componentes/AccionesDuenoContrato";
 import { ResumenContrato } from "../_componentes/ResumenContrato";
 import { TarjetaContratoFirmado } from "../_componentes/TarjetaContratoFirmado";
@@ -17,6 +18,7 @@ export default function VerContrato() {
   const esNuevo = parametros.get("nuevo") === "1";
   const { datos, esAdmin } = useSesion();
   const [cerrando, setCerrando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
 
   const { datos: info, cargando, error, recargar } = useCarga(async () => {
     const contrato = await datos.contrato(id);
@@ -79,6 +81,11 @@ export default function VerContrato() {
                 Cerrar contrato
               </Boton>
             )}
+            {activo && esAdmin && (
+              <Boton variante="secundario" tamano="grande" onClick={() => setCancelando(true)}>
+                Cancelar todo
+              </Boton>
+            )}
             {activo && (
               <BotonEnlace href={`/pagos/nuevo?contrato=${contrato.id}`} tamano="grande">
                 Registrar pago
@@ -92,6 +99,23 @@ export default function VerContrato() {
       <Tarjeta className="mt-4" titulo="Cronograma">
         <CronogramaConComprobantes contrato={contrato} cuotas={cuotas} alGuardar={recargar} />
       </Tarjeta>
+      {contrato.estado === "terminado" && (contrato.descuento ?? 0) > 0 && (
+        <div className="mb-4">
+          <Aviso tipo="exito">Contrato cancelado antes del plazo: se descontaron {formatoSoles(contrato.descuento ?? 0)} de interés no usado.</Aviso>
+        </div>
+      )}
+      {cancelando && (
+        <ModalCancelarTotal
+          abierto={cancelando}
+          contrato={contrato}
+          cuotas={cuotas}
+          alCerrar={() => setCancelando(false)}
+          alTerminar={() => {
+            setCancelando(false);
+            recargar();
+          }}
+        />
+      )}
       <ModalCerrarContrato
         contratoId={contrato.id}
         placa={moto?.placa ?? undefined}

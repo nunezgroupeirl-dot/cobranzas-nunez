@@ -861,6 +861,10 @@ export function crearDatosSimulados(): Datos {
         .map((c) => c.numero);
       return { pago_id: pago.id, cuotas_cubiertas: cubiertas };
     },
+    async cancelarAnticipado() {
+      await pausa();
+      throw new ErrorDatos("SOLO_REAL", "La cancelación anticipada solo funciona con la base de datos real (no en el modo de prueba).");
+    },
     async registrarPagoAnterior(args) {
       await pausa();
       const s = leer();

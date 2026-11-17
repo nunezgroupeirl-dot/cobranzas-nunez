@@ -23,7 +23,7 @@ import type { Contrato, Cuenta, Cuota, MedioPago, Pago } from "@/types/database"
 import { Foto } from "../../clientes/_componentes/Foto";
 import { Cronograma } from "./Cronograma";
 
-const OPCIONES_MEDIO = (Object.keys(NOMBRE_MEDIO) as MedioPago[]).map((m) => ({ valor: m, texto: NOMBRE_MEDIO[m] }));
+export const OPCIONES_MEDIO = (Object.keys(NOMBRE_MEDIO) as MedioPago[]).map((m) => ({ valor: m, texto: NOMBRE_MEDIO[m] }));
 
 /** Pagada según el cuaderno y todavía sin comprobante en el sistema. */
 const sinComprobante = (c: Cuota, contrato: Contrato) => c.numero <= contrato.cuotas_pagadas_inicial && c.monto_pagado >= c.monto && !c.fecha_pago;
@@ -276,7 +276,7 @@ function ModalComprobanteAnterior({ abierto, contrato, cuotas, cuentas, alCerrar
   );
 }
 
-function FotoVoucher({ foto, efectivo, error, alCambiar }: { foto: File | null; efectivo: boolean; error?: string; alCambiar: (f: File | null) => void }) {
+export function FotoVoucher({ foto, efectivo, error, alCambiar }: { foto: File | null; efectivo: boolean; error?: string; alCambiar: (f: File | null) => void }) {
   if (foto)
     return (
       <div className="flex flex-wrap items-end gap-3">

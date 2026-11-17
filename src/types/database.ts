@@ -126,6 +126,8 @@ export interface Contrato {
   interes_mes?: number | null; // capital hasta S/ 12 000: interés en soles por mes (solo administradores)
   gps_mes?: number | null; // GPS en soles por mes, sumado al precio total (solo administradores)
   fecha_entrega?: string | null; // fecha en que se entrega el vehículo
+  descuento?: number; // cancelación anticipada: interés no usado que se descontó
+  descuento_pago_id?: string | null; // el pago con que se canceló
   cuotas_pagadas_inicial: number; // cuotas que ya estaban pagadas al pasar del cuaderno
   observaciones: string | null;
   estado: "activo" | "terminado" | "anulado"; // anulado = cerrado por el administrador
@@ -330,4 +332,16 @@ export interface FiltroAuditoria {
   hasta?: string;
   limite?: number;
   offset?: number;
+}
+
+/** Cancelación anticipada: el pago con que el cliente cancela todo (el resto se descuenta). */
+export interface CancelarAnticipadoArgs {
+  contrato_id: string;
+  monto: number;
+  fecha_pago: string;
+  medio: MedioPago;
+  cuenta_id: string | null;
+  nro_operacion: string | null;
+  foto_ruta: string;
+  foto_hash: string;
 }

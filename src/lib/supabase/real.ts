@@ -474,6 +474,20 @@ export function crearDatosReales(): Datos {
       lanzar(r.error);
       return r.data as string;
     },
+    async cancelarAnticipado(args) {
+      const r = await sb.rpc("cancelar_anticipado", {
+        p_contrato_id: args.contrato_id,
+        p_monto: args.monto,
+        p_fecha_pago: args.fecha_pago,
+        p_medio: args.medio,
+        p_cuenta_id: args.cuenta_id,
+        p_nro_operacion: args.nro_operacion,
+        p_foto_ruta: args.foto_ruta,
+        p_foto_hash: args.foto_hash,
+      });
+      lanzar(r.error);
+      return r.data as string;
+    },
     async anularPago(pagoId, motivo) {
       lanzar((await sb.rpc("anular_pago", { p_pago_id: pagoId, p_motivo: motivo })).error);
     },

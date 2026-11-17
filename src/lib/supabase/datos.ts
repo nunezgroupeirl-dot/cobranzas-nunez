@@ -26,6 +26,7 @@ import type {
   Perfil,
   RegistrarPagoArgs,
   RegistrarPagoAnteriorArgs,
+  CancelarAnticipadoArgs,
   RegistrarPagoResultado,
   ResumenEmpresa,
   CobranzaSemana,
@@ -137,6 +138,8 @@ export interface Datos {
   registrarPago(args: RegistrarPagoArgs): Promise<RegistrarPagoResultado>;
   /** Sube el comprobante de cuotas que el cuaderno ya daba por pagadas (solo el dueño). Devuelve el id del pago. */
   registrarPagoAnterior(args: RegistrarPagoAnteriorArgs): Promise<string>;
+  /** Cancelación anticipada: registra el pago y descuenta el resto; el contrato queda terminado. Solo administradores. */
+  cancelarAnticipado(args: CancelarAnticipadoArgs): Promise<string>;
   anularPago(pagoId: string, motivo: string): Promise<void>;
   // público
   consultaPublica(dni: string): Promise<ConsultaPublica | null>;

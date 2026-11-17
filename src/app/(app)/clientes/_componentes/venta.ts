@@ -89,14 +89,16 @@ export const semanasDeMeses = (meses: number) => SEMANAS_POR_MESES[meses] ?? Mat
 export function cuotasDelPlazo(meses: number, frecuencia: Frecuencia): number {
   if (frecuencia === "mensual") return meses;
   if (frecuencia === "quincenal") return meses * 2;
-  if (frecuencia === "diario") return meses * 30;
+  // diario: se cobran los días de las semanas del plazo (12 meses = 52 semanas = 364 días); la cuota sale de 30 días por mes
+  if (frecuencia === "diario") return semanasDeMeses(meses) * 7;
   return semanasDeMeses(meses);
 }
 
 /** Cuántos meses dura el contrato según el n.º de cuotas y la frecuencia (con la tabla de semanas del administrador). */
 export function mesesDelPlazo(nroCuotas: number, frecuencia: Frecuencia): number {
-  if (frecuencia === "semanal") {
-    const exacto = Object.entries(SEMANAS_POR_MESES).find(([, semanas]) => semanas === nroCuotas);
+  if (frecuencia === "semanal" || frecuencia === "diario") {
+    const por = frecuencia === "diario" ? 7 : 1;
+    const exacto = Object.entries(SEMANAS_POR_MESES).find(([, semanas]) => semanas * por === nroCuotas);
     if (exacto) return Number(exacto[0]);
   }
   const meses = frecuencia === "mensual" ? nroCuotas : frecuencia === "quincenal" ? nroCuotas / 2 : frecuencia === "diario" ? nroCuotas / 30 : (nroCuotas * 12) / 52;
@@ -119,9 +121,16 @@ export function calcularConInteres(v: Pick<Venta, "capital" | "interes" | "nro_c
   const meses = mesesDelPlazo(n, v.frecuencia);
   const porcentaje = interesEnPorcentaje(v.capital);
   const interesSoles = centimos(porcentaje ? (((c * i) / 100) * meses) / 12 : i * meses);
+  if (v.frecuencia === "diario") {
+    // año de 360 días: la cuota es (capital + interés) ÷ (meses × 30); el cliente paga los días de las semanas
+    // del plazo (12 meses = 364) y esos días de más son el GPS
+    const cuota = centimos((c + interesSoles) / Math.max(1, Math.round(meses * 30)));
+    const total = centimos(cuota * n);
+    return { porcentaje, meses, interesSoles, gpsSoles: centimos(total - c - interesSoles), total, cuota, diasGps: Math.max(0, n - Math.round(meses * 30)) };
+  }
   const gpsSoles = centimos((Number(v.gps) || 0) * meses);
   const total = centimos(c + interesSoles + gpsSoles);
-  return { porcentaje, meses, interesSoles, gpsSoles, total, cuota: centimos(total / n) };
+  return { porcentaje, meses, interesSoles, gpsSoles, total, cuota: centimos(total / n), diasGps: 0 };
 }
 
 /** Si cambió el capital o el interés, se guarda aparte (lo hace solo un administrador). */
