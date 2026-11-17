@@ -107,9 +107,36 @@ create index if not exists clientes_empresa_idx on public.clientes (empresa_id);
 alter table public.clientes add column if not exists ubicacion text;
 alter table public.clientes drop constraint if exists clientes_ubicacion_check;
 alter table public.clientes add constraint clientes_ubicacion_check check (ubicacion is null or length(ubicacion) <= 500);
+-- Quién recomendó al cliente o el asesor de tienda que lo mandó a la empresa (texto libre, opcional)
+alter table public.clientes add column if not exists recomendado_por text;
+alter table public.clientes drop constraint if exists clientes_recomendado_por_check;
+alter table public.clientes add constraint clientes_recomendado_por_check check (recomendado_por is null or length(recomendado_por) <= 200);
 alter table public.clientes alter column dni drop not null;
 alter table public.clientes drop constraint if exists clientes_dni_check;
 alter table public.clientes add constraint clientes_dni_check check (dni is null or dni ~ '^\d{8,12}$');
+-- Tipo de documento elegido al registrar: DNI (8 números) o Carné de Extranjería (CE, 8 a 12)
+alter table public.clientes add column if not exists tipo_doc text;
+alter table public.clientes drop constraint if exists clientes_tipo_doc_check;
+alter table public.clientes add constraint clientes_tipo_doc_check check (
+  tipo_doc is null or (tipo_doc = 'DNI' and (dni is null or dni ~ '^\d{8}$')) or tipo_doc = 'CE'
+);
+-- Si llega un número sin tipo (importador, contratos antiguos), se deduce: 8 números = DNI, más = CE
+create or replace function public.tipo_doc_por_defecto()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.dni is not null and new.tipo_doc is null then
+    new.tipo_doc := case when length(new.dni) = 8 then 'DNI' else 'CE' end;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists tipo_doc_por_defecto on public.clientes;
+create trigger tipo_doc_por_defecto before insert or update of dni, tipo_doc on public.clientes
+  for each row execute function public.tipo_doc_por_defecto();
+update public.clientes set tipo_doc = case when length(dni) = 8 then 'DNI' else 'CE' end where dni is not null and tipo_doc is null;
 
 -- Fotos y documentos del cliente (las imágenes viven en el bucket "documentos")
 create table if not exists public.documentos (
@@ -1199,7 +1226,8 @@ select
   greatest(u.fecha, co.ultimo_pago_inicial) as ultimo_pago,
   r.proxima_cuota,
   cl.direccion,
-  cl.ubicacion                           -- para que el cobrador lo encuentre
+  cl.ubicacion,                          -- para que el cobrador lo encuentre
+  cl.tipo_doc
 from public.contratos co
 join public.clientes cl on cl.id = co.cliente_id
 join public.motos m on m.id = co.moto_id

@@ -36,6 +36,7 @@ export async function crearTodo({ datos, b, empresa, cliente, moto, hechos }: En
     empresa_id: base?.empresa_id ?? empresa.id,
     nombres: b.cliente.trim(),
     dni: b.doc_numero.trim(),
+    tipo_doc: b.doc_tipo,
     celular: nulo(b.celular),
     direccion: nulo(b.domicilio_cliente),
     referencia: base?.referencia ?? null,

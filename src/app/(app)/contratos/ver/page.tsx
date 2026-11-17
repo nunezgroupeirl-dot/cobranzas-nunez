@@ -71,7 +71,7 @@ export default function VerContrato() {
         accion={
           <>
             {cliente && moto && (
-              <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} placa={moto.placa} empresa={empresa} contrato={contrato} cuotas={cuotas} />
+              <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} tipoDoc={cliente.tipo_doc} placa={moto.placa ?? (moto.placa_tramite ? "EN TRÁMITE" : null)} empresa={empresa} contrato={contrato} cuotas={cuotas} />
             )}
             <AccionesDuenoContrato contrato={contrato} placa={moto?.placa ?? undefined} clienteId={cliente?.id} alCambiar={recargar} />
             {activo && esAdmin && (

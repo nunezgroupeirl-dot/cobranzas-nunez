@@ -53,7 +53,7 @@ export const PASOS: Paso[] = [
           { valor: "CE", texto: "Carné de Extranjería" },
         ],
       },
-      { clave: "doc_numero", soloNumeros: 12, guia: "DNI: 8 números · Carné: 9 a 12." },
+      { clave: "doc_numero", soloNumeros: 12, guia: "DNI: 8 números · Carné: 8 a 12." },
       { clave: "domicilio_cliente", ancho: true, guia: "Dirección completa con distrito.", ejemplo: "Jr. Bolognesi 133, Carmen de la Legua Reynoso - Callao" },
     ],
   },

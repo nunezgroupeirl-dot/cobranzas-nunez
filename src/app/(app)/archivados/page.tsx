@@ -45,7 +45,7 @@ function Archivados() {
         </Link>
       ),
     },
-    { clave: "dni", titulo: "Documento", celda: (c) => textoDocumento(c.dni) },
+    { clave: "dni", titulo: "Documento", celda: (c) => textoDocumento(c.dni, c.tipo_doc) },
     { clave: "fecha", titulo: "Archivado", celda: (c) => (c.archivado_en ? formatoFechaHora(c.archivado_en) : "—"), ocultarEnMovil: true },
     { clave: "motivo", titulo: "Motivo", celda: (c) => c.archivado_motivo ?? <span className="text-tenue">—</span> },
     {

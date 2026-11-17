@@ -16,6 +16,7 @@ const CAMPOS: Record<string, string> = {
   celular: "celular",
   direccion: "dirección",
   referencia: "referencia",
+  recomendado_por: "recomendado por",
   ubicacion: "ubicación",
   empresa_id: "empresa",
   placa: "placa",

@@ -63,9 +63,10 @@ export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales
       tareas.push(datos.guardarEmpresa({ ...empresa, ...empresaNueva }));
     // El DNI solo se completa si faltaba (el del sistema no se cambia desde aquí)
     const dni = cliente.dni ?? (problemaCampo(f, "doc_numero") ? null : f.doc_numero);
-    if (nulo(f.domicilio_cliente) !== (cliente.direccion ?? null) || dni !== cliente.dni) {
+    const tipo_doc = dni && dni === f.doc_numero ? f.doc_tipo : (cliente.tipo_doc ?? null);
+    if (nulo(f.domicilio_cliente) !== (cliente.direccion ?? null) || dni !== cliente.dni || tipo_doc !== (cliente.tipo_doc ?? null)) {
       const { id, empresa_id, nombres, celular, referencia, ubicacion } = cliente;
-      tareas.push(datos.guardarCliente({ id, empresa_id, nombres, dni, celular, referencia, ubicacion, direccion: nulo(f.domicilio_cliente) }));
+      tareas.push(datos.guardarCliente({ id, empresa_id, nombres, dni, tipo_doc, celular, referencia, ubicacion, direccion: nulo(f.domicilio_cliente) }));
     }
     const ficha = {
       // el tipo elegido en el contrato pasa a la ficha (así el ícono y "Datos pendientes" quedan bien)

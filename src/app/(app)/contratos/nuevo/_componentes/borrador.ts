@@ -124,7 +124,7 @@ export const datosEmpresa = (e: Empresa) => ({
 
 export const datosCliente = (c: Cliente | null) => ({
   cliente: c?.nombres ?? "",
-  doc_tipo: (c?.dni && c.dni.length !== 8 ? "CE" : "DNI") as Borrador["doc_tipo"],
+  doc_tipo: (c?.tipo_doc ?? (c?.dni && c.dni.length !== 8 ? "CE" : "DNI")) as Borrador["doc_tipo"],
   doc_numero: t(c?.dni),
   celular: t(c?.celular),
   domicilio_cliente: t(c?.direccion),

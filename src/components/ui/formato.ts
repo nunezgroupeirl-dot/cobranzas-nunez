@@ -1,4 +1,4 @@
-import type { Color, EstadoCuota, Frecuencia, MedioPago, TipoDocumento } from "@/types/database";
+import type { Color, EstadoCuota, Frecuencia, MedioPago, TipoDoc, TipoDocumento } from "@/types/database";
 
 const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN", minimumFractionDigits: 2 });
 
@@ -47,9 +47,17 @@ export const NOMBRE_DOCUMENTO: Record<TipoDocumento, string> = {
   contrato: "Contrato firmado",
 };
 
-/** DNI (8 números) o Carné de Extranjería (9 a 12). */
-export const esDocumentoValido = (n: string) => /^\d{8,12}$/.test(n);
-export const nombreDocumento = (n: string | null | undefined) => (!n || n.length === 8 ? "DNI" : "C.E.");
+/** DNI (8 números) o Carné de Extranjería (8 a 12). Sin tipo: cualquiera de los dos. */
+export const esDocumentoValido = (n: string, tipo?: TipoDoc | null) =>
+  tipo === "DNI" ? /^\d{8}$/.test(n) : tipo === "CE" ? /^\d{8,12}$/.test(n) : /^\d{8,12}$/.test(n);
+/** Los 2 documentos, para elegir antes de escribir el número */
+export const TIPOS_DOC: { valor: TipoDoc; texto: string }[] = [
+  { valor: "DNI", texto: "DNI" },
+  { valor: "CE", texto: "Carné de Extranjería" },
+];
+/** "DNI" o "C.E." según el tipo elegido; si no hay tipo (datos antiguos), se deduce del largo. */
+export const nombreDocumento = (n: string | null | undefined, tipo?: TipoDoc | null) =>
+  tipo ? (tipo === "CE" ? "C.E." : "DNI") : !n || n.length === 8 ? "DNI" : "C.E.";
 /** Los 2 puestos de trabajador (mismos permisos, distinta pantalla de inicio) */
 export const NOMBRE_PUESTO = { oficina: "Cajero de oficina", ruta: "Cobrador de ruta" } as const;
 export const DETALLE_PUESTO = {
@@ -67,8 +75,8 @@ export const FRECUENCIAS: { valor: Frecuencia; texto: string; plural: string }[]
   { valor: "quincenal", texto: "Quincenal", plural: "quincenales" },
   { valor: "mensual", texto: "Mensual", plural: "mensuales" },
 ];
-/** "DNI 12345678", "C.E. 001234567" o "Sin DNI" (clientes del cuaderno que aún no lo tienen) */
-export const textoDocumento = (n: string | null | undefined) => (n ? `${nombreDocumento(n)} ${n}` : "Sin DNI");
+/** "DNI 12345678", "C.E. 001234567" o "Sin documento" (clientes del cuaderno que aún no lo tienen) */
+export const textoDocumento = (n: string | null | undefined, tipo?: TipoDoc | null) => (n ? `${nombreDocumento(n, tipo)} ${n}` : "Sin documento");
 
 /** Mensajes en palabras simples para los errores de la base de datos */
 export const MENSAJE_ERROR: Record<string, string> = {

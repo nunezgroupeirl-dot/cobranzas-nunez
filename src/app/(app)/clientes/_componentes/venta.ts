@@ -37,7 +37,8 @@ export const ventaVacia = (hoy: string): Venta => ({
 export function validarVenta(v: Venta): Record<string, string> {
   const e: Record<string, string> = {};
   if (!v.tramite && v.placa.trim() && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(v.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
-  if (!v.marca.trim()) e.marca = "Escribe la marca.";
+  // con placa en trámite el vehículo puede no estar entregado: marca y color quedan para después (salen en Datos pendientes)
+  if (!v.tramite && !v.marca.trim()) e.marca = "Escribe la marca.";
   const nro = Number(v.nro_cuotas);
   if (!(Number(v.cuota) > 0)) e.cuota = "Escribe la cuota.";
   if (!Number.isInteger(nro) || nro < 1 || nro > 1000) e.nro_cuotas = "Entre 1 y 1000 cuotas.";

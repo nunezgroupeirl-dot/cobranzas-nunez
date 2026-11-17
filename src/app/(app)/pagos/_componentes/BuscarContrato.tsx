@@ -48,7 +48,7 @@ export function BuscarContrato({ estados, alElegir }: { estados: EstadoCliente[]
               <span>
                 <span className="block font-bold">{e.cliente}</span>
                 <span className="text-sm text-tenue">
-                  <Placa placa={e.placa} tamano="chico" /> · {textoDocumento(e.dni)}
+                  <Placa placa={e.placa} tamano="chico" /> · {textoDocumento(e.dni, e.tipo_doc)}
                 </span>
               </span>
               <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} />

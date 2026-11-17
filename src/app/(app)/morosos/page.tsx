@@ -4,7 +4,7 @@ import { enlaceRuta } from "@/lib/mapa";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, useCarga, type Columna, Placa } from "@/components/ui";
+import { Aviso, Boton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, useCarga, type Columna, Placa } from "@/components/ui";
 import { copiarTexto, descargarExcel, enlaceWhatsApp, textoWhatsApp } from "@/lib/exportar";
 import type { Color, Moroso } from "@/types/database";
 
@@ -29,8 +29,8 @@ export default function PaginaMorosos() {
     descargarExcel(`morosos_${hoyLima()}`, [
       {
         nombre: "Morosos",
-        columnas: ["Placa", "Cliente", "DNI", "Celular", "Empresa", "Semanas de atraso", "Color", "Cuota", "Deuda", "Último pago"],
-        filas: lista.map((m) => [m.placa, m.cliente, m.dni, m.celular, m.empresa, m.semanas_atraso, m.color, m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
+        columnas: ["Placa", "Cliente", "Documento", "Celular", "Empresa", "Semanas de atraso", "Color", "Cuota", "Deuda", "Último pago"],
+        filas: lista.map((m) => [m.placa, m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.empresa, m.semanas_atraso, m.color, m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
       },
     ]);
 

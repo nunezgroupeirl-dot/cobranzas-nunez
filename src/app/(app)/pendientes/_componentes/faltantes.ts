@@ -3,7 +3,7 @@ import type { Cliente, Color, Contrato, Documento, EstadoCliente, Moto } from "@
 
 /** Cada dato que puede faltar en un contrato activo, agrupado por dónde se completa (el contrato va en su propia pestaña). */
 export const FALTANTES = {
-  dni: { texto: "DNI", grupo: "cliente" },
+  dni: { texto: "DNI o Carné", grupo: "cliente" },
   celular: { texto: "Celular", grupo: "cliente" },
   direccion: { texto: "Dirección", grupo: "cliente" },
   ubicacion: { texto: "Ubicación en el mapa", grupo: "cliente" },
@@ -11,6 +11,8 @@ export const FALTANTES = {
   foto_dni: { texto: "Fotos del DNI o Carné (2 caras)", grupo: "cliente" },
   sin_vehiculo: { texto: "Sin vehículo ni cronograma", grupo: "moto" },
   placa: { texto: "Placa", grupo: "moto" },
+  placa_tramite: { texto: "Placa en trámite", grupo: "moto" },
+  marca_color: { texto: "Marca o color", grupo: "moto" },
   tipo: { texto: "Tipo de vehículo", grupo: "moto" },
   ficha: { texto: "Ficha técnica (serie y motor)", grupo: "moto" },
   foto_moto: { texto: "Foto del vehículo", grupo: "moto" },
@@ -77,6 +79,9 @@ function faltaDelCliente(cliente: Cliente | undefined, tiene: Set<string> | unde
 function faltaDelVehiculo(moto: Moto | null, tiene: Set<string> | undefined): Faltante[] {
   const faltan: Faltante[] = [];
   if (!moto?.placa && !moto?.placa_tramite) faltan.push("placa");
+  // en trámite se puede guardar, pero sigue pendiente hasta que salga la placa
+  if (moto && !moto.placa && moto.placa_tramite) faltan.push("placa_tramite");
+  if (moto && (!moto.marca?.trim() || !moto.color?.trim())) faltan.push("marca_color");
   // el cuaderno no decía qué vehículo es: hasta elegirlo, el ícono sale genérico
   if (!moto?.tipo || moto.tipo === "Otro") faltan.push("tipo");
   if (!moto?.serie || !moto?.motor) faltan.push("ficha");

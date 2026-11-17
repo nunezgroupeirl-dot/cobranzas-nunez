@@ -184,7 +184,7 @@ export function BuscadorGlobal() {
                       <span className="min-w-0">
                         <span className="block truncate font-semibold">{e.cliente}</span>
                         <span className="block truncate text-sm text-tenue">
-                          {textoDocumento(e.dni)}
+                          {textoDocumento(e.dni, e.tipo_doc)}
                           {e.empresa ? ` · ${e.empresa}` : ""}
                         </span>
                       </span>

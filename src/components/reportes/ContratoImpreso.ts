@@ -59,7 +59,7 @@ export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Mot
     representante_dni: t(empresa.representante_dni),
     domicilio_empresa: t(empresa.domicilio),
     cliente: cliente.nombres,
-    doc_tipo: !cliente.dni || cliente.dni.length === 8 ? "DNI" : "CE",
+    doc_tipo: cliente.tipo_doc ?? (!cliente.dni || cliente.dni.length === 8 ? "DNI" : "CE"),
     doc_numero: t(cliente.dni),
     domicilio_cliente: t(cliente.direccion),
     vehiculo: vehiculoDeTipo(moto.tipo),
@@ -146,7 +146,7 @@ export function problemaCampo(c: CamposContrato, k: keyof CamposContrato): strin
     case "representante_dni":
       return /^\d{8}$/.test(x) ? null : "El DNI tiene 8 números.";
     case "doc_numero":
-      return c.doc_tipo === "DNI" ? (/^\d{8}$/.test(x) ? null : "El DNI tiene 8 números.") : /^\d{9,12}$/.test(x) ? null : "El Carné de Extranjería tiene de 9 a 12 números.";
+      return c.doc_tipo === "DNI" ? (/^\d{8}$/.test(x) ? null : "El DNI tiene 8 números.") : /^\d{8,12}$/.test(x) ? null : "El Carné de Extranjería tiene de 8 a 12 números.";
     case "anio":
       return /^\d{4}$/.test(x) && n >= 1990 && n <= 2100 ? null : "Escribe el año con 4 números (ej.: 2026).";
     case "plazo_meses":

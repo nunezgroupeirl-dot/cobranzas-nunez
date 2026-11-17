@@ -60,7 +60,7 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
                 alCambiarPlaca={(placa) => alCambiar({ placa })}
                 alCambiarTramite={(tramite) => alCambiar({ tramite })}
               />
-              <Campo etiqueta="Marca" value={v.marca} onChange={(e) => alCambiar({ marca: e.target.value })} error={errores.marca} obligatorio list={`marcas-${id}`} />
+              <Campo etiqueta="Marca" value={v.marca} onChange={(e) => alCambiar({ marca: e.target.value })} error={errores.marca} obligatorio={!v.tramite} list={`marcas-${id}`} />
               <Campo etiqueta="Color" value={v.color} onChange={(e) => alCambiar({ color: e.target.value })} />
               <datalist id={`marcas-${id}`}>
                 {MARCAS.map((m) => (

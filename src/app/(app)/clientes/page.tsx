@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, useCarga, type Columna, Placa, IconoVehiculo } from "@/components/ui";
+import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, textoDocumento, useCarga, type Columna, Placa, IconoVehiculo } from "@/components/ui";
 import type { Color, EstadoCliente, Moto } from "@/types/database";
 import { alfabetico } from "@/lib/texto";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
@@ -37,6 +37,7 @@ export default function PaginaClientes() {
         cliente_id: c.id,
         cliente: c.nombres,
         dni: c.dni,
+        tipo_doc: c.tipo_doc,
         placa: motoDeCliente.get(c.id)?.placa ?? "",
         celular: c.celular,
         empresa_id: c.empresa_id,
@@ -67,7 +68,7 @@ export default function PaginaClientes() {
 
   const columnas: Columna<Fila>[] = [
     { clave: "cliente", titulo: "Cliente", celda: (f) => <span className="font-semibold">{f.cliente}</span> },
-    { clave: "dni", titulo: "DNI", celda: (f) => <span className="num">{f.dni}</span> },
+    { clave: "dni", titulo: "Documento", celda: (f) => (f.dni ? <span className="num">{textoDocumento(f.dni, f.tipo_doc)}</span> : null) },
     {
       clave: "placa",
       titulo: "Vehículo",

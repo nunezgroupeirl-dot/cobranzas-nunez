@@ -36,7 +36,7 @@ export function Foto({ bucket, ruta, titulo, className = "size-24" }: { bucket: 
   return (
     <>
       <button type="button" onClick={() => setAbierta(true)} className={`${className} overflow-hidden rounded-xl border border-borde`} aria-label={`Ampliar ${titulo}`}>
-        {pdf ? <MiniaturaPdf fuente={url} className="size-full" /> : <img src={url} alt={titulo} className="size-full object-cover" />}
+        {pdf ? <MiniaturaPdf fuente={url} className="size-full" /> : <img src={url} alt={titulo} loading="lazy" className="size-full object-cover" />}
       </button>
       <Modal abierto={abierta} titulo={titulo} alCerrar={() => setAbierta(false)} ancho="grande">
         <div className="flex flex-col gap-3">

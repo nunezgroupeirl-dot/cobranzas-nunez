@@ -71,7 +71,7 @@ export default function FichaCliente() {
         sub={
           <span className="flex flex-wrap items-center gap-3">
             <VehiculoCliente moto={motoActiva} placa={estado?.placa} />
-            <DocumentoCliente dni={cliente.dni} />
+            <DocumentoCliente dni={cliente.dni} tipo={cliente.tipo_doc} />
           </span>
         }
         accion={
@@ -117,8 +117,8 @@ export default function FichaCliente() {
   );
 }
 
-function DocumentoCliente({ dni }: { dni: string | null }) {
-  return <span className={dni ? "num" : "font-semibold text-amarillo"}>{textoDocumento(dni)}</span>;
+function DocumentoCliente({ dni, tipo }: { dni: string | null; tipo?: Cliente["tipo_doc"] }) {
+  return <span className={dni ? "num" : "font-semibold text-amarillo"}>{textoDocumento(dni, tipo)}</span>;
 }
 
 /** Con contrato activo: registrar pago (todos). Sin contrato: crear uno (solo el dueño). */

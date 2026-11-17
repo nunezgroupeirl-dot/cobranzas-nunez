@@ -35,7 +35,7 @@ export function ElegirCliente({ clientes, elegido, alElegir }: { clientes: Clien
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-marca-suave p-3">
         <p>
           <span className="block text-sm text-tenue">Cliente ya registrado</span>
-          <b>{elegido.nombres}</b> · {textoDocumento(elegido.dni)}
+          <b>{elegido.nombres}</b> · {textoDocumento(elegido.dni, elegido.tipo_doc)}
         </p>
         <button type="button" onClick={() => alElegir(null)} className="min-h-10 rounded-lg px-3 text-sm font-semibold text-marca hover:bg-white">
           Es otro cliente (nuevo)
@@ -68,7 +68,7 @@ export function ElegirCliente({ clientes, elegido, alElegir }: { clientes: Clien
                 className="flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border border-borde px-3 text-left hover:border-marca"
               >
                 <span className="font-semibold">{c.nombres}</span>
-                <span className="num text-sm text-tenue">{textoDocumento(c.dni)}</span>
+                <span className="num text-sm text-tenue">{textoDocumento(c.dni, c.tipo_doc)}</span>
               </button>
             </li>
           ))}

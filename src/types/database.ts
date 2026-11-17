@@ -11,6 +11,8 @@ export type Frecuencia = "diario" | "semanal" | "quincenal" | "mensual";
 export type Color = "verde" | "amarillo" | "rojo";
 export type MedioPago = "yape" | "plin" | "banco" | "agente" | "efectivo";
 export type TipoDocumento = "cliente" | "dni" | "dni_reverso" | "moto" | "fachada" | "recibo" | "otro" | "contrato";
+/** DNI o Carné de Extranjería */
+export type TipoDoc = "DNI" | "CE";
 export type Bucket = "evidencias" | "documentos";
 
 /* ---------- Tablas ---------- */
@@ -46,10 +48,14 @@ export interface Cliente {
   id: string;
   empresa_id: string;
   nombres: string;
-  dni: string | null; // DNI (8 números) o Carné de Extranjería (9 a 12); null = falta (importado del cuaderno)
+  dni: string | null; // número del DNI (8) o del Carné de Extranjería (8 a 12); null = falta (importado del cuaderno)
+  /** qué documento es; se elige antes de escribir el número */
+  tipo_doc?: TipoDoc | null;
   celular: string | null;
   direccion: string | null;
   referencia: string | null;
+  /** quién lo recomendó o el asesor de tienda que lo mandó a la empresa */
+  recomendado_por?: string | null;
   ubicacion?: string | null; // enlace de Google Maps o "lat,lng"
   creado_en: string;
   /** ya no está en la empresa: no sale en las listas, sí en Archivados e Histórico */
@@ -161,6 +167,7 @@ export interface EstadoCliente {
   proxima_cuota: string | null;
   direccion?: string | null;
   ubicacion?: string | null;
+  tipo_doc?: TipoDoc | null;
 }
 
 /** v_morosos: igual a v_estado_cliente, solo con atraso, de más a menos semanas */

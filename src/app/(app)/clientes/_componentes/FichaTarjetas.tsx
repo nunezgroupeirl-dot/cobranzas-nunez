@@ -5,6 +5,7 @@ import type { Cliente, Contrato, Cuota, Documento, EstadoCliente, Moto } from "@
 import { CronogramaConComprobantes } from "../../contratos/_componentes/ComprobanteAnterior";
 import { Foto } from "./Foto";
 import { MapaCliente } from "./MapaCliente";
+import { GRUPOS_FOTOS } from "./secciones";
 
 /** Semáforo, deuda y próxima cuota del contrato elegido. */
 export function TarjetaSituacion({ estado, deudaTotal }: { estado?: EstadoCliente; deudaTotal: number }) {
@@ -47,6 +48,9 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
         <div className="sm:col-span-2">
           <Dato etiqueta="Referencia">{cliente.referencia}</Dato>
         </div>
+        <div className="sm:col-span-2">
+          <Dato etiqueta="Recomendado por">{cliente.recomendado_por}</Dato>
+        </div>
       </dl>
       <h3 className="mt-4 mb-2 font-bold">Ubicación</h3>
       <MapaCliente ubicacion={cliente.ubicacion} direccion={cliente.direccion} nombre={cliente.nombres} />
@@ -54,13 +58,26 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
       {documentos.length === 0 ? (
         <p className="text-sm text-tenue">Sin fotos todavía.</p>
       ) : (
-        <div className="flex flex-wrap gap-3">
-          {documentos.map((d) => (
-            <figure key={d.id} className="flex flex-col gap-1">
-              <Foto bucket="documentos" ruta={d.ruta} titulo={`${NOMBRE_DOCUMENTO[d.tipo]} · ${cliente.nombres}`} className="size-24" />
-              <figcaption className="max-w-24 text-xs leading-tight font-semibold">{NOMBRE_DOCUMENTO[d.tipo]}</figcaption>
-            </figure>
-          ))}
+        <div className="flex flex-col gap-3">
+          {GRUPOS_FOTOS.map((g) => {
+            const espacios = g.espacios.flatMap((e) => documentos.filter((d) => d.tipo === e.tipo).map((d) => ({ d, etiqueta: e.etiqueta })));
+            if (!espacios.length) return null;
+            return (
+              <section key={g.titulo} className="flex flex-col gap-1.5">
+                <h4 className="text-sm font-semibold text-tenue">{g.titulo}</h4>
+                <div className="flex flex-wrap gap-2">
+                  {espacios.map(({ d, etiqueta }) => (
+                    <figure key={d.id} className="flex w-20 flex-col gap-1">
+                      <Foto bucket="documentos" ruta={d.ruta} titulo={`${NOMBRE_DOCUMENTO[d.tipo]} · ${cliente.nombres}`} className="size-20" />
+                      <figcaption className="truncate text-xs leading-tight font-semibold" title={etiqueta}>
+                        {etiqueta}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
     </Tarjeta>
@@ -106,7 +123,7 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
             </select>
           )}
           {contrato && cuotas && moto && (
-            <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} placa={moto.placa} empresa={empresa ?? ""} contrato={contrato} cuotas={cuotas} />
+            <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} tipoDoc={cliente.tipo_doc} placa={moto.placa ?? (moto.placa_tramite ? "EN TRÁMITE" : null)} empresa={empresa ?? ""} contrato={contrato} cuotas={cuotas} />
           )}
           {contrato && soloLectura !== true && (
             <BotonEnlace href={`/contratos/ver?id=${contrato.id}`} variante="fantasma" tamano="chico">
