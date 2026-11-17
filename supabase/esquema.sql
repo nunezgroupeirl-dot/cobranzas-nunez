@@ -1647,6 +1647,44 @@ create policy "cn borrar documentos" on storage.objects for delete to authentica
   );
 
 
+-- Capital prestado y % de interés de cada contrato (solo administradores; el cliente no lo ve:
+-- no sale en la consulta pública ni en el PDF del cronograma). La cuota se calcula en la pantalla:
+-- capital × (1 + interés) ÷ n.º de cuotas.
+alter table public.contratos add column if not exists capital numeric(12, 2);
+alter table public.contratos add column if not exists interes_pct numeric(6, 2);
+alter table public.contratos drop constraint if exists contratos_capital_check;
+alter table public.contratos add constraint contratos_capital_check check (
+  (capital is null or capital > 0) and (interes_pct is null or (interes_pct >= 0 and interes_pct <= 500))
+);
+
+create or replace function public.guardar_capital(p_contrato_id uuid, p_capital numeric, p_interes numeric)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  if p_capital is not null and p_capital <= 0 then
+    raise exception 'El capital debe ser mayor a 0.';
+  end if;
+  if p_interes is not null and (p_interes < 0 or p_interes > 500) then
+    raise exception 'El interés debe estar entre 0 %% y 500 %%.';
+  end if;
+  update public.contratos
+  set capital = round(p_capital, 2), interes_pct = round(p_interes, 2)
+  where id = p_contrato_id;
+  if not found then
+    raise exception 'El contrato no existe.';
+  end if;
+end;
+$$;
+revoke all on function public.guardar_capital(uuid, numeric, numeric) from public, anon;
+grant execute on function public.guardar_capital(uuid, numeric, numeric) to authenticated;
+
+
 -- =============================================================================
 -- 10. PERMISOS
 -- =============================================================================

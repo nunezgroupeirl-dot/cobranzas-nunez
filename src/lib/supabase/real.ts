@@ -305,6 +305,9 @@ export function crearDatosReales(): Datos {
         borrarFotos("documentos", (escaneos.data ?? []).map((d) => d.ruta as string)),
       ]);
     },
+    async guardarCapital(id, capital, interes) {
+      lanzar((await sb.rpc("guardar_capital", { p_contrato_id: id, p_capital: capital, p_interes: interes })).error);
+    },
     async editarContrato(id, c) {
       lanzar(
         (

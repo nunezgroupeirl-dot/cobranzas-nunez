@@ -119,6 +119,8 @@ export interface Contrato {
   frecuencia?: Frecuencia; // cada cuánto se paga (por defecto semanal)
   precio_total: number | null; // precio de la moto
   inicial: number | null; // cuota inicial entregada
+  capital?: number | null; // capital prestado (solo administradores)
+  interes_pct?: number | null; // % de interés sobre el capital (solo administradores)
   cuotas_pagadas_inicial: number; // cuotas que ya estaban pagadas al pasar del cuaderno
   observaciones: string | null;
   estado: "activo" | "terminado" | "anulado"; // anulado = cerrado por el administrador

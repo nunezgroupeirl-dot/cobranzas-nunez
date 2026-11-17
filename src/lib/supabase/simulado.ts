@@ -626,6 +626,17 @@ export function crearDatosSimulados(): Datos {
       guardar(s);
       await Promise.all([...fotos.map((ruta) => borrarArchivoLocal("evidencias", ruta)), ...escaneos.map((ruta) => borrarArchivoLocal("documentos", ruta))]);
     },
+    async guardarCapital(id, capital, interes) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      const con = s.contratos.find((x) => x.id === id);
+      if (!con) throw new ErrorDatos("NO_EXISTE", "El contrato no existe.");
+      if (capital != null && !(capital > 0)) throw new ErrorDatos("DATOS", "El capital debe ser mayor a 0.");
+      if (interes != null && (interes < 0 || interes > 500)) throw new ErrorDatos("DATOS", "El interés debe estar entre 0 % y 500 %.");
+      Object.assign(con, { capital, interes_pct: interes });
+      guardar(s);
+    },
     async editarContrato(id, c) {
       await pausa();
       const s = leer();

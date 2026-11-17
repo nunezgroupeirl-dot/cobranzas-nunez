@@ -1,5 +1,6 @@
 "use client";
 import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
+import { useSesion } from "@/components/layout/Sesion";
 import { BotonEnlace, Cargando, Dato, EtiquetaSemaforo, NOMBRE_DOCUMENTO, NOMBRE_ESTADO_CONTRATO, Tarjeta, formatoFecha, formatoSoles } from "@/components/ui";
 import type { Cliente, Contrato, Cuota, Documento, EstadoCliente, Moto } from "@/types/database";
 import { CronogramaConComprobantes } from "../../contratos/_componentes/ComprobanteAnterior";
@@ -100,6 +101,7 @@ interface PropsCronograma {
 
 /** Cronograma del contrato elegido, con selector si el cliente tiene varios. */
 export function TarjetaCronograma({ cliente, empresa, contratos, motos, contratoActivo, alElegir, cuotas, soloLectura, alCambiar }: PropsCronograma) {
+  const { esAdmin } = useSesion();
   const contrato = contratos.find((c) => c.id === contratoActivo);
   const moto = contrato ? motos.get(contrato.moto_id) : undefined;
   return (
@@ -133,7 +135,31 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
         </div>
       }
     >
+      {contrato && esAdmin && contrato.capital != null && <ResumenCapital contrato={contrato} />}
       {cuotas && contrato ? <CronogramaConComprobantes contrato={contrato} cuotas={cuotas} alGuardar={alCambiar} /> : <Cargando variante="cuotas" />}
     </Tarjeta>
+  );
+}
+
+/** Capital prestado, interés y lo que se gana (solo administradores: el cliente no lo ve). */
+function ResumenCapital({ contrato }: { contrato: Contrato }) {
+  const capital = contrato.capital ?? 0;
+  const pct = contrato.interes_pct ?? 0;
+  const total = contrato.monto_cuota * contrato.nro_cuotas;
+  return (
+    <dl className="mb-4 grid gap-3 rounded-xl border border-borde bg-fondo p-3 sm:grid-cols-4">
+      <Dato etiqueta="Capital prestado">
+        <span className="num font-bold">{formatoSoles(capital)}</span>
+      </Dato>
+      <Dato etiqueta="Interés">
+        <span className="num font-bold">{pct.toLocaleString("es-PE")} %</span>
+      </Dato>
+      <Dato etiqueta="Interés en soles">
+        <span className="num font-bold">{formatoSoles(total - capital)}</span>
+      </Dato>
+      <Dato etiqueta="Total del cronograma">
+        <span className="num font-bold">{formatoSoles(total)}</span>
+      </Dato>
+    </dl>
   );
 }

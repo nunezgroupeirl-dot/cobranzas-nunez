@@ -4,7 +4,7 @@ import { TIPOS_MOTO } from "@/lib/placa";
 import { fechaCuota } from "@/lib/supabase/reglas";
 import type { Frecuencia } from "@/types/database";
 import { CampoPlaca } from "../../contratos/_componentes/CampoPlaca";
-import type { Venta } from "./venta";
+import { calcularConInteres, type Venta } from "./venta";
 
 const OPCIONES_FRECUENCIA = FRECUENCIAS.map(({ valor, texto }) => ({ valor, texto }));
 const MARCAS = ["Honda", "Bajaj", "Yamaha", "TVS", "Suzuki", "Ronco", "Wanxin", "Lifan"];
@@ -92,9 +92,62 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
   const cuota = Number(v.cuota);
   const nro = Number(v.nro_cuotas);
   const plural = FRECUENCIAS.find((f) => f.valor === v.frecuencia)?.plural ?? "";
+  const calculo = calcularConInteres(v.capital, v.interes, v.nro_cuotas);
+  // al cambiar el capital, el interés o el n.º de cuotas, la cuota se calcula sola (se puede corregir a mano)
+  const conCalculo = (cambio: Partial<Venta>) => {
+    const x = { ...v, ...cambio };
+    const r = calcularConInteres(x.capital, x.interes, x.nro_cuotas);
+    alCambiar(r ? { ...cambio, cuota: r.cuota.toFixed(2) } : cambio);
+  };
   return (
     <div className="flex flex-col gap-4">
       <OpcionesBoton etiqueta="Cobro" opciones={OPCIONES_FRECUENCIA} valor={v.frecuencia} alCambiar={(f) => alCambiar({ frecuencia: f as Frecuencia })} obligatorio />
+      <div className="rounded-xl border border-borde bg-fondo p-3">
+        <p className="mb-2 text-sm font-semibold">
+          Capital e interés <span className="font-normal text-tenue">· solo lo ven los administradores; el cliente no</span>
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Campo
+            etiqueta="Capital prestado (S/)"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={v.capital}
+            onChange={(e) => conCalculo({ capital: e.target.value })}
+            error={errores.capital}
+            ayuda="Lo que se le prestó para el vehículo."
+            className="num"
+          />
+          <Campo
+            etiqueta="Interés (%)"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            max="500"
+            step="0.01"
+            value={v.interes}
+            onChange={(e) => conCalculo({ interes: e.target.value })}
+            error={errores.interes}
+            ayuda="Se puede cambiar en cada contrato."
+            className="num"
+          />
+          <div className="flex flex-col justify-center rounded-xl bg-superficie px-3 py-2 text-sm">
+            {calculo ? (
+              <>
+                <span>
+                  Interés: <b className="num">{formatoSoles(calculo.interesSoles)}</b>
+                </span>
+                <span>
+                  Total a pagar: <b className="num">{formatoSoles(calculo.total)}</b>
+                </span>
+              </>
+            ) : (
+              <span className="text-tenue">Escribe el capital, el interés y el n.º de cuotas: la cuota se calcula sola.</span>
+            )}
+          </div>
+        </div>
+      </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Campo
           etiqueta="Cuota (S/)"
@@ -115,7 +168,7 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
           min="1"
           max="1000"
           value={v.nro_cuotas}
-          onChange={(e) => alCambiar({ nro_cuotas: e.target.value })}
+          onChange={(e) => conCalculo({ nro_cuotas: e.target.value })}
           error={errores.nro_cuotas}
           obligatorio
           className="num"

@@ -16,6 +16,9 @@ export interface Venta {
   precio: string;
   inicial: string;
   pagadas: string;
+  /** capital prestado y % de interés (solo administradores; el cliente no lo ve) */
+  capital: string;
+  interes: string;
 }
 
 export const ventaVacia = (hoy: string): Venta => ({
@@ -31,6 +34,8 @@ export const ventaVacia = (hoy: string): Venta => ({
   precio: "",
   inicial: "",
   pagadas: "",
+  capital: "",
+  interes: "",
 });
 
 /** Errores por campo (vacío = todo bien). */
@@ -45,7 +50,29 @@ export function validarVenta(v: Venta): Record<string, string> {
   if (!v.fecha_inicio) e.fecha_inicio = "Elige la fecha de la 1.ª cuota.";
   const pagadas = v.pagadas ? Number(v.pagadas) : 0;
   if (!Number.isInteger(pagadas) || pagadas < 0 || (nro > 0 && pagadas > nro)) e.pagadas = "No puede ser más que el número de cuotas.";
+  if (v.capital.trim() && !(Number(v.capital) > 0)) e.capital = "El capital debe ser mayor a 0.";
+  if (v.capital.trim() && !v.interes.trim()) e.interes = "Escribe el % de interés (puede ser 0).";
+  if (v.interes.trim() && !(Number(v.interes) >= 0 && Number(v.interes) <= 500)) e.interes = "Entre 0 % y 500 %.";
   return e;
+}
+
+/** Total a pagar y cuota a partir del capital y el % de interés: capital × (1 + interés) ÷ n.º de cuotas. */
+export function calcularConInteres(capital: string, interes: string, nroCuotas: string) {
+  const c = Number(capital);
+  const i = Number(interes);
+  const n = Number(nroCuotas);
+  if (!(c > 0) || !interes.trim() || !(i >= 0) || !(Number.isInteger(n) && n > 0)) return null;
+  const interesSoles = Math.round(c * i) / 100;
+  const total = Math.round((c + interesSoles) * 100) / 100;
+  return { interesSoles, total, cuota: Math.round((total / n) * 100) / 100 };
+}
+
+/** Si cambió el capital o el interés, se guarda aparte (lo hace solo un administrador). */
+async function guardarCapitalSiCambio(datos: Datos, contratoId: string, v: Venta, antes?: Pick<Contrato, "capital" | "interes_pct">) {
+  const capital = v.capital.trim() ? Number(v.capital) : null;
+  const interes = v.interes.trim() ? Number(v.interes) : null;
+  if (capital === (antes?.capital ?? null) && interes === (antes?.interes_pct ?? null)) return;
+  await datos.guardarCapital(contratoId, capital, interes);
 }
 
 /** Lo ya guardado en un intento anterior: si algo falla a la mitad, al reintentar no se duplica la moto. */
@@ -77,6 +104,7 @@ export async function guardarVenta(datos: Datos, cliente: Cliente, v: Venta, hec
     inicial: opcional(v.inicial),
     cuotas_pagadas: v.pagadas ? Number(v.pagadas) : 0,
   });
+  await guardarCapitalSiCambio(datos, hechos.contratoId, v);
   return hechos.contratoId;
 }
 
@@ -119,6 +147,8 @@ export function ventaDe(hoy: string, { moto, contrato }: VentaActual): Venta {
           precio: texto(contrato.precio_total),
           inicial: texto(contrato.inicial),
           pagadas: contrato.cuotas_pagadas_inicial ? String(contrato.cuotas_pagadas_inicial) : "",
+          capital: texto(contrato.capital),
+          interes: texto(contrato.interes_pct),
         }
       : {}),
   };
@@ -157,4 +187,5 @@ export async function guardarEdicion(datos: Datos, cliente: Cliente, v: Venta, a
     nuevo.frecuencia !== (contrato.frecuencia ?? "semanal");
   // rehace el cronograma y vuelve a aplicar los pagos ya registrados
   if (cambio) await datos.editarContrato(contrato.id, { ...nuevo, observaciones: contrato.observaciones });
+  await guardarCapitalSiCambio(datos, contrato.id, v, contrato);
 }

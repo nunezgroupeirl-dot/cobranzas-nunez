@@ -109,6 +109,8 @@ export interface Datos {
   eliminarContrato(id: string): Promise<void>;
   /** Cambia cuota, n.º de cuotas o fecha: rehace el cronograma y reaplica los pagos (solo el dueño). */
   editarContrato(id: string, c: EditarContratoArgs): Promise<void>;
+  /** Capital prestado y % de interés (solo administradores). */
+  guardarCapital(id: string, capital: number | null, interes: number | null): Promise<void>;
   contratos(): Promise<Contrato[]>;
   /** Archivar (ya no está en la empresa) o restaurar un cliente o un vehículo. Solo sin contrato activo. */
   archivar(tipo: "cliente" | "moto", id: string, archivar: boolean, motivo?: string): Promise<void>;
