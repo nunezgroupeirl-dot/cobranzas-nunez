@@ -943,8 +943,10 @@ export function crearDatosSimulados(): Datos {
           let despues = 0; // lo pagado después de cada pago
           return {
             placa: s.motos.find((m) => m.id === con.moto_id)?.placa ?? null,
+            tramite: !!s.motos.find((m) => m.id === con.moto_id)?.placa_tramite,
             cuota: con.monto_cuota,
             frecuencia: con.frecuencia ?? "semanal",
+            nro_cuotas: con.nro_cuotas,
             total,
             pagado,
             saldo: total - pagado,

@@ -1,10 +1,11 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { Marca } from "@/components/layout/Marca";
-import { Aviso, Boton, EtiquetaSemaforo, Placa, formatoFecha, formatoSoles, hoyLima, mensajeDeError } from "@/components/ui";
+import { Aviso, Boton, EtiquetaSemaforo, Placa, diaSemana, fechaLarga, formatoFecha, formatoSoles, hoyLima, mensajeDeError } from "@/components/ui";
 import { Bloque } from "@/components/ui/Esqueleto";
 import { getDatos } from "@/lib/supabase/datos";
 import { colorPorSemanas } from "@/lib/supabase/reglas";
+import { mesesDelPlazo } from "@/app/(app)/clientes/_componentes/venta";
 import type { ConsultaPublica, ContratoPublico } from "@/types/database";
 
 /** Un contrato del cliente: lo que debe hoy, lo que le falta en total, su próximo pago y cómo baja su saldo. */
@@ -43,15 +44,46 @@ function ConsultandoEsqueleto() {
   );
 }
 
+const UNIDAD: Record<ContratoPublico["frecuencia"], [string, string]> = {
+  diario: ["día", "días"],
+  semanal: ["semana", "semanas"],
+  quincenal: ["quincena", "quincenas"],
+  mensual: ["mes", "meses"],
+};
+
+/** "S/ 379.40 × 52 semanas · 12 meses": cuánto paga, cuántas veces y en cuánto tiempo. */
+function PlanDePago({ c }: { c: ContratoPublico }) {
+  const n = c.nro_cuotas ?? 0;
+  if (!n) return null;
+  const [una, varias] = UNIDAD[c.frecuencia] ?? UNIDAD.semanal;
+  const meses = mesesDelPlazo(n, c.frecuencia);
+  const textoMeses = Number.isInteger(meses) ? String(meses) : meses.toLocaleString("es-PE", { maximumFractionDigits: 1 });
+  return (
+    <div className="border-b border-borde bg-marca-suave px-5 py-3">
+      <p className="text-sm font-semibold text-tenue">Tu plan de pago</p>
+      <p className="num text-2xl leading-tight font-bold">
+        {formatoSoles(c.cuota)} × {n} {n === 1 ? una : varias}
+        {c.frecuencia !== "mensual" && (
+          <span className="text-marca">
+            {" "}
+            · {textoMeses} {meses === 1 ? "mes" : "meses"}
+          </span>
+        )}
+      </p>
+    </div>
+  );
+}
+
 function TarjetaContrato({ c }: { c: ContratoPublico }) {
   const alDia = c.deuda === 0;
   const avance = c.total > 0 ? Math.min(100, Math.round((c.pagado / c.total) * 100)) : 0;
   return (
     <section className="overflow-hidden rounded-2xl border border-borde bg-superficie">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-borde px-5 py-4">
-        <Placa placa={c.placa} tamano="grande" />
+        <Placa placa={c.placa} tramite={c.tramite} tamano="grande" />
         <EtiquetaSemaforo color={colorPorSemanas(c.semanas_atraso)} semanas={c.semanas_atraso} grande />
       </div>
+      <PlanDePago c={c} />
 
       <div className="grid gap-4 px-5 py-5 sm:grid-cols-2">
         <div>
@@ -64,7 +96,8 @@ function TarjetaContrato({ c }: { c: ContratoPublico }) {
           {c.proxima_fecha ? (
             <>
               <p className="num text-2xl font-bold">{formatoSoles(c.proxima_monto ?? c.cuota)}</p>
-              <p className="text-tenue">el {formatoFecha(c.proxima_fecha)}</p>
+              <p className="text-lg leading-tight font-bold text-marca">el {fechaLarga(c.proxima_fecha)}</p>
+              {c.frecuencia === "semanal" && <p className="mt-1 font-extrabold text-marca uppercase">Pagas todos los {diaSemana(c.proxima_fecha)}</p>}
             </>
           ) : (
             <p className="font-semibold">Ya no tienes cuotas por vencer.</p>
@@ -96,7 +129,9 @@ function TarjetaContrato({ c }: { c: ContratoPublico }) {
               // el saldo después de cada pago es distinto en cada fila: sirve de clave
               <li key={`${p.fecha}-${p.saldo}`} className="flex items-center justify-between gap-3 py-2.5">
                 <span>
-                  <span className="block font-semibold">{formatoFecha(p.fecha)}</span>
+                  <span className="block font-semibold">
+                    <span className="capitalize">{diaSemana(p.fecha)}</span> {formatoFecha(p.fecha)}
+                  </span>
                   <span className="num block text-sm text-tenue">Pagaste {formatoSoles(p.monto)}</span>
                 </span>
                 <span className="text-right">

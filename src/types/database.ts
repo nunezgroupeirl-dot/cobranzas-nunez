@@ -297,6 +297,10 @@ export interface ContratoPublico {
   placa: string | null;
   cuota: number;
   frecuencia: Frecuencia;
+  /** cuántas cuotas tiene el contrato (para "S/ 379.40 × 52 semanas · 12 meses") */
+  nro_cuotas?: number;
+  /** la placa todavía está en trámite */
+  tramite?: boolean;
   total: number; // todo el contrato
   pagado: number;
   saldo: number; // lo que le falta pagar en total

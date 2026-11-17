@@ -1421,7 +1421,7 @@ as $$
     where upper(p_dni) ~ '^[A-Z0-9]{5,12}$' and cl.dni = upper(p_dni)
   ),
   contratos as (
-    select co.id, co.monto_cuota, co.frecuencia, co.creado_en, m.placa,
+    select co.id, co.monto_cuota, co.frecuencia, co.creado_en, co.nro_cuotas, m.placa, m.placa_tramite,
            (select sum(cu.monto) from public.cuotas cu where cu.contrato_id = co.id) as total,
            (select sum(cu.monto_pagado) from public.cuotas cu where cu.contrato_id = co.id) as pagado
     from cliente c
@@ -1438,6 +1438,8 @@ as $$
         'placa', k.placa,
         'cuota', k.monto_cuota,
         'frecuencia', k.frecuencia,
+        'nro_cuotas', k.nro_cuotas,
+        'tramite', coalesce(k.placa_tramite, false),
         'total', coalesce(k.total, 0),
         'pagado', coalesce(k.pagado, 0),
         'saldo', coalesce(k.total, 0) - coalesce(k.pagado, 0),
