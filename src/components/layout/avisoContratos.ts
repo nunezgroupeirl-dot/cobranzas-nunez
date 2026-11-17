@@ -30,3 +30,26 @@ export function useContratosPorFirmar(ruta: string): number {
 
   return esAdmin ? cuantos : 0;
 }
+
+/**
+ * Cuántos vehículos hay que inmovilizar (4 semanas de deuda o más): número rojo junto a "¿Quién no paga?"
+ * y aviso arriba de cada pantalla. Solo para administradores.
+ */
+export function usePorInmovilizar(ruta: string): number {
+  const { datos, esAdmin } = useSesion();
+  const [cuantos, setCuantos] = useState(0);
+  const ultima = useRef(0);
+
+  useEffect(() => {
+    if (!esAdmin) return;
+    const ahora = Date.now();
+    if (ahora - ultima.current < ESPERA_MS && !ruta.startsWith("/morosos") && !ruta.startsWith("/pagos")) return;
+    ultima.current = ahora;
+    datos
+      .porInmovilizar()
+      .then(setCuantos)
+      .catch(() => undefined);
+  }, [datos, esAdmin, ruta]);
+
+  return esAdmin ? cuantos : 0;
+}

@@ -126,6 +126,9 @@ export function aplicarPagos<C extends Omit<Cuota, "estado" | "monto_pagado" | "
   });
 }
 
+/** Con 4 semanas de deuda (la cuota impaga más antigua venció hace más de 21 días) se inmoviliza el vehículo. Igual que en la base. */
+export const DIAS_INMOVILIZAR = 21;
+
 export function colorPorSemanas(semanas: number): Color {
   if (semanas <= 0) return "verde";
   if (semanas <= 3) return "amarillo";
@@ -140,7 +143,8 @@ export function resumenCuotas(cuotas: Pick<Cuota, "estado" | "monto" | "monto_pa
     cuotas.filter((c) => c.estado === "vencida" || c.estado === "pendiente").reduce((s, c) => s + aCentimos(c.monto) - aCentimos(c.monto_pagado), 0),
   );
   const proxima = cuotas.find((c) => c.estado === "pendiente");
-  return { semanas_atraso, deuda, saldo, color: colorPorSemanas(semanas_atraso), proxima_cuota: proxima?.fecha_vencimiento ?? null };
+  const vencida_desde = vencidas.map((c) => c.fecha_vencimiento).sort()[0] ?? null;
+  return { semanas_atraso, deuda, saldo, color: colorPorSemanas(semanas_atraso), proxima_cuota: proxima?.fecha_vencimiento ?? null, vencida_desde };
 }
 
 /** Validaciones que hace registrar_pago antes de guardar. */

@@ -51,17 +51,23 @@ export const NOMBRE_DOCUMENTO: Record<TipoDocumento, string> = {
   contrato: "Contrato firmado",
 };
 
-/** DNI (8 números) o Carné de Extranjería (8 a 12). Sin tipo: cualquiera de los dos. */
-export const esDocumentoValido = (n: string, tipo?: TipoDoc | null) =>
-  tipo === "DNI" ? /^\d{8}$/.test(n) : tipo === "CE" ? /^\d{8,12}$/.test(n) : /^\d{8,12}$/.test(n);
-/** Los 2 documentos, para elegir antes de escribir el número */
-export const TIPOS_DOC: { valor: TipoDoc; texto: string }[] = [
-  { valor: "DNI", texto: "DNI" },
-  { valor: "CE", texto: "Carné de Extranjería" },
-];
-/** "DNI" o "C.E." según el tipo elegido; si no hay tipo (datos antiguos), se deduce del largo. */
+/** Cada documento: su nombre, cómo se abrevia, qué número acepta y cómo se explica (la misma regla está en la base). */
+export const DOCUMENTOS: Record<TipoDoc, { texto: string; corto: string; regla: RegExp; ayuda: string; letras: boolean; largo: number }> = {
+  DNI: { texto: "DNI", corto: "DNI", regla: /^\d{8}$/, ayuda: "El DNI tiene 8 números.", letras: false, largo: 8 },
+  CE: { texto: "Carné de Extranjería", corto: "C.E.", regla: /^\d{8,12}$/, ayuda: "El Carné de Extranjería tiene de 8 a 12 números.", letras: false, largo: 12 },
+  CEDULA: { texto: "Cédula", corto: "Cédula", regla: /^\d{5,12}$/, ayuda: "La cédula tiene de 5 a 12 números.", letras: false, largo: 12 },
+  PASAPORTE: { texto: "Pasaporte", corto: "Pasaporte", regla: /^[A-Z0-9]{6,12}$/, ayuda: "El pasaporte tiene de 6 a 12 letras o números.", letras: true, largo: 12 },
+};
+/** Sin tipo (datos antiguos): 8 a 12 números. */
+export const esDocumentoValido = (n: string, tipo?: TipoDoc | null) => (tipo ? DOCUMENTOS[tipo].regla.test(n) : /^\d{8,12}$/.test(n));
+/** Deja solo lo que el documento acepta: números (y letras en mayúscula si es pasaporte). */
+export const limpiarDocumento = (n: string, tipo?: TipoDoc | null) =>
+  tipo && DOCUMENTOS[tipo].letras ? n.toUpperCase().replace(/[^A-Z0-9]/g, "") : n.replace(/\D/g, "");
+/** Los documentos para elegir antes de escribir el número */
+export const TIPOS_DOC: { valor: TipoDoc; texto: string }[] = (Object.keys(DOCUMENTOS) as TipoDoc[]).map((valor) => ({ valor, texto: DOCUMENTOS[valor].texto }));
+/** "DNI", "C.E.", "Cédula" o "Pasaporte" según el tipo elegido; si no hay tipo (datos antiguos), se deduce del largo. */
 export const nombreDocumento = (n: string | null | undefined, tipo?: TipoDoc | null) =>
-  tipo ? (tipo === "CE" ? "C.E." : "DNI") : !n || n.length === 8 ? "DNI" : "C.E.";
+  tipo ? DOCUMENTOS[tipo].corto : !n || n.length === 8 ? "DNI" : "C.E.";
 /** Los 2 puestos de trabajador (mismos permisos, distinta pantalla de inicio) */
 export const NOMBRE_PUESTO = { oficina: "Cajero de oficina", ruta: "Cobrador de ruta" } as const;
 export const DETALLE_PUESTO = {

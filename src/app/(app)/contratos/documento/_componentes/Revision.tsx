@@ -1,13 +1,14 @@
 "use client";
 import type { ReactNode } from "react";
-import { Tarjeta, formatoFecha } from "@/components/ui";
+import { DOCUMENTOS, Tarjeta, formatoFecha } from "@/components/ui";
+import type { TipoDoc } from "@/types/database";
 import type { Paso } from "./pasos";
 
 /** Cómo se lee un dato en la revisión (fechas y montos en formato del Perú). */
 function textoDato(k: string, x: string): string {
   if (!x.trim()) return "—";
   if (k === "inicio" || k === "fecha_firma") return formatoFecha(x);
-  if (k === "doc_tipo") return x === "CE" ? "Carné de Extranjería" : "DNI";
+  if (k === "doc_tipo") return DOCUMENTOS[x as TipoDoc]?.texto ?? "DNI";
   if (k === "renta" || k === "inicial" || k === "precio") return `S/ ${Number(x).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return x;
 }

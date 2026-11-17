@@ -118,12 +118,17 @@ alter table public.clientes drop constraint if exists clientes_recomendado_por_c
 alter table public.clientes add constraint clientes_recomendado_por_check check (recomendado_por is null or length(recomendado_por) <= 200);
 alter table public.clientes alter column dni drop not null;
 alter table public.clientes drop constraint if exists clientes_dni_check;
-alter table public.clientes add constraint clientes_dni_check check (dni is null or dni ~ '^\d{8,12}$');
--- Tipo de documento elegido al registrar: DNI (8 números) o Carné de Extranjería (CE, 8 a 12)
+alter table public.clientes add constraint clientes_dni_check check (dni is null or dni ~ '^[A-Z0-9]{5,12}$');  -- el pasaporte puede llevar letras
+-- Tipo de documento elegido al registrar: DNI (8 números), Carné de Extranjería (CE, 8 a 12),
+-- Cédula (5 a 12 números) o Pasaporte (6 a 12 letras o números)
 alter table public.clientes add column if not exists tipo_doc text;
 alter table public.clientes drop constraint if exists clientes_tipo_doc_check;
 alter table public.clientes add constraint clientes_tipo_doc_check check (
-  tipo_doc is null or (tipo_doc = 'DNI' and (dni is null or dni ~ '^\d{8}$')) or tipo_doc = 'CE'
+  tipo_doc is null
+  or (tipo_doc = 'DNI' and (dni is null or dni ~ '^\d{8}$'))
+  or (tipo_doc = 'CE' and (dni is null or dni ~ '^\d{8,12}$'))
+  or (tipo_doc = 'CEDULA' and (dni is null or dni ~ '^\d{5,12}$'))
+  or (tipo_doc = 'PASAPORTE' and (dni is null or dni ~ '^[A-Z0-9]{6,12}$'))
 );
 -- Si llega un número sin tipo (importador, contratos antiguos), se deduce: 8 números = DNI, más = CE
 create or replace function public.tipo_doc_por_defecto()
@@ -1199,7 +1204,8 @@ with resumen as (
     cu.contrato_id,
     count(*) filter (where cu.estado = 'vencida') as semanas_atraso,
     coalesce(sum(cu.monto - cu.monto_pagado) filter (where cu.estado = 'vencida'), 0) as deuda,
-    min(cu.fecha_vencimiento) filter (where cu.estado = 'pendiente') as proxima_cuota
+    min(cu.fecha_vencimiento) filter (where cu.estado = 'pendiente') as proxima_cuota,
+    min(cu.fecha_vencimiento) filter (where cu.estado = 'vencida') as vencida_desde
   from public.cuotas cu
   join public.contratos ca on ca.id = cu.contrato_id and ca.estado = 'activo'
   group by cu.contrato_id
@@ -1232,7 +1238,12 @@ select
   r.proxima_cuota,
   cl.direccion,
   cl.ubicacion,                          -- para que el cobrador lo encuentre
-  cl.tipo_doc
+  cl.tipo_doc,
+  r.vencida_desde,                       -- vencimiento de la cuota impaga más antigua
+  -- 4 semanas de deuda (la cuota impaga más antigua venció hace más de 21 días): hay que inmovilizar el vehículo.
+  -- Se mide por fecha para que valga igual en contratos diarios, semanales, quincenales y mensuales;
+  -- en los semanales coincide con el rojo (4 cuotas vencidas).
+  coalesce(r.vencida_desde < public.hoy_lima() - 21, false) as inmovilizar
 from public.contratos co
 join public.clientes cl on cl.id = co.cliente_id
 join public.motos m on m.id = co.moto_id
@@ -1378,7 +1389,7 @@ as $$
   with cliente as (
     select cl.id, cl.nombres
     from public.clientes cl
-    where p_dni ~ '^\d{8,12}$' and cl.dni = p_dni
+    where upper(p_dni) ~ '^[A-Z0-9]{5,12}$' and cl.dni = upper(p_dni)
   ),
   contratos as (
     select co.id, co.monto_cuota, co.frecuencia, co.creado_en, m.placa,

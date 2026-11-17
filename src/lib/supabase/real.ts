@@ -340,6 +340,11 @@ export function crearDatosReales(): Datos {
       lanzar(r.error);
       return (r.data ?? []) as Auditoria[];
     },
+    async porInmovilizar() {
+      const r = await sb.from("v_morosos").select("contrato_id", { count: "exact", head: true }).eq("inmovilizar", true);
+      lanzar(r.error);
+      return r.count ?? 0;
+    },
     async contratosPorFirmar() {
       // sin traer los contratos completos: ids de los activos llenados, cuántos faltan llenar y cuáles tienen el firmado
       const [llenados, sinLlenar, firmados, clientes, conContrato] = await Promise.all([

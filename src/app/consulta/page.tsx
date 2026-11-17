@@ -2,11 +2,47 @@
 import { useState, type FormEvent } from "react";
 import { Marca } from "@/components/layout/Marca";
 import { Aviso, Boton, EtiquetaSemaforo, Placa, formatoFecha, formatoSoles, hoyLima, mensajeDeError } from "@/components/ui";
+import { Bloque } from "@/components/ui/Esqueleto";
 import { getDatos } from "@/lib/supabase/datos";
 import { colorPorSemanas } from "@/lib/supabase/reglas";
 import type { ConsultaPublica, ContratoPublico } from "@/types/database";
 
 /** Un contrato del cliente: lo que debe hoy, lo que le falta en total, su próximo pago y cómo baja su saldo. */
+/** Mientras se consulta: la forma del resultado en gris con brillo (en lugar del círculo que gira). */
+function ConsultandoEsqueleto() {
+  return (
+    <div role="status" aria-live="polite" aria-busy="true" className="flex animate-[aparecer_.25s_ease-out] flex-col gap-4">
+      <span className="sr-only">Consultando…</span>
+      <div className="flex flex-col gap-2 px-1">
+        <Bloque className="h-4 w-40" />
+        <Bloque className="h-8 w-56" />
+      </div>
+      <section className="overflow-hidden rounded-2xl border border-borde bg-superficie">
+        <div className="flex items-center justify-between gap-3 border-b border-borde px-5 py-4">
+          <Bloque className="h-12 w-40 rounded-xl" />
+          <Bloque className="h-9 w-32 rounded-full" />
+        </div>
+        <div className="grid gap-4 px-5 py-5 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Bloque className="h-4 w-24" />
+            <Bloque className="h-12 w-44" />
+            <Bloque className="h-4 w-32" />
+          </div>
+          <div className="flex flex-col gap-2 rounded-xl bg-fondo p-4">
+            <Bloque className="h-4 w-32" />
+            <Bloque className="h-8 w-28" />
+            <Bloque className="h-4 w-24" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 px-5 pb-5">
+          <Bloque className="h-3 w-full rounded-full" />
+          <Bloque className="h-4 w-48" />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function TarjetaContrato({ c }: { c: ContratoPublico }) {
   const alDia = c.deuda === 0;
   const avance = c.total > 0 ? Math.min(100, Math.round((c.pagado / c.total) * 100)) : 0;
@@ -84,8 +120,8 @@ export default function PaginaConsulta() {
 
   const consultar = async (e: FormEvent) => {
     e.preventDefault();
-    if (!/^\d{8,12}$/.test(dni)) {
-      setError("Escribe tu DNI (8 números) o tu Carné de Extranjería.");
+    if (!/^[A-Z0-9]{5,12}$/.test(dni)) {
+      setError("Escribe el número de tu documento (DNI, Carné de Extranjería, Cédula o Pasaporte).");
       return;
     }
     setBuscando(true);
@@ -115,23 +151,23 @@ export default function PaginaConsulta() {
       <div className="mx-auto -mt-10 flex max-w-2xl flex-col gap-4 px-4 pb-10">
         <form onSubmit={consultar} className="rounded-2xl bg-superficie p-5 shadow-lg sm:p-6">
           <label htmlFor="dni" className="font-semibold">
-            Número de DNI o Carné de Extranjería
+            Número de tu documento
           </label>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input
               id="dni"
-              inputMode="numeric"
               autoComplete="off"
+              autoCapitalize="characters"
               maxLength={12}
               value={dni}
               onChange={(e) => {
-                setDni(e.target.value.replace(/\D/g, ""));
+                setDni(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
                 setResultado(undefined);
               }}
-              placeholder="DNI o C.E."
+              placeholder="DNI, C.E., cédula…"
               className="num min-h-16 flex-1 rounded-xl border border-borde px-5 font-display text-3xl font-bold tracking-[0.15em] focus:border-marca focus:ring-3 focus:ring-marca/20 focus:outline-none"
             />
-            <Boton type="submit" tamano="grande" cargando={buscando}>
+            <Boton type="submit" tamano="grande" disabled={buscando}>
               Consultar
             </Boton>
           </div>
@@ -142,11 +178,13 @@ export default function PaginaConsulta() {
           )}
         </form>
 
-        {resultado === null && (
+        {buscando && <ConsultandoEsqueleto />}
+
+        {!buscando && resultado === null && (
           <Aviso tipo="alerta">No encontramos un contrato activo con ese DNI. Revisa el número; si está bien, comunícate con la oficina.</Aviso>
         )}
 
-        {resultado && (
+        {!buscando && resultado && (
           <div aria-live="polite" className="flex flex-col gap-4">
             <div className="px-1">
               <p className="text-sm text-tenue">Consulta del {formatoFecha(hoyLima())}</p>

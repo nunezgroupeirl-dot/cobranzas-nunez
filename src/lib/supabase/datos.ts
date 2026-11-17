@@ -116,6 +116,8 @@ export interface Datos {
   auditoria(filtro: FiltroAuditoria): Promise<Auditoria[]>;
   /** Contratos activos sin llenar o sin el firmado subido (aviso del menú, solo el dueño). */
   contratosPorFirmar(): Promise<number>;
+  /** Contratos activos con 4 semanas de deuda o más: vehículos para inmovilizar (aviso del menú, solo administradores). */
+  porInmovilizar(): Promise<number>;
   contrato(id: string): Promise<Contrato | null>;
   crearContrato(args: CrearContratoArgs): Promise<string>;
   cuotas(contratoId: string): Promise<Cuota[]>;

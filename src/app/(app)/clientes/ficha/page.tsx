@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, BotonEnlace, Cargando, IconoVehiculo, Placa, formatoFecha, mensajeDeError, textoDocumento, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
+import { Aviso, Boton, BotonEnlace, Cargando, IconoVehiculo, Placa, formatoFecha, formatoSoles, mensajeDeError, textoDocumento, Tarjeta, TituloPagina, useCarga } from "@/components/ui";
 import { ModalArchivar } from "../../archivados/_componentes/ModalArchivar";
 import { HistorialPagos } from "../../pagos/_componentes/HistorialPagos";
 import { EliminarCliente } from "../_componentes/EliminarCliente";
@@ -89,6 +89,16 @@ export default function FichaCliente() {
       />
 
       <AvisoArchivado cliente={cliente} />
+      {info.estados
+        .filter((e) => e.inmovilizar)
+        .map((e) => (
+          <div key={e.contrato_id} className="mb-4">
+            <Aviso tipo="error">
+              <b>🚫 Inmovilizar el vehículo{e.placa ? ` ${e.placa}` : ""}.</b> Tiene 4 semanas de deuda o más (debe desde el {formatoFecha(e.vencida_desde)}):{" "}
+              {formatoSoles(e.deuda)} vencidos.
+            </Aviso>
+          </div>
+        ))}
       <div className="grid gap-4 lg:grid-cols-3">
         <TarjetaSituacion estado={estado} deudaTotal={deudaTotal} />
         <TarjetaDatos cliente={cliente} documentos={documentos} />

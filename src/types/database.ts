@@ -24,7 +24,7 @@ export type TipoDocumento =
   | "otro"
   | "contrato";
 /** DNI o Carné de Extranjería */
-export type TipoDoc = "DNI" | "CE";
+export type TipoDoc = "DNI" | "CE" | "CEDULA" | "PASAPORTE";
 export type Bucket = "evidencias" | "documentos";
 
 /* ---------- Tablas ---------- */
@@ -60,7 +60,7 @@ export interface Cliente {
   id: string;
   empresa_id: string;
   nombres: string;
-  dni: string | null; // número del DNI (8) o del Carné de Extranjería (8 a 12); null = falta (importado del cuaderno)
+  dni: string | null; // número del documento (DNI, Carné, Cédula o Pasaporte; este último puede llevar letras); null = falta
   /** qué documento es; se elige antes de escribir el número */
   tipo_doc?: TipoDoc | null;
   celular: string | null;
@@ -180,6 +180,10 @@ export interface EstadoCliente {
   direccion?: string | null;
   ubicacion?: string | null;
   tipo_doc?: TipoDoc | null;
+  /** vencimiento de la cuota impaga más antigua */
+  vencida_desde?: string | null;
+  /** 4 semanas de deuda o más: hay que inmovilizar el vehículo */
+  inmovilizar?: boolean;
 }
 
 /** v_morosos: igual a v_estado_cliente, solo con atraso, de más a menos semanas */

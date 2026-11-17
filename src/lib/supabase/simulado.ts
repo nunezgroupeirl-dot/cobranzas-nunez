@@ -34,6 +34,7 @@ import {
   resumenCuotas,
   sumarDias,
   DIAS_ATRAS_TRABAJADOR,
+  DIAS_INMOVILIZAR,
   validarPago,
 } from "./reglas";
 import { alfabetico, claveEmpresa, nombreReservado } from "@/lib/texto";
@@ -297,6 +298,9 @@ function estadoClientes(s: Estado): EstadoCliente[] {
         proxima_cuota: r.proxima_cuota,
         direccion: cli?.direccion ?? null,
         ubicacion: cli?.ubicacion ?? null,
+        tipo_doc: cli?.tipo_doc ?? null,
+        vencida_desde: r.vencida_desde,
+        inmovilizar: !!r.vencida_desde && r.vencida_desde < sumarDias(hoy, -DIAS_INMOVILIZAR),
       };
     });
 }
@@ -524,7 +528,7 @@ export function crearDatosSimulados(): Datos {
       await pausa();
       const s = leer();
       exigirAdmin(s);
-      if (c.dni && !/^\d{8,12}$/.test(c.dni)) throw new ErrorDatos("DNI_INVALIDO", "El DNI debe tener 8 números (Carné de Extranjería: 9 a 12).");
+      if (c.dni && !/^[A-Z0-9]{5,12}$/.test(c.dni)) throw new ErrorDatos("DNI_INVALIDO", "Revisa el número del documento.");
       if (c.dni && s.clientes.some((x) => x.dni === c.dni && x.id !== c.id)) throw new ErrorDatos("DNI_REPETIDO", "Ya existe un cliente con ese DNI.");
       if (c.id) {
         const i = s.clientes.findIndex((x) => x.id === c.id);
@@ -677,6 +681,9 @@ export function crearDatosSimulados(): Datos {
         .sort((a, b) => b.creado_en.localeCompare(a.creado_en))
         .slice(0, f.limite ?? 100)
         .map((p, i) => ({ id: i + 1, usuario_id: p.registrado_por, accion: "insert" as const, tabla: "pagos", registro_id: p.id, detalle: { ...p }, creado_en: p.creado_en }));
+    },
+    async porInmovilizar() {
+      return estadoClientes(leer()).filter((e) => e.inmovilizar).length;
     },
     async contratosPorFirmar() {
       const s = leer();

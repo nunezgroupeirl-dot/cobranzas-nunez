@@ -8,7 +8,8 @@ import { Marca } from "./Marca";
 import { FiltroEmpresa } from "./FiltroEmpresa";
 import { menuPara, type ItemMenu } from "./menu";
 import { RecordatorioReporte } from "./RecordatorioReporte";
-import { useContratosPorFirmar } from "./avisoContratos";
+import { useContratosPorFirmar, usePorInmovilizar } from "./avisoContratos";
+import { AvisoInmovilizar } from "./AvisoInmovilizar";
 import { useSesion } from "./Sesion";
 import { NOMBRE_PUESTO } from "@/components/ui/formato";
 import { Aviso } from "@/components/ui/Aviso";
@@ -24,10 +25,10 @@ function Icono({ d, className = "size-6" }: { d: string; className?: string }) {
 }
 
 /** Número rojo de avisos junto a una opción del menú. */
-function Contador({ n }: { n: number }) {
+function Contador({ n, titulo }: { n: number; titulo?: string }) {
   if (!n) return null;
   return (
-    <span className="num ml-auto min-w-6 rounded-full bg-rojo px-1.5 py-0.5 text-center text-xs font-bold text-white" title={`${n} contratos sin firmar`}>
+    <span className="num ml-auto min-w-6 rounded-full bg-rojo px-1.5 py-0.5 text-center text-xs font-bold text-white" title={titulo}>
       {n > 99 ? "99+" : n}
     </span>
   );
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const actual = activo(ruta, items);
   const [masAbierto, setMasAbierto] = useState(false);
   const porFirmar = useContratosPorFirmar(ruta);
+  const porInmovilizar = usePorInmovilizar(ruta);
   const [cambiandoClave, setCambiandoClave] = useState(false);
   const [avisoClave, setAvisoClave] = useState<string | null>(null);
   const esDueno = perfil.rol === "administrador";
@@ -63,8 +65,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     setCambiandoClave(true);
   };
   // el número rojo va en "Datos pendientes"; el aviso lleva directo a la pestaña de contratos
-  const avisoDe = (href: string) => (href === "/pendientes" ? porFirmar : 0);
-  const enlaceDe = (href: string) => conEmpresa(href === "/pendientes" && porFirmar ? "/pendientes?vista=contratos" : href);
+  // y en "¿Quién no paga?" los vehículos para inmovilizar (4 semanas de deuda o más)
+  const avisoDe = (href: string) => (href === "/pendientes" ? porFirmar : href === "/morosos" ? porInmovilizar : 0);
+  const tituloAviso = (href: string) => (href === "/morosos" ? `${porInmovilizar} vehículos para inmovilizar` : `${porFirmar} contratos sin firmar`);
+  const enlaceDe = (href: string) =>
+    conEmpresa(href === "/pendientes" && porFirmar ? "/pendientes?vista=contratos" : href === "/morosos" && porInmovilizar ? "/morosos?filtro=inmovilizar" : href);
 
   const enBarra = items.filter((i) => i.enCelular).slice(0, 4);
   const hrefsBarra = new Set(enBarra.map((i) => i.href));
@@ -91,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Icono d={i.icono} />
               {i.texto}
-              <Contador n={avisoDe(i.href)} />
+              <Contador n={avisoDe(i.href)} titulo={tituloAviso(i.href)} />
             </Link>
           ))}
         </nav>
@@ -130,6 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
           <RecordatorioReporte />
+          <AvisoInmovilizar cuantos={porInmovilizar} enlace={conEmpresa("/morosos?filtro=inmovilizar")} enLista={ruta.startsWith("/morosos")} />
           {children}
         </main>
       </div>
@@ -163,7 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link key={i.href} href={enlaceDe(i.href)} onClick={() => setMasAbierto(false)} className="flex min-h-14 items-center gap-3 rounded-xl px-3 font-semibold hover:bg-fondo">
                   <Icono d={i.icono} />
                   {i.texto}
-                  <Contador n={avisoDe(i.href)} />
+                  <Contador n={avisoDe(i.href)} titulo={tituloAviso(i.href)} />
                 </Link>
               ))}
               {esDueno && (

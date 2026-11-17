@@ -1,6 +1,7 @@
 import { sumarMeses } from "@/lib/letras";
 import { htmlPlantillaContrato } from "./ContratoPlantilla";
-import type { Cliente, Contrato, Cuenta, Empresa, Frecuencia, Moto } from "@/types/database";
+import type { Cliente, Contrato, Cuenta, Empresa, Frecuencia, Moto, TipoDoc } from "@/types/database";
+import { DOCUMENTOS, esDocumentoValido } from "@/components/ui/formato";
 
 /**
  * Datos del contrato de alquiler venta tal como se llenan en la página (todo texto).
@@ -17,7 +18,7 @@ export interface CamposContrato {
   representante_dni: string;
   domicilio_empresa: string;
   cliente: string;
-  doc_tipo: "DNI" | "CE";
+  doc_tipo: TipoDoc;
   doc_numero: string;
   domicilio_cliente: string;
   vehiculo: VehiculoContrato | "";
@@ -146,7 +147,7 @@ export function problemaCampo(c: CamposContrato, k: keyof CamposContrato): strin
     case "representante_dni":
       return /^\d{8}$/.test(x) ? null : "El DNI tiene 8 números.";
     case "doc_numero":
-      return c.doc_tipo === "DNI" ? (/^\d{8}$/.test(x) ? null : "El DNI tiene 8 números.") : /^\d{8,12}$/.test(x) ? null : "El Carné de Extranjería tiene de 8 a 12 números.";
+      return esDocumentoValido(x, c.doc_tipo) ? null : DOCUMENTOS[c.doc_tipo]?.ayuda ?? "Revisa el número.";
     case "anio":
       return /^\d{4}$/.test(x) && n >= 1990 && n <= 2100 ? null : "Escribe el año con 4 números (ej.: 2026).";
     case "plazo_meses":

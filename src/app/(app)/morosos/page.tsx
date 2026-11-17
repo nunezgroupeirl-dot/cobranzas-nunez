@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { enlaceRuta } from "@/lib/mapa";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
 import { Aviso, Boton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, useCarga, type Columna, Placa } from "@/components/ui";
@@ -11,11 +11,16 @@ import type { Color, Moroso } from "@/types/database";
 export default function PaginaMorosos() {
   const { datos, empresas, esAdmin } = useSesion();
   const empresa = useEmpresa();
-  const [color, setColor] = useState<Color | "">("");
+  const [color, setColor] = useState<Color | "" | "inmovilizar">("");
+  // el aviso del menú llega con ?filtro=inmovilizar
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("filtro") === "inmovilizar") setColor("inmovilizar");
+  }, []);
   const [aviso, setAviso] = useState<string | null>(null);
   const { datos: morosos, cargando, error } = useCarga(() => datos.morosos(), [datos]);
 
-  const lista = useMemo(() => filtrarPorEmpresa(morosos ?? [], empresa).filter((m) => !color || m.color === color), [morosos, empresa, color]);
+  const lista = useMemo(() => filtrarPorEmpresa(morosos ?? [], empresa).filter((m) => !color || (color === "inmovilizar" ? m.inmovilizar : m.color === color)), [morosos, empresa, color]);
+  const paraInmovilizar = useMemo(() => filtrarPorEmpresa(morosos ?? [], empresa).filter((m) => m.inmovilizar).length, [morosos, empresa]);
   const total = lista.reduce((s, m) => s + m.deuda, 0);
   const nombreEmpresa = empresa ? empresas.find((e) => e.id === empresa)?.nombre : "Todas las empresas";
   const titulo = `¿Quién no paga? · ${nombreEmpresa} · ${formatoFecha(hoyLima())}`;
@@ -29,8 +34,8 @@ export default function PaginaMorosos() {
     descargarExcel(`morosos_${hoyLima()}`, [
       {
         nombre: "Morosos",
-        columnas: ["Placa", "Cliente", "Documento", "Celular", "Empresa", "Semanas de atraso", "Color", "Cuota", "Deuda", "Último pago"],
-        filas: lista.map((m) => [m.placa, m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.empresa, m.semanas_atraso, m.color, m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
+        columnas: ["Placa", "Cliente", "Documento", "Celular", "Empresa", "Semanas de atraso", "Color", "Inmovilizar", "Debe desde", "Cuota", "Deuda", "Último pago"],
+        filas: lista.map((m) => [m.placa, m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.empresa, m.semanas_atraso, m.color, m.inmovilizar ? "Sí" : "No", formatoFecha(m.vencida_desde), m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
       },
     ]);
 
@@ -88,16 +93,30 @@ export default function PaginaMorosos() {
           "—"
         ),
     },
-    { clave: "atraso", titulo: "Atraso", celda: (m) => <EtiquetaSemaforo color={m.color} semanas={m.semanas_atraso} /> },
+    {
+      clave: "atraso",
+      titulo: "Atraso",
+      celda: (m) => (
+        <span className="flex flex-col items-start gap-1">
+          <EtiquetaSemaforo color={m.color} semanas={m.semanas_atraso} />
+          {m.inmovilizar && (
+            <span className="rounded-lg bg-rojo px-2 py-0.5 text-xs font-bold whitespace-nowrap text-white" title={`Debe desde el ${formatoFecha(m.vencida_desde)}`}>
+              🚫 Inmovilizar
+            </span>
+          )}
+        </span>
+      ),
+    },
     { clave: "deuda", titulo: "Deuda", numero: true, celda: (m) => <span className="font-bold">{formatoSoles(m.deuda)}</span>, ocultarEnMovil: true },
     { clave: "ultimo", titulo: "Último pago", celda: (m) => formatoFecha(m.ultimo_pago) },
     { clave: "empresa", titulo: "Empresa", celda: (m) => m.empresa, ocultarEnMovil: true },
   ];
 
-  const filtros: { valor: Color | ""; texto: string }[] = [
+  const filtros: { valor: Color | "" | "inmovilizar"; texto: string }[] = [
     { valor: "", texto: "Todos" },
     { valor: "amarillo", texto: "🟡 1 a 3 semanas" },
     { valor: "rojo", texto: "🔴 4 o más" },
+    { valor: "inmovilizar", texto: `🚫 Inmovilizar (${paraInmovilizar})` },
   ];
 
   return (
