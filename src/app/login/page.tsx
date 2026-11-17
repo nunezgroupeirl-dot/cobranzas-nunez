@@ -7,6 +7,7 @@ import { Aviso, Boton, Campo, Cargando, mensajeDeError } from "@/components/ui";
 import { inicioPara } from "@/components/layout/menu";
 import type { Perfil } from "@/types/database";
 import { PanelMarca } from "./PanelMarca";
+import { MINUTOS_INACTIVIDAD, marcarActividad, ultimaActividad, vencioPorInactividad } from "@/lib/inactividad";
 
 /** Sin página pedida, cada uno entra a su pantalla de inicio (dueño: Clientes; cajero: Registrar pago; ruta: ¿Quién no paga?). */
 const destino = (p: Perfil, pedido: string | null) => pedido ?? inicioPara(p);
@@ -16,6 +17,7 @@ function FormularioIngreso() {
   const parametros = useSearchParams();
   const pedido = parametros.get("volver") ?? "";
   const sesionCerrada = parametros.get("motivo") === "sesion";
+  const porInactividad = parametros.get("motivo") === "inactividad";
   // solo rutas internas (evita redirigir a otro sitio)
   const pedidoValido = pedido.startsWith("/") && !pedido.startsWith("//") ? pedido : null;
   const [email, setEmail] = useState("");
@@ -34,7 +36,12 @@ function FormularioIngreso() {
         // El "return" de abajo descarta respuestas viejas (la pantalla ya cambió): necesita ambas respuestas.
         // react-doctor-disable-next-line async-defer-await
         const d = await getDatos();
-        const haySesion = await d.sesion();
+        let haySesion = await d.sesion();
+        // una sesión que quedó abierta más de 20 minutos sin uso no entra sola: se cierra y se pide ingresar
+        if (haySesion && vencioPorInactividad(ultimaActividad())) {
+          await d.salir().catch(() => undefined);
+          haySesion = null;
+        }
         if (!vigente) return;
         setModoPrueba(d.modoPrueba);
         // react-doctor-disable-next-line nextjs-no-client-side-redirect
@@ -58,7 +65,9 @@ function FormularioIngreso() {
     setError(null);
     try {
       const d = await getDatos();
-      router.replace(destino(await d.ingresar(email, clave), pedidoValido));
+      const perfil = await d.ingresar(email, clave);
+      marcarActividad(); // la cuenta de 20 minutos empieza al ingresar
+      router.replace(destino(perfil, pedidoValido));
     } catch (err) {
       setError(mensajeDeError(err));
       setEnviando(false);
@@ -70,6 +79,7 @@ function FormularioIngreso() {
   return (
     <form onSubmit={ingresar} className="flex flex-col gap-4">
       {sesionCerrada && !error && <Aviso tipo="alerta">Tu sesión se cerró (venció o se salió desde otro equipo). Vuelve a ingresar para seguir.</Aviso>}
+      {porInactividad && !error && <Aviso tipo="alerta">Se cerró tu sesión por {MINUTOS_INACTIVIDAD} minutos sin actividad. Vuelve a ingresar para seguir.</Aviso>}
       {error && <Aviso tipo="error">{error}</Aviso>}
       <Campo etiqueta="Correo" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} obligatorio />
       <div className="relative">

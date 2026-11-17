@@ -6,6 +6,7 @@ import type { Empresa, Perfil } from "@/types/database";
 import { Cargando } from "@/components/ui/Tarjeta";
 import { mensajeDeError } from "@/components/ui/formato";
 import { inicioPara, rutaPermitida } from "./menu";
+import { marcarActividad, ultimaActividad, vencioPorInactividad } from "@/lib/inactividad";
 
 interface ValorSesion {
   perfil: Perfil;
@@ -43,6 +44,46 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
       // react-doctor-disable-next-line nextjs-no-client-side-redirect
       if (!saliendo.current) window.location.replace(`/login?volver=${encodeURIComponent(window.location.pathname)}&motivo=sesion`);
     });
+  }, [valor]);
+
+  // A los 20 minutos sin actividad la sesión se cierra sola y la página se recarga en el ingreso:
+  // así nadie queda con una pantalla abierta que ya no deja hacer nada.
+  useEffect(() => {
+    if (!valor) return;
+    let ultimaEscritura = 0;
+    const alActuar = () => {
+      const ahora = Date.now();
+      if (ahora - ultimaEscritura < 15_000) return; // no se escribe en cada movimiento
+      ultimaEscritura = ahora;
+      marcarActividad();
+    };
+    const revisar = async () => {
+      if (saliendo.current || !vencioPorInactividad(ultimaActividad())) return;
+      saliendo.current = true;
+      try {
+        await valor.datos.salir();
+      } finally {
+        // react-doctor-disable-next-line nextjs-no-client-side-redirect
+        window.location.replace(`/login?motivo=inactividad&volver=${encodeURIComponent(window.location.pathname)}`);
+      }
+    };
+    // al abrir: si estuvo cerrada o dormida más de 20 minutos, sale enseguida; si no hay registro, empieza a contar
+    if (ultimaActividad() === null) marcarActividad();
+    void revisar();
+    const eventos = ["pointerdown", "keydown", "wheel", "touchstart", "scroll", "mousemove"] as const;
+    for (const e of eventos) window.addEventListener(e, alActuar, { passive: true, capture: true });
+    const alVolver = () => {
+      if (document.visibilityState === "visible") void revisar();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    window.addEventListener("focus", alVolver);
+    const reloj = window.setInterval(() => void revisar(), 30_000);
+    return () => {
+      for (const e of eventos) window.removeEventListener(e, alActuar, { capture: true });
+      document.removeEventListener("visibilitychange", alVolver);
+      window.removeEventListener("focus", alVolver);
+      window.clearInterval(reloj);
+    };
   }, [valor]);
 
   useEffect(() => {
