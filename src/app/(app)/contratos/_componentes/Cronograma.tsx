@@ -1,4 +1,4 @@
-import { NOMBRE_ESTADO_CUOTA, formatoFecha, formatoSoles } from "@/components/ui";
+import { NOMBRE_ESTADO_CUOTA, diaSemana, formatoFecha, formatoSoles } from "@/components/ui";
 import type { Cuota, EstadoCuota } from "@/types/database";
 
 const ESTILO: Record<EstadoCuota, string> = {
@@ -103,6 +103,7 @@ function Celda({ c, elegida }: { c: CuotaVista; elegida?: boolean }) {
           <span className={`text-xs font-bold ${MARCA[c.estado]}`}>{NOMBRE_ESTADO_CUOTA[c.estado].split(" ")[0]}</span>
         )}
       </div>
+      <p className="text-sm leading-tight font-extrabold text-marca uppercase">{diaSemana(c.fecha_vencimiento)}</p>
       <p className="num">{formatoFecha(c.fecha_vencimiento)}</p>
       <p className="num font-semibold">{formatoSoles(c.monto)}</p>
       {delCuaderno && <p className="text-xs font-semibold text-tenue">Del cuaderno · sin comprobante</p>}

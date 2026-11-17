@@ -68,14 +68,14 @@ export function validarVenta(v: Venta): Record<string, string> {
   return e;
 }
 
-/** Hasta este capital el interés va en soles por mes (sugerido: 20 % del capital por mes);
- *  desde S/ 12 001, en % anual proporcional al plazo (50 % al año por defecto). */
+/** Hasta este capital el interés va en soles por mes (S/ 500 automático);
+ *  desde S/ 12 001, en % anual proporcional al plazo (50 % al año). Los dos se pueden cambiar. */
 export const CAPITAL_TOPE = 12000;
-export const INTERES_MES_PCT_SUGERIDO = 20;
+export const INTERES_MES_DEFECTO = "500";
 export const INTERES_PCT_DEFECTO = "50";
-export const GPS_MES_DEFECTO = "3.30";
-/** Interés por mes sugerido para un capital de hasta S/ 12 000 (S/ 1,500 → S/ 300). */
-export const interesMesSugerido = (capital: string) => (Math.round(Number(capital) * INTERES_MES_PCT_SUGERIDO) / 100).toFixed(2);
+export const GPS_MES_DEFECTO = "3.00";
+/** Interés automático según el capital: S/ 500 por mes hasta S/ 12 000; 50 % al año desde S/ 12 001. */
+export const interesPorDefecto = (capital: string) => (Number(capital) > CAPITAL_TOPE ? INTERES_PCT_DEFECTO : INTERES_MES_DEFECTO);
 export const interesEnPorcentaje = (capital: string) => Number(capital) > CAPITAL_TOPE;
 
 /**

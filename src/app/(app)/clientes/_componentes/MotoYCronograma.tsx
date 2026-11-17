@@ -1,5 +1,5 @@
 "use client";
-import { Campo, FRECUENCIAS, OpcionesBoton, Tarjeta, formatoFecha, formatoSoles } from "@/components/ui";
+import { Campo, FRECUENCIAS, OpcionesBoton, Tarjeta, diaSemana, fechaLarga, formatoSoles } from "@/components/ui";
 import { TIPOS_MOTO } from "@/lib/placa";
 import { fechaCuota } from "@/lib/supabase/reglas";
 import type { Frecuencia } from "@/types/database";
@@ -7,12 +7,12 @@ import { CampoPlaca } from "../../contratos/_componentes/CampoPlaca";
 import {
   CAPITAL_TOPE,
   GPS_MES_DEFECTO,
-  INTERES_MES_PCT_SUGERIDO,
+  INTERES_MES_DEFECTO,
   INTERES_PCT_DEFECTO,
   calcularConInteres,
   cuotasDelPlazo,
   interesEnPorcentaje,
-  interesMesSugerido,
+  interesPorDefecto,
   type Venta,
 } from "./venta";
 
@@ -112,19 +112,22 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
       alCambiar(cambio);
       return;
     }
-    if ("capital" in cambio && x.capital.trim()) {
-      const cambiaTramo = interesEnPorcentaje(x.capital) !== interesEnPorcentaje(v.capital);
-      // hasta S/ 12 000: si el interés estaba vacío o era el sugerido, sigue al capital (20 % por mes)
-      const eraSugerido = !v.interes.trim() || (!interesEnPorcentaje(v.capital) && v.interes === interesMesSugerido(v.capital));
-      if (cambiaTramo || eraSugerido) x.interes = interesEnPorcentaje(x.capital) ? INTERES_PCT_DEFECTO : interesMesSugerido(x.capital);
-    }
+    // al cambiar el capital, el interés vuelve al automático de su tramo (S/ 500 por mes o 50 % al año)
+    if ("capital" in cambio) x.interes = x.capital.trim() ? interesPorDefecto(x.capital) : "";
     const r = calcularConInteres(x);
-    alCambiar(r ? { ...cambio, interes: x.interes, precio: r.total.toFixed(2), cuota: r.cuota.toFixed(2) } : { ...cambio, interes: x.interes });
+    // al cambiar el plazo o el capital, lo que depende de ellos se rehace; si falta un dato, se limpia
+    const cambioBase = "capital" in cambio || "nro_cuotas" in cambio;
+    alCambiar(
+      r
+        ? { ...cambio, interes: x.interes, precio: r.total.toFixed(2), cuota: r.cuota.toFixed(2) }
+        : { ...cambio, interes: x.interes, ...(cambioBase ? { precio: "", cuota: "" } : {}) },
+    );
   };
   // el plazo se piensa en meses: llena el n.º de cuotas según la frecuencia (semanal: 1 mes = 4, 2 = 9 … 12 = 52; diario: 30 por mes)
   const cambiarMeses = (texto: string) => {
     const meses = Number(texto);
-    if (Number.isInteger(meses) && meses > 0 && meses <= 120) conCalculo({ nro_cuotas: String(cuotasDelPlazo(meses, v.frecuencia)) });
+    // sin plazo válido se limpian el n.º de cuotas, el precio total y la cuota
+    conCalculo({ nro_cuotas: Number.isInteger(meses) && meses > 0 && meses <= 120 ? String(cuotasDelPlazo(meses, v.frecuencia)) : "" });
   };
   // si corrigen el precio total a mano, la cuota sale de ese precio
   const cambiarPrecio = (precio: string) => {
@@ -190,7 +193,7 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
               ayuda={
                 enPorcentaje
                   ? `Desde ${formatoSoles(CAPITAL_TOPE + 1)}: ${INTERES_PCT_DEFECTO} % al año, proporcional al plazo (se puede cambiar).`
-                  : `Hasta ${formatoSoles(CAPITAL_TOPE)}: soles por mes × meses. Sugerido: ${INTERES_MES_PCT_SUGERIDO} % del capital (se puede cambiar).`
+                  : `Hasta ${formatoSoles(CAPITAL_TOPE)}: S/ ${INTERES_MES_DEFECTO} por mes × meses (se puede cambiar).`
               }
               className="num"
             />
@@ -310,8 +313,11 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
       </div>
       {cuota > 0 && nro > 0 && v.fecha_inicio && (
         <p className="rounded-xl bg-marca-suave px-3 py-2 text-sm font-medium">
-          {nro} cuotas {plural} de <b className="num">{formatoSoles(cuota)}</b>: del {formatoFecha(v.fecha_inicio)} al{" "}
-          {formatoFecha(fechaCuota(v.fecha_inicio, nro - 1, v.frecuencia))}. Total <b className="num">{formatoSoles(totalCuotas)}</b>.
+          {nro} cuotas {plural} de <b className="num">{formatoSoles(cuota)}</b>: del {fechaLarga(v.fecha_inicio)} al{" "}
+          {fechaLarga(fechaCuota(v.fecha_inicio, nro - 1, v.frecuencia))}. Total <b className="num">{formatoSoles(totalCuotas)}</b>.
+          {v.frecuencia === "semanal" && (
+            <span className="mt-1 block text-lg font-extrabold text-marca uppercase">Paga todos los {diaSemana(v.fecha_inicio)}</span>
+          )}
           {descuadre !== 0 && (
             <span className="mt-1 block text-amarillo">
               Ojo: el total de las cuotas es {formatoSoles(Math.abs(descuadre))} {descuadre > 0 ? "más" : "menos"} que el precio total ({formatoSoles(precio)}). Lo que se cobra

@@ -11,6 +11,25 @@ export function formatoFecha(f: string | null | undefined): string {
   return `${d}/${m}/${a}`;
 }
 
+const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const esFecha = (f: string | null | undefined): f is string => !!f && /^\d{4}-\d{2}-\d{2}/.test(f);
+
+/** "lunes", "martes"… de una fecha YYYY-MM-DD (sin depender de la zona horaria del equipo). */
+export function diaSemana(f: string | null | undefined): string {
+  if (!esFecha(f)) return "";
+  const [a, m, d] = f.slice(0, 10).split("-").map(Number);
+  return DIAS[new Date(Date.UTC(a, m - 1, d)).getUTCDay()];
+}
+
+/** "Lunes 23 de noviembre de 2026": para que se vea claro qué día es. */
+export function fechaLarga(f: string | null | undefined): string {
+  if (!esFecha(f)) return "";
+  const [a, m, d] = f.slice(0, 10).split("-").map(Number);
+  const dia = diaSemana(f);
+  return `${dia.charAt(0).toUpperCase()}${dia.slice(1)} ${d} de ${MESES[m - 1]} de ${a}`;
+}
+
 export function formatoFechaHora(iso: string): string {
   return new Date(iso).toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "short", timeStyle: "short" });
 }

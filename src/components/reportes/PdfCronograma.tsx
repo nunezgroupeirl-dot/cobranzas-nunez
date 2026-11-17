@@ -1,7 +1,7 @@
 "use client";
 import type { Contrato, Cuota, TipoDoc } from "@/types/database";
 import { useSesion } from "@/components/layout/Sesion";
-import { NOMBRE_ESTADO_CUOTA, formatoFecha, formatoSoles, hoyLima, nombreCuota, nombreDocumento } from "@/components/ui/formato";
+import { NOMBRE_ESTADO_CUOTA, diaSemana, formatoFecha, formatoSoles, hoyLima, nombreCuota, nombreDocumento } from "@/components/ui/formato";
 import { clasesBoton } from "@/components/ui/estilos";
 
 interface Props {
@@ -36,7 +36,7 @@ export function htmlCronograma({ cliente, dni, tipoDoc, placa, empresa, contrato
   const filas = cuotas
     .map(
       (c) => `<tr style="background:${COLOR[c.estado]}">
-        <td>${c.numero}</td><td>${formatoFecha(c.fecha_vencimiento)}</td><td class="n">${formatoSoles(c.monto)}</td>
+        <td>${c.numero}</td><td><b style="text-transform:capitalize">${diaSemana(c.fecha_vencimiento)}</b> ${formatoFecha(c.fecha_vencimiento)}</td><td class="n">${formatoSoles(c.monto)}</td>
         <td class="n">${c.monto_pagado ? formatoSoles(c.monto_pagado) : ""}</td><td>${c.fecha_pago ? formatoFecha(c.fecha_pago) : ""}</td>
         <td>${NOMBRE_ESTADO_CUOTA[c.estado]}</td></tr>`,
     )

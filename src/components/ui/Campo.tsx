@@ -1,3 +1,4 @@
+import { fechaLarga } from "./formato";
 import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 const CLASE_CONTROL =
@@ -35,9 +36,12 @@ type PropsCampo = Envoltura & InputHTMLAttributes<HTMLInputElement>;
 export function Campo({ etiqueta, error, ayuda, obligatorio, id, className = "", ...resto }: PropsCampo) {
   const auto = useId();
   const cid = id ?? auto;
+  // en las fechas se escribe el día en grande ("Lunes 23 de noviembre de 2026"): con solo números se confunde
+  const larga = resto.type === "date" && typeof resto.value === "string" ? fechaLarga(resto.value) : "";
   return (
     <Marco id={cid} etiqueta={etiqueta} error={error} ayuda={ayuda} obligatorio={obligatorio}>
       <input id={cid} aria-invalid={error ? true : undefined} required={obligatorio} className={`${CLASE_CONTROL} ${className}`} {...resto} />
+      {larga && <p className="text-lg leading-tight font-bold text-marca">{larga}</p>}
     </Marco>
   );
 }
