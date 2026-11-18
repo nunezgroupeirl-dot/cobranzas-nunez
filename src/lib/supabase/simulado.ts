@@ -459,7 +459,7 @@ export function crearDatosSimulados(): Datos {
       const s = leer();
       exigirAdmin(s);
       const archivos = s.documentos.length + s.pagos.length;
-      return { bytes: archivos * 120 * 1024, archivos };
+      return { bytes: archivos * 120 * 1024, archivos, limite: (process.env.NEXT_PUBLIC_FOTOS_URL ? 10 : 1) * 1024 ** 3 };
     },
     async reportePendiente() {
       const s = leer();

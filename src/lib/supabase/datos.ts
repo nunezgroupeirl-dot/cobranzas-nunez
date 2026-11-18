@@ -96,7 +96,7 @@ export interface Datos {
   marcarReporteDescargado(mes: string): Promise<void>;
   guardarDocumentoContrato(id: string, documento: Record<string, string>): Promise<void>;
   /** Espacio que ocupan las fotos en Supabase Storage (solo el dueño). */
-  usoFotos(): Promise<{ bytes: number; archivos: number }>;
+  usoFotos(): Promise<{ bytes: number; archivos: number; limite: number }>;
   // clientes
   clientes(): Promise<Cliente[]>;
   cliente(id: string): Promise<Cliente | null>;

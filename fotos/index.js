@@ -121,6 +121,20 @@ export default {
 
     if (url.pathname === "/" && peticion.method === "GET") return new Response("Fotos de Cobranzas Nuñez: activo.", { headers: CORS });
 
+    // Espacio usado en R2 (solo administradores; lo muestra el panel)
+    if (url.pathname === "/uso" && peticion.method === "GET") {
+      const yo = await usuario(env, tokenDe(peticion));
+      if (!yo) return fallo(401, "Tu sesión expiró. Vuelve a ingresar.");
+      if (!yo.admin) return fallo(403, "Solo un administrador puede ver el espacio usado.");
+      let bytes = 0, archivos = 0, cursor;
+      do {
+        const lista = await env.FOTOS.list({ cursor, limit: 1000 });
+        for (const o of lista.objects) { bytes += o.size; archivos++; }
+        cursor = lista.truncated ? lista.cursor : undefined;
+      } while (cursor);
+      return responder({ bytes, archivos });
+    }
+
     // Pedir un enlace temporal para mostrar una foto
     if (url.pathname === "/firmar" && peticion.method === "POST") {
       const yo = await usuario(env, tokenDe(peticion));

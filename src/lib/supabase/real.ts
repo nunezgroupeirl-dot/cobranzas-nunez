@@ -214,10 +214,7 @@ export function crearDatosReales(): Datos {
       }));
     },
     async usoFotos() {
-      const r = await sb.rpc("uso_fotos");
-      lanzar(r.error);
-      const f = ((r.data ?? []) as { bytes: number; archivos: number }[])[0];
-      return { bytes: num(f?.bytes), archivos: num(f?.archivos) };
+      return almacen.uso(); // R2 (10 GB) o Supabase Storage (1 GB), según dónde se guarden
     },
     async reportePendiente() {
       const mes = mesAnterior(fechaOperativaLima());

@@ -12,7 +12,17 @@ export interface Almacen {
   subir(bucket: Bucket, ruta: string, archivo: Blob): Promise<void>;
   borrar(bucket: Bucket, ruta: string): Promise<void>;
   url(bucket: Bucket, ruta: string): Promise<string | null>;
+  /** Espacio usado y el límite del plan gratis (Supabase 1 GB · Cloudflare R2 10 GB). */
+  uso(): Promise<UsoFotos>;
 }
+
+export interface UsoFotos {
+  bytes: number;
+  archivos: number;
+  limite: number;
+}
+
+const GB = 1024 ** 3;
 
 function almacenSupabase(sb: SupabaseClient): Almacen {
   return {
@@ -27,6 +37,12 @@ function almacenSupabase(sb: SupabaseClient): Almacen {
     async url(bucket, ruta) {
       const { data } = await sb.storage.from(bucket).createSignedUrl(ruta, 3600);
       return data?.signedUrl ?? null;
+    },
+    async uso() {
+      const r = await sb.rpc("uso_fotos");
+      if (r.error) throw new ErrorDatos("FOTO", r.error.message);
+      const f = ((r.data ?? []) as { bytes: number; archivos: number }[])[0];
+      return { bytes: Number(f?.bytes ?? 0), archivos: Number(f?.archivos ?? 0), limite: GB };
     },
   };
 }
@@ -72,6 +88,11 @@ function almacenWorker(sb: SupabaseClient, base: string): Almacen {
       const { url, vence } = (await r.json()) as { url: string; vence: number };
       enlaces.set(clave, { url, vence });
       return url;
+    },
+    async uso() {
+      const r = await llamar("GET", "/uso");
+      const { bytes, archivos } = (await r.json()) as { bytes: number; archivos: number };
+      return { bytes: Number(bytes) || 0, archivos: Number(archivos) || 0, limite: 10 * GB };
     },
   };
 }
