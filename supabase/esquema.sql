@@ -151,6 +151,34 @@ create trigger tipo_doc_por_defecto before insert or update of dni, tipo_doc on 
   for each row execute function public.tipo_doc_por_defecto();
 update public.clientes set tipo_doc = case when length(dni) = 8 then 'DNI' else 'CE' end where dni is not null and tipo_doc is null;
 
+-- Al cambiar la empresa de un cliente, sus motos y contratos pasan a la misma empresa.
+-- Si ya tiene pagos válidos no se permite (el dinero ya entró a las cuentas de la otra empresa).
+create or replace function public.empresa_cliente_en_cascada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.empresa_id is distinct from old.empresa_id then
+    if exists (
+      select 1 from public.pagos p join public.contratos c on c.id = p.contrato_id
+      where c.cliente_id = new.id and not p.anulado
+    ) then
+      raise exception 'Este cliente ya tiene pagos registrados en la otra empresa: no se puede cambiar de empresa.'
+        using errcode = 'P0001';
+    end if;
+    update public.motos set empresa_id = new.empresa_id where cliente_id = new.id and empresa_id is distinct from new.empresa_id;
+    update public.contratos set empresa_id = new.empresa_id where cliente_id = new.id and empresa_id is distinct from new.empresa_id;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.empresa_cliente_en_cascada() from public, anon, authenticated;
+drop trigger if exists empresa_cliente_en_cascada on public.clientes;
+create trigger empresa_cliente_en_cascada after update of empresa_id on public.clientes
+  for each row execute function public.empresa_cliente_en_cascada();
+
 -- Fotos y documentos del cliente (las imágenes viven en el bucket "documentos")
 create table if not exists public.documentos (
   id          uuid primary key default gen_random_uuid(),
