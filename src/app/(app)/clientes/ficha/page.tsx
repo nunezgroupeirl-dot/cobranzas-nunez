@@ -12,10 +12,12 @@ import { EliminarCliente } from "../_componentes/EliminarCliente";
 import { TarjetaCronograma, TarjetaDatos, TarjetaSituacion } from "../_componentes/FichaTarjetas";
 
 export default function FichaCliente() {
-  const id = useSearchParams().get("id") ?? "";
+  const parametros = useSearchParams();
+  const id = parametros.get("id") ?? "";
   const { datos, esAdmin } = useSesion();
   const conEmpresa = useConEmpresa();
-  const [contratoSel, setContratoSel] = useState<string | null>(null);
+  // ?contrato=… llega desde un vehículo desplegado en la lista de clientes
+  const [contratoSel, setContratoSel] = useState<string | null>(() => parametros.get("contrato"));
 
   const { datos: info, cargando, error, recargar } = useCarga(async () => {
     const [cliente, documentos, estados, contratos, motos, cuentas] = await Promise.all([
@@ -111,6 +113,7 @@ export default function FichaCliente() {
           empresa={estado?.empresa}
           contratos={contratos}
           motos={motos}
+          documentos={documentos}
           contratoActivo={contratoActivo}
           alElegir={setContratoSel}
           cuotas={cuotas}

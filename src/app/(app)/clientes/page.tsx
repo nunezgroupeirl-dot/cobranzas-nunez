@@ -2,13 +2,43 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
-import { filtrarPorEmpresa, useConEmpresa, useEmpresa } from "@/components/layout/empresa";
+import { useConEmpresa, useEmpresa } from "@/components/layout/empresa";
 import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, textoDocumento, useCarga, type Columna, Placa, IconoVehiculo } from "@/components/ui";
 import type { Color, EstadoCliente, Moto } from "@/types/database";
 import { alfabetico } from "@/lib/texto";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
 
-type Fila = EstadoCliente & { sin_contrato?: boolean; moto?: Moto; /** ya terminó (o cerró) sus contratos */ tuvo?: boolean };
+type Fila = EstadoCliente & {
+  sin_contrato?: boolean;
+  moto?: Moto;
+  /** ya terminó (o cerró) sus contratos */
+  tuvo?: boolean;
+  /** cliente con varios vehículos: una fila que los resume y se despliega con la flecha */
+  vehiculos?: Fila[];
+  /** fila de un vehículo desplegado: su número (Vehículo 1, 2…) */
+  numero?: number;
+  /** empresas de sus vehículos (para filtrar) */
+  empresas?: string[];
+};
+
+const PEOR: Record<Color, number> = { verde: 0, amarillo: 1, rojo: 2 };
+
+/** Una fila por cliente: si tiene varios vehículos, resume su estado (el peor), su deuda (la suma) y su último pago. */
+function agrupar(filas: Fila[]): Fila[] {
+  if (filas.length === 1) return filas;
+  const peor = filas.reduce((a, b) => (PEOR[b.color] > PEOR[a.color] || (b.color === a.color && b.semanas_atraso > a.semanas_atraso) ? b : a));
+  const nombres = [...new Set(filas.map((f) => f.empresa))];
+  return [
+    {
+      ...peor,
+      deuda: filas.reduce((n, f) => n + f.deuda, 0),
+      ultimo_pago: filas.map((f) => f.ultimo_pago).reduce((a, b) => (b && (!a || b > a) ? b : a), null as string | null),
+      empresa: nombres.join(" · "),
+      empresas: [...new Set(filas.map((f) => f.empresa_id))],
+      vehiculos: filas.map((f, i) => ({ ...f, numero: i + 1 })),
+    },
+  ];
+}
 
 const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo"]);
 
@@ -21,6 +51,14 @@ export default function PaginaClientes() {
   // ?color=rojo llega desde el semáforo del panel
   const colorInicial = useSearchParams().get("color") ?? "";
   const [color, setColor] = useState<Color | "">(() => (COLORES_VALIDOS.has(colorInicial) ? (colorInicial as Color) : ""));
+  // clientes con varios vehículos que están desplegados
+  const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
+  const alternar = (id: string) =>
+    setAbiertos((s) => {
+      const n = new Set(s);
+      if (!n.delete(id)) n.add(id);
+      return n;
+    });
 
   const { datos: filas, cargando, error } = useCarga(async () => {
     const [estado, clientes, contratos, motos] = await Promise.all([datos.estadoClientes(), datos.clientes(), datos.contratos(), datos.motos()]);
@@ -52,28 +90,66 @@ export default function PaginaClientes() {
         tuvo: tuvieron.has(c.id),
         moto: motoDeCliente.get(c.id),
       }));
-    return [...estado.map((e) => ({ ...e, moto: motoDeContrato.get(e.contrato_id) })), ...sinContrato] as Fila[];
+    // un cliente con varios vehículos sale una sola vez (Vehículo 1, 2… en el orden en que se registraron)
+    const creado = new Map(contratos.map((c) => [c.id, c.creado_en]));
+    const porCliente = new Map<string, Fila[]>();
+    for (const e of [...estado].sort((a, b) => (creado.get(a.contrato_id) ?? "").localeCompare(creado.get(b.contrato_id) ?? "")))
+      (porCliente.get(e.cliente_id) ?? porCliente.set(e.cliente_id, []).get(e.cliente_id))?.push({ ...e, moto: motoDeContrato.get(e.contrato_id) });
+    return [...[...porCliente.values()].flatMap(agrupar), ...sinContrato];
   }, [datos, empresas]);
 
   // clave de búsqueda por fila, calculada solo cuando llegan los datos
-  const indice = useMemo(() => new Map((filas ?? []).map((f) => [f, claveBusqueda(f.cliente, f.dni, f.placa)])), [filas]);
+  // (con varios vehículos, se busca también por la placa de cada uno)
+  const indice = useMemo(
+    () => new Map((filas ?? []).map((f) => [f, claveBusqueda(f.cliente, f.dni, ...(f.vehiculos ?? [f]).map((v) => v.placa))])),
+    [filas],
+  );
 
   const visibles = useMemo(() => {
     const q = normalizar(texto);
-    return filtrarPorEmpresa(filas ?? [], empresa)
-      .filter((f) => (!color || (!f.sin_contrato && f.color === color)) && coincide(indice.get(f) ?? "", q))
-      // los que aún no tienen contrato van primero: así el cliente recién registrado se ve arriba
-      .sort((a, b) => alfabetico(a.cliente, b.cliente));
-  }, [filas, indice, texto, color, empresa]);
+    const deEmpresa = (f: Fila) => !empresa || (f.empresas ?? [f.empresa_id]).includes(empresa);
+    const deColor = (f: Fila) => !color || (!f.sin_contrato && (f.vehiculos ?? [f]).some((v) => v.color === color));
+    return (filas ?? [])
+      .filter((f) => deEmpresa(f) && deColor(f) && coincide(indice.get(f) ?? "", q))
+      .sort((a, b) => alfabetico(a.cliente, b.cliente))
+      .flatMap((f) => (f.vehiculos && abiertos.has(f.cliente_id) ? [f, ...f.vehiculos] : [f]));
+  }, [filas, indice, texto, color, empresa, abiertos]);
+  const clientesVisibles = visibles.filter((f) => !f.numero).length;
 
   const columnas: Columna<Fila>[] = [
-    { clave: "cliente", titulo: "Cliente", celda: (f) => <span className="font-semibold">{f.cliente}</span> },
-    { clave: "dni", titulo: "Documento", celda: (f) => (f.dni ? <span className="num">{textoDocumento(f.dni, f.tipo_doc)}</span> : null) },
+    {
+      clave: "cliente",
+      titulo: "Cliente",
+      celda: (f) =>
+        f.numero ? (
+          <span className="pl-4 text-sm font-semibold text-tenue">↳ Vehículo {f.numero}</span>
+        ) : (
+          <span className="font-semibold">{f.cliente}</span>
+        ),
+    },
+    { clave: "dni", titulo: "Documento", celda: (f) => (f.dni && !f.numero ? <span className="num">{textoDocumento(f.dni, f.tipo_doc)}</span> : null) },
     {
       clave: "placa",
       titulo: "Vehículo",
       celda: (f) =>
-        f.moto || f.placa ? (
+        f.vehiculos ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation(); // la flecha despliega; el resto de la fila abre la ficha
+              alternar(f.cliente_id);
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+            aria-expanded={abiertos.has(f.cliente_id)}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-borde bg-fondo px-3 font-semibold whitespace-nowrap hover:border-marca"
+          >
+            <span aria-hidden className={`inline-block transition-transform ${abiertos.has(f.cliente_id) ? "rotate-90" : ""}`}>
+              ▸
+            </span>
+            <IconoVehiculo tipo={f.vehiculos[0].moto?.tipo} />
+            {f.vehiculos.length} vehículos
+          </button>
+        ) : f.moto || f.placa ? (
           <span className="flex items-center gap-2">
             <IconoVehiculo tipo={f.moto?.tipo} />
             <Placa placa={f.moto?.placa ?? f.placa} tramite={f.moto?.placa_tramite} tamano="chico" />
@@ -112,7 +188,7 @@ export default function PaginaClientes() {
     <>
       <TituloPagina
         titulo="Clientes"
-        sub={filas ? `${visibles.length} de ${filas.length}` : undefined}
+        sub={filas ? `${clientesVisibles} de ${filas.length}` : undefined}
         accion={
           esAdmin && (
             <BotonEnlace href={conEmpresa("/clientes/nuevo")} tamano="grande">
@@ -154,8 +230,10 @@ export default function PaginaClientes() {
         <Tabla
           columnas={columnas}
           filas={visibles}
-          claveFila={(f) => f.contrato_id || `cli-${f.cliente_id}`}
-          alTocar={(f) => router.push(conEmpresa(`/clientes/ficha?id=${f.cliente_id}`))}
+          claveFila={(f) => (f.vehiculos ? `grupo-${f.cliente_id}` : f.contrato_id || `cli-${f.cliente_id}`)}
+          // un vehículo desplegado abre la ficha en su pestaña
+          alTocar={(f) => router.push(conEmpresa(`/clientes/ficha?id=${f.cliente_id}${f.numero ? `&contrato=${f.contrato_id}` : ""}`))}
+          claseFila={(f) => (f.numero ? "ml-6 bg-fondo/60 md:ml-0" : undefined)}
           acento={(f) => (f.sin_contrato ? undefined : COLOR_HEX[f.color])}
           vacio={texto ? "No se encontró ningún cliente con esa búsqueda." : "Todavía no hay clientes."}
         />

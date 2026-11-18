@@ -1,5 +1,6 @@
 "use client";
-import { Campo, FRECUENCIAS, OpcionesBoton, Tarjeta, diaSemana, fechaLarga, formatoSoles } from "@/components/ui";
+import type { ReactNode } from "react";
+import { Campo, FRECUENCIAS, OpcionesBoton, Selector, Tarjeta, diaSemana, fechaLarga, formatoSoles } from "@/components/ui";
 import { TIPOS_MOTO } from "@/lib/placa";
 import { fechaCuota } from "@/lib/supabase/reglas";
 import type { Frecuencia } from "@/types/database";
@@ -31,13 +32,18 @@ interface Props {
   titulo: string;
   /** para quitar un vehículo nuevo que se agregó de más */
   alQuitar?: () => void;
+  /** empresas para elegir la de este vehículo; si no se elige, va la del cliente */
+  empresas: { valor: string; texto: string }[];
+  empresaCliente: string;
+  /** las fotos de este vehículo (4 lados y tarjeta de propiedad) */
+  fotos?: ReactNode;
 }
 
 /**
  * La moto (placa) y el cronograma de pagos del cliente, en dos tarjetas.
  * Sirve al crear y al editar; el contrato en papel se llena aparte.
  */
-export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, titulo, alQuitar }: Props) {
+export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, titulo, alQuitar, empresas, empresaCliente, fotos }: Props) {
   const visible = activa !== false;
   const id = titulo.replace(/\W+/g, "-").toLowerCase();
   return (
@@ -60,6 +66,19 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
         )}
         {visible ? (
           <div className="flex flex-col gap-4">
+            <Selector
+              etiqueta="Empresa del vehículo"
+              opciones={empresas}
+              value={v.empresa_id || empresaCliente}
+              onChange={(e) => alCambiar({ empresa_id: e.target.value })}
+              ayuda={
+                conContrato
+                  ? "Su contrato y sus pagos van a esta empresa. Si ya tiene pagos registrados, no se puede cambiar."
+                  : "Su contrato y sus pagos van a esta empresa (por defecto, la del cliente)."
+              }
+              className="sm:max-w-md"
+              obligatorio
+            />
             <OpcionesBoton etiqueta="Tipo" opciones={TIPOS_MOTO.map((t) => ({ valor: t, texto: t }))} valor={v.tipo} alCambiar={(t) => alCambiar({ tipo: t })} obligatorio />
             <div className="grid gap-4 sm:grid-cols-3">
               <CampoPlaca
@@ -77,6 +96,7 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
                 ))}
               </datalist>
             </div>
+            {fotos}
           </div>
         ) : (
           <p className="text-sm text-tenue">Sin vehículo ni cronograma por ahora: podrás registrarlos después.</p>

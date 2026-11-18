@@ -249,6 +249,15 @@ async function borrarArchivoLocal(bucket: Bucket, ruta: string) {
   urlsCreadas.delete(k);
 }
 
+/** Como el disparador de la base: el contrato del vehículo va a la misma empresa; con pagos válidos no se puede. */
+function moverMotoDeEmpresa(s: Estado, m: Moto, empresaId: string) {
+  const suyos = s.contratos.filter((c) => c.moto_id === m.id);
+  if (s.pagos.some((p) => !p.anulado && suyos.some((c) => c.id === p.contrato_id)))
+    throw new ErrorDatos("EN_USO", `El vehículo ${m.placa ? `${m.placa} ` : ""}ya tiene pagos registrados en su empresa: no se puede cambiar de empresa.`);
+  m.empresa_id = empresaId;
+  for (const c of suyos) c.empresa_id = empresaId;
+}
+
 function cuotasDe(s: Estado, contratoId: string, hoy: string): Cuota[] {
   const contrato = s.contratos.find((c) => c.id === contratoId);
   return aplicarPagos(
@@ -533,6 +542,10 @@ export function crearDatosSimulados(): Datos {
       if (c.id) {
         const i = s.clientes.findIndex((x) => x.id === c.id);
         if (i < 0) throw new ErrorDatos("NO_EXISTE", "El cliente no existe.");
+        // como en la base: los vehículos que estaban en su empresa anterior se mueven con él
+        const antes = s.clientes[i].empresa_id;
+        if (c.empresa_id !== antes)
+          for (const m of s.motos.filter((x) => x.cliente_id === c.id && x.empresa_id === antes)) moverMotoDeEmpresa(s, m, c.empresa_id);
         s.clientes[i] = { ...s.clientes[i], ...c, id: c.id };
         guardar(s);
         return s.clientes[i];
@@ -546,7 +559,7 @@ export function crearDatosSimulados(): Datos {
       return leer().documentos.filter((d) => d.cliente_id === clienteId);
     },
     async resumenDocumentos() {
-      return leer().documentos.map(({ cliente_id, tipo, contrato_id }) => ({ cliente_id, tipo, contrato_id }));
+      return leer().documentos.map(({ cliente_id, tipo, contrato_id, moto_id }) => ({ cliente_id, tipo, contrato_id, moto_id }));
     },
     async agregarDocumento(d) {
       const s = leer();
@@ -576,6 +589,7 @@ export function crearDatosSimulados(): Datos {
       if (placa && s.motos.some((x) => x.placa === placa && x.id !== m.id)) throw new ErrorDatos("PLACA_REPETIDA", "Ya existe un vehículo con esa placa.");
       if (m.id) {
         const i = s.motos.findIndex((x) => x.id === m.id);
+        if (m.empresa_id && m.empresa_id !== s.motos[i].empresa_id) moverMotoDeEmpresa(s, s.motos[i], m.empresa_id);
         s.motos[i] = { ...s.motos[i], ...m, placa, placa_tramite, id: m.id };
         guardar(s);
         return s.motos[i];

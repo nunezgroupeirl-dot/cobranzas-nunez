@@ -62,7 +62,7 @@ interface Entrada {
   contratos: Contrato[];
   clientes: Cliente[];
   motos: Moto[];
-  documentos: Pick<Documento, "cliente_id" | "tipo" | "contrato_id">[];
+  documentos: Pick<Documento, "cliente_id" | "tipo" | "contrato_id" | "moto_id">[];
   /** id → nombre, para los clientes que aún no tienen contrato */
   empresas?: Map<string, string>;
 }
@@ -102,10 +102,13 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
   const clientePorId = new Map(clientes.map((c) => [c.id, c]));
   const motoPorId = new Map(motos.map((m) => [m.id, m]));
   const fotos = new Map<string, Set<string>>(); // cliente_id → tipos de foto
+  const fotosMoto = new Map<string, Set<string>>(); // moto_id → tipos de foto (cada vehículo tiene las suyas)
   const firmados = new Set<string>(); // contratos con hojas firmadas subidas
+  const anotar = (m: Map<string, Set<string>>, clave: string, tipo: string) => (m.get(clave) ?? m.set(clave, new Set()).get(clave))?.add(tipo);
   for (const d of documentos) {
     if (d.tipo === "contrato" && d.contrato_id) firmados.add(d.contrato_id);
-    else (fotos.get(d.cliente_id) ?? fotos.set(d.cliente_id, new Set()).get(d.cliente_id))?.add(d.tipo);
+    else if (d.moto_id) anotar(fotosMoto, d.moto_id, d.tipo);
+    else anotar(fotos, d.cliente_id, d.tipo);
   }
 
   const filas: FilaPendiente[] = [];
@@ -115,7 +118,7 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
     const moto = contrato ? (motoPorId.get(contrato.moto_id) ?? null) : null;
     const tiene = fotos.get(e.cliente_id);
     const nota = notaRevisar(contrato?.observaciones);
-    const faltan = [...faltaDelCliente(cliente, tiene), ...faltaDelVehiculo(moto, tiene)];
+    const faltan = [...faltaDelCliente(cliente, tiene), ...faltaDelVehiculo(moto, moto ? fotosMoto.get(moto.id) : undefined)];
     if (!contrato?.documento) faltan.push("contrato_llenado");
     if (!firmados.has(e.contrato_id)) faltan.push("contrato_firmado");
     if (!tiene?.has("cliente_contrato")) faltan.push("foto_con_contrato");
@@ -154,7 +157,7 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
       semanas: 0,
       moto,
       // sale también en la pestaña Contratos: le falta el contrato completo
-      faltan: [...faltaDelCliente(c, tiene), ...(moto ? faltaDelVehiculo(moto, tiene) : ["sin_vehiculo" as const]), "sin_contrato"],
+      faltan: [...faltaDelCliente(c, tiene), ...(moto ? faltaDelVehiculo(moto, fotosMoto.get(moto.id)) : ["sin_vehiculo" as const]), "sin_contrato"],
       nota: null,
     });
   }

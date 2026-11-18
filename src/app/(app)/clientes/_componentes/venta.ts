@@ -4,6 +4,8 @@ import type { Cliente, Contrato, Frecuencia, Moto } from "@/types/database";
 
 /** Moto y cronograma de un cliente nuevo (todo como texto, tal como se escribe en el formulario). */
 export interface Venta {
+  /** empresa del vehículo (y de su contrato); "" = la del cliente */
+  empresa_id: string;
   tipo: string;
   placa: string;
   tramite: boolean;
@@ -28,6 +30,7 @@ export interface Venta {
 }
 
 export const ventaVacia = (hoy: string): Venta => ({
+  empresa_id: "",
   tipo: "Mototaxi",
   placa: "",
   tramite: false,
@@ -204,7 +207,7 @@ export async function guardarVenta(datos: Datos, cliente: Cliente, v: Venta, hec
   const opcional = (x: string) => (x.trim() ? Number(x) : null);
   hechos.moto ??= await datos.guardarMoto({
     cliente_id: cliente.id,
-    empresa_id: cliente.empresa_id,
+    empresa_id: v.empresa_id || cliente.empresa_id,
     placa: v.tramite ? null : v.placa,
     placa_tramite: v.tramite,
     tipo: v.tipo,
@@ -254,7 +257,14 @@ export function ventaDe(hoy: string, { moto, contrato }: VentaActual): Venta {
   return {
     ...base,
     ...(moto
-      ? { tipo: moto.tipo || "Otro", placa: moto.placa ?? "", tramite: !moto.placa && !!moto.placa_tramite, marca: moto.marca, color: moto.color }
+      ? {
+          empresa_id: moto.empresa_id,
+          tipo: moto.tipo || "Otro",
+          placa: moto.placa ?? "",
+          tramite: !moto.placa && !!moto.placa_tramite,
+          marca: moto.marca,
+          color: moto.color,
+        }
       : {}),
     ...(contrato
       ? {
@@ -280,9 +290,17 @@ export async function guardarEdicion(datos: Datos, cliente: Cliente, v: Venta, a
   const { moto, contrato } = actual;
   if (moto && !hechos.moto) {
     const placa = v.tramite ? null : v.placa.trim().toUpperCase() || null;
-    const cambio = placa !== moto.placa || v.tramite !== !!moto.placa_tramite || v.tipo !== moto.tipo || v.marca.trim() !== moto.marca || v.color.trim() !== moto.color;
+    const empresa = v.empresa_id || cliente.empresa_id;
+    const cambio =
+      placa !== moto.placa ||
+      v.tramite !== !!moto.placa_tramite ||
+      v.tipo !== moto.tipo ||
+      v.marca.trim() !== moto.marca ||
+      v.color.trim() !== moto.color ||
+      empresa !== moto.empresa_id;
+    // si cambia la empresa, su contrato pasa con él (lo hace la base; no se puede si ya tiene pagos)
     hechos.moto = cambio
-      ? await datos.guardarMoto({ ...moto, placa, placa_tramite: v.tramite, tipo: v.tipo, marca: v.marca.trim(), color: v.color.trim() })
+      ? await datos.guardarMoto({ ...moto, empresa_id: empresa, placa, placa_tramite: v.tramite, tipo: v.tipo, marca: v.marca.trim(), color: v.color.trim() })
       : moto;
   }
   if (!contrato) {

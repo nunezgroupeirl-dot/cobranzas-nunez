@@ -69,9 +69,18 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
   /** Vuelve a poner los vehículos de un borrador (sin errores marcados). */
   const restaurar = (guardados: Omit<ItemVehiculo, "errores">[]) => {
     if (!guardados.length) return;
-    // los nuevos reciben clave nueva: así "Registrar otro vehículo" no repite una
-    setItems(guardados.map((x) => ({ ...x, clave: x.actual ? x.clave : claveNueva(), v: { ...ventaVacia(hoyLima()), ...x.v }, errores: {} })));
+    // cada uno conserva su clave (sus fotos del borrador van con ella); las nuevas claves siguen después
+    for (const x of guardados) siguiente = Math.max(siguiente, Number(/^nuevo-(\d+)$/.exec(x.clave)?.[1] ?? 0));
+    setItems(guardados.map((x) => ({ ...x, v: { ...ventaVacia(hoyLima()), ...x.v }, errores: {} })));
   };
 
-  return { items, cambiar, activar, agregar, quitar, validar, guardarTodos, restaurar, alguno: items.some((x) => x.activo) };
+  /** El vehículo ya guardado de un item del formulario (para ligarle sus fotos). */
+  const motoDe = (clave: string): string | undefined =>
+    hechos.current[clave]?.moto?.id ?? items.find((x) => x.clave === clave)?.actual?.moto?.id ?? undefined;
+
+  /** Al cambiar la empresa del cliente, los vehículos que estaban en su empresa anterior (o sin elegir) la siguen. */
+  const seguirEmpresa = (antes: string, despues: string) =>
+    setItems((xs) => xs.map((x) => (!x.v.empresa_id || x.v.empresa_id === antes ? { ...x, v: { ...x.v, empresa_id: despues } } : x)));
+
+  return { items, cambiar, activar, agregar, quitar, validar, guardarTodos, restaurar, motoDe, seguirEmpresa, alguno: items.some((x) => x.activo) };
 }

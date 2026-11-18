@@ -6,7 +6,7 @@ import type { Cliente, Contrato, Cuota, Documento, EstadoCliente, Moto } from "@
 import { CronogramaConComprobantes } from "../../contratos/_componentes/ComprobanteAnterior";
 import { Foto } from "./Foto";
 import { MapaCliente } from "./MapaCliente";
-import { GRUPOS_FOTOS } from "./secciones";
+import { GRUPOS_FOTOS, GRUPO_VEHICULO, TIPOS_VEHICULO, type GrupoFotos } from "./secciones";
 
 /** Semáforo, deuda y próxima cuota del contrato elegido. */
 export function TarjetaSituacion({ estado, deudaTotal }: { estado?: EstadoCliente; deudaTotal: number }) {
@@ -56,40 +56,50 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
       <h3 className="mt-4 mb-2 font-bold">Ubicación</h3>
       <MapaCliente ubicacion={cliente.ubicacion} direccion={cliente.direccion} nombre={cliente.nombres} />
       <h3 className="mt-4 mb-2 font-bold">Fotos</h3>
-      {documentos.length === 0 ? (
-        <p className="text-sm text-tenue">Sin fotos todavía.</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {GRUPOS_FOTOS.map((g) => {
-            const espacios = g.espacios.flatMap((e) => documentos.filter((d) => d.tipo === e.tipo).map((d) => ({ d, etiqueta: e.etiqueta })));
-            if (!espacios.length) return null;
-            return (
-              <section key={g.titulo} className="flex flex-col gap-1.5">
-                <h4 className="text-sm font-semibold text-tenue">{g.titulo}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {espacios.map(({ d, etiqueta }) => (
-                    <figure key={d.id} className="flex w-20 flex-col gap-1">
-                      <Foto bucket="documentos" ruta={d.ruta} titulo={`${NOMBRE_DOCUMENTO[d.tipo]} · ${cliente.nombres}`} className="size-20" />
-                      <figcaption className="truncate text-xs leading-tight font-semibold" title={etiqueta}>
-                        {etiqueta}
-                      </figcaption>
-                    </figure>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      )}
+      {/* las del vehículo salen en el cronograma de cada vehículo */}
+      <GaleriaFotos grupos={GRUPOS_FOTOS} documentos={documentos.filter((d) => !d.moto_id && !TIPOS_VEHICULO.has(d.tipo))} nombre={cliente.nombres} />
     </Tarjeta>
   );
 }
+
+/** Miniaturas por grupo (se amplían al tocarlas). */
+function GaleriaFotos({ grupos, documentos, nombre, vacio = "Sin fotos todavía." }: { grupos: GrupoFotos[]; documentos: Documento[]; nombre: string; vacio?: string }) {
+  if (!documentos.length) return <p className="text-sm text-tenue">{vacio}</p>;
+  return (
+    <div className="flex flex-col gap-3">
+      {grupos.map((g) => {
+        const espacios = g.espacios.flatMap((e) => documentos.filter((d) => d.tipo === e.tipo).map((d) => ({ d, etiqueta: e.etiqueta })));
+        if (!espacios.length) return null;
+        return (
+          <section key={g.titulo} className="flex flex-col gap-1.5">
+            <h4 className="text-sm font-semibold text-tenue">{g.titulo}</h4>
+            <div className="flex flex-wrap gap-2">
+              {espacios.map(({ d, etiqueta }) => (
+                <figure key={d.id} className="flex w-20 flex-col gap-1">
+                  <Foto bucket="documentos" ruta={d.ruta} titulo={`${NOMBRE_DOCUMENTO[d.tipo]} · ${nombre}`} className="size-20" />
+                  <figcaption className="truncate text-xs leading-tight font-semibold" title={etiqueta}>
+                    {etiqueta}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/** "CVN298", "En trámite" o "Sin placa". */
+const textoPlaca = (m?: Moto) => m?.placa ?? (m?.placa_tramite ? "Placa en trámite" : "Sin placa");
 
 interface PropsCronograma {
   cliente: Cliente;
   empresa?: string;
   contratos: Contrato[];
   motos: Map<string, Moto>;
+  /** para mostrar las fotos de cada vehículo */
+  documentos: Documento[];
   contratoActivo: string | null;
   alElegir: (id: string) => void;
   cuotas: Cuota[] | null;
@@ -99,31 +109,28 @@ interface PropsCronograma {
   alCambiar: () => void;
 }
 
-/** Cronograma del contrato elegido, con selector si el cliente tiene varios. */
-export function TarjetaCronograma({ cliente, empresa, contratos, motos, contratoActivo, alElegir, cuotas, soloLectura, alCambiar }: PropsCronograma) {
+/**
+ * Cronograma del vehículo elegido. Con varios vehículos, una pestaña por cada uno ("Vehículo 1 · placa"),
+ * en el orden en que se registraron; cada uno con sus fotos.
+ */
+export function TarjetaCronograma({ cliente, empresa, contratos, motos, documentos, contratoActivo, alElegir, cuotas, soloLectura, alCambiar }: PropsCronograma) {
   const { esAdmin } = useSesion();
   const contrato = contratos.find((c) => c.id === contratoActivo);
   const moto = contrato ? motos.get(contrato.moto_id) : undefined;
+  const enOrden = [...contratos].sort((a, b) => a.creado_en.localeCompare(b.creado_en));
+  const numero = enOrden.findIndex((c) => c.id === contratoActivo) + 1;
+  const varios = contratos.length > 1;
+  const fotosMoto = moto ? documentos.filter((d) => d.moto_id === moto.id) : [];
   return (
     <Tarjeta
       className="mt-4"
-      titulo={moto ? `Cronograma · ${moto.placa ?? "sin placa"} (${moto.marca} ${moto.tipo})` : "Cronograma"}
+      titulo={
+        moto
+          ? `${varios ? `Vehículo ${numero}` : "Cronograma"} · ${textoPlaca(moto)} (${[moto.marca, moto.tipo].filter(Boolean).join(" ")})${empresa ? ` · ${empresa}` : ""}`
+          : "Cronograma"
+      }
       accion={
         <div className="flex flex-wrap items-center gap-2">
-          {contratos.length > 1 && (
-            <select
-              value={contratoActivo ?? ""}
-              onChange={(e) => alElegir(e.target.value)}
-              className="min-h-11 rounded-xl border border-borde bg-superficie px-3"
-              aria-label="Elegir contrato"
-            >
-              {contratos.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {motos.get(c.moto_id)?.placa} · desde {formatoFecha(c.fecha_inicio)} ({NOMBRE_ESTADO_CONTRATO[c.estado]})
-                </option>
-              ))}
-            </select>
-          )}
           {contrato && cuotas && moto && (
             <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} tipoDoc={cliente.tipo_doc} placa={moto.placa ?? (moto.placa_tramite ? "PLACA EN TRÁMITE" : null)} empresa={empresa ?? ""} contrato={contrato} cuotas={cuotas} />
           )}
@@ -135,6 +142,38 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, contrato
         </div>
       }
     >
+      {varios && (
+        <div role="tablist" aria-label="Vehículos del cliente" className="-mt-1 mb-4 flex flex-wrap gap-2">
+          {enOrden.map((c, i) => {
+            const m = motos.get(c.moto_id);
+            const elegido = c.id === contratoActivo;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={elegido}
+                onClick={() => alElegir(c.id)}
+                className={`flex min-h-11 flex-col items-start rounded-xl border-2 px-3 py-1.5 text-left leading-tight ${elegido ? "border-marca bg-marca-suave" : "border-borde bg-superficie hover:border-marca/60"}`}
+              >
+                <span className="text-sm font-bold">Vehículo {i + 1}</span>
+                <span className={`text-xs font-semibold ${m?.placa ? "" : "text-amarillo"}`}>
+                  {textoPlaca(m)}
+                  {c.estado !== "activo" ? ` · ${NOMBRE_ESTADO_CONTRATO[c.estado]}` : ""}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {moto && (
+        <details className="mb-4 rounded-xl border border-borde p-3" open={fotosMoto.length > 0}>
+          <summary className="cursor-pointer font-semibold">Fotos de este vehículo ({fotosMoto.length})</summary>
+          <div className="mt-3">
+            <GaleriaFotos grupos={[GRUPO_VEHICULO]} documentos={fotosMoto} nombre={`${cliente.nombres} · ${textoPlaca(moto)}`} vacio="Sin fotos de este vehículo todavía (se agregan en Editar)." />
+          </div>
+        </details>
+      )}
       {contrato && esAdmin && (contrato.capital != null || contrato.fecha_entrega) && <ResumenCapital contrato={contrato} />}
       {cuotas && contrato ? <CronogramaConComprobantes contrato={contrato} cuotas={cuotas} alGuardar={alCambiar} /> : <Cargando variante="cuotas" />}
     </Tarjeta>

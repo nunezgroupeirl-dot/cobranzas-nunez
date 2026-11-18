@@ -4,7 +4,7 @@ import { MiniaturaPdf } from "@/components/ui/Pdf";
 import { esPdf } from "@/lib/pdf";
 import type { Documento, TipoDocumento } from "@/types/database";
 import { Foto } from "./Foto";
-import { GRUPOS_FOTOS, tipoDeClave, type TipoFoto } from "./secciones";
+import { GRUPOS_FOTOS, tipoDeClave, type GrupoFotos, type TipoFoto } from "./secciones";
 
 interface Props {
   existentes: Documento[];
@@ -13,13 +13,15 @@ interface Props {
   alElegir: (clave: string, archivo: File) => void;
   alQuitarPendiente: (clave: string) => void;
   alQuitarExistente: (d: Documento) => void;
+  /** por defecto, las del cliente (Cliente, Casa, Otros); en cada vehículo, las de ese vehículo */
+  grupos?: GrupoFotos[];
 }
 
 /** Las fotos por partes (Cliente, Vehículo, Casa, Otros), con espacios chicos: cada una se toma y se reemplaza por separado. */
-export function FotosPorTipo(props: Props) {
+export function FotosPorTipo({ grupos = GRUPOS_FOTOS, ...props }: Props) {
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
-      {GRUPOS_FOTOS.map((g) => (
+    <div className={`grid gap-3 ${grupos.length > 1 ? "lg:grid-cols-2" : ""}`}>
+      {grupos.map((g) => (
         <section key={g.titulo} className="flex flex-col gap-2 rounded-xl border border-borde p-3" data-grupo={g.titulo}>
           <div>
             <h3 className="leading-tight font-semibold">{g.titulo}</h3>

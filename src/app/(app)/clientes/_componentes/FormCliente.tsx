@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, DOCUMENTOS, TIPOS_DOC, Tarjeta, esDocumentoValido, limpiarDocumento, mensajeDeError } from "@/components/ui";
@@ -11,9 +11,9 @@ import type { TipoDoc, Cliente, Documento } from "@/types/database";
 import { CampoUbicacion } from "./CampoUbicacion";
 import { FotosPorTipo } from "./FotosPorTipo";
 import { MotoYCronograma } from "./MotoYCronograma";
-import { GRUPOS_FOTOS, TOTAL_FOTOS, tipoDeClave } from "./secciones";
+import { GRUPOS_FOTOS, GRUPO_VEHICULO, TIPOS_VEHICULO, TOTAL_FOTOS, tipoDeClave, vehiculoDeClave } from "./secciones";
 import { TarjetaContratoFirmado } from "../../contratos/_componentes/TarjetaContratoFirmado";
-import { useVehiculos } from "./useVehiculos";
+import { useVehiculos, type ItemVehiculo } from "./useVehiculos";
 import type { VentaActual } from "./venta";
 
 
@@ -42,8 +42,14 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
   const vehiculos = useVehiculos(!cliente, actuales);
   const hechos = useRef<{ cliente?: Cliente }>({});
   const [existentes, setExistentes] = useState<Documento[]>([]);
-  // una foto nueva por tipo (cliente, DNI, moto…): se suben al guardar
-  const [pendientes, setPendientes] = useState<Record<string, File>>({}); // clave: tipo, o "otro:n" (ver tipoDeClave)
+  // las fotos nuevas (del cliente y de cada vehículo): se suben al guardar. Clave: ver tipoDeClave y vehiculoDeClave
+  const [pendientes, setPendientes] = useState<Record<string, File>>({});
+  const sinPendiente = (clave: string) =>
+    setPendientes((p) => {
+      const resto = { ...p };
+      delete resto[clave];
+      return resto;
+    });
 
   useEffect(() => {
     if (cliente) datos.documentos(cliente.id).then((d) => setExistentes(d.filter((x) => x.tipo !== "contrato")));
@@ -61,10 +67,14 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
       vehiculos.restaurar(b.items ?? []);
       setRecuperado(true);
     }
+    // fotos del vehículo de un borrador de antes (sin vehículo): pasan al primer vehículo
+    const primero = b?.items?.[0]?.clave ?? vehiculos.items[0]?.clave;
     leerArchivosBorrador(claveBorrador)
       .then((a) => {
         if (Object.keys(a).length) {
-          setPendientes(a);
+          setPendientes(
+            Object.fromEntries(Object.entries(a).map(([k, archivo]) => [!vehiculoDeClave(k) && TIPOS_VEHICULO.has(tipoDeClave(k)) && primero ? `${primero}|${k}` : k, archivo])),
+          );
           setRecuperado(true);
         }
       })
@@ -130,17 +140,26 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
         recomendado_por: f.recomendado_por.trim() || null,
         ubicacion: f.ubicacion.trim() || null,
       });
-      // Una foto por tipo (máximo 6): se suben a la vez (cada una se comprime, sube y registra por su cuenta)
+      // Las fotos del cliente se suben a la vez (cada una se comprime, sube y registra por su cuenta)
+      const subir = async (clave: string, archivo: File, motoId: string | null) => {
+        const tipo = tipoDeClave(clave);
+        const ruta = await subirDocumento(datos, guardado.empresa_id, guardado.id, tipo, archivo);
+        await datos.agregarDocumento({ cliente_id: guardado.id, tipo, ruta, moto_id: motoId });
+        sinPendiente(clave); // si algo falla después, al reintentar no se sube dos veces
+      };
+      const entradas = Object.entries(pendientes);
+      await Promise.all(entradas.filter(([clave]) => !vehiculoDeClave(clave)).map(([clave, archivo]) => subir(clave, archivo, null)));
+      hechos.current.cliente = guardado;
+      const primerNuevo = await vehiculos.guardarTodos(datos, guardado);
+      // y las de cada vehículo, ya guardado, ligadas a él (las de un vehículo que se dejó sin registrar no se suben)
+      const activos = new Set(vehiculos.items.filter((x) => x.activo).map((x) => x.clave));
       await Promise.all(
-        Object.entries(pendientes).map(async ([clave, archivo]) => {
-          const tipo = tipoDeClave(clave);
-          const ruta = await subirDocumento(datos, guardado.empresa_id, guardado.id, tipo, archivo);
-          await datos.agregarDocumento({ cliente_id: guardado.id, tipo, ruta });
+        entradas.flatMap(([clave, archivo]) => {
+          const veh = vehiculoDeClave(clave);
+          const moto = veh && activos.has(veh) ? vehiculos.motoDe(veh) : undefined;
+          return moto ? [subir(clave, archivo, moto)] : [];
         }),
       );
-      hechos.current.cliente = guardado;
-      setPendientes({});
-      const primerNuevo = await vehiculos.guardarTodos(datos, guardado);
       await borrarBorrador(claveBorrador); // ya quedó guardado de verdad
       if (despues === "contrato" && !cliente) {
         // "Guardar y llenar el contrato": directo al contrato con todo ya puesto (cliente, vehículo y cuotas)
@@ -155,6 +174,8 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
   };
 
   const opcionesEmpresa = useMemo(() => empresas.map((e) => ({ valor: e.id, texto: e.nombre })), [empresas]);
+  // las fotos del vehículo se muestran dentro de cada vehículo
+  const delCliente = existentes.filter((d) => !d.moto_id && !TIPOS_VEHICULO.has(d.tipo));
 
   return (
     <form onSubmit={(e) => guardar(e, cliente ? "solo" : "contrato")} className="flex flex-col gap-4" noValidate>
@@ -201,7 +222,19 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
             onChange={(e) => poner("celular", e.target.value.replace(/\D/g, ""))}
             error={errores.celular}
           />
-          <Selector etiqueta="Empresa" opciones={opcionesEmpresa} value={f.empresa_id} onChange={(e) => poner("empresa_id", e.target.value)} error={errores.empresa_id} obligatorio vacio="Elige…" />
+          <Selector
+            etiqueta="Empresa"
+            opciones={opcionesEmpresa}
+            value={f.empresa_id}
+            onChange={(e) => {
+              vehiculos.seguirEmpresa(f.empresa_id, e.target.value); // sus vehículos de esa empresa la siguen
+              poner("empresa_id", e.target.value);
+            }}
+            error={errores.empresa_id}
+            ayuda="Cada vehículo puede ser de otra empresa: se elige en el vehículo."
+            obligatorio
+            vacio="Elige…"
+          />
           <Campo etiqueta="Dirección" value={f.direccion} onChange={(e) => poner("direccion", e.target.value)} />
           <div className="sm:col-span-2">
             <CampoUbicacion valor={f.ubicacion} direccion={f.direccion} error={errores.ubicacion} alCambiar={(v) => poner("ubicacion", v)} />
@@ -221,20 +254,38 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
         </div>
       </Tarjeta>
 
-      <ListaVehiculos vehiculos={vehiculos} />
+      <ListaVehiculos
+        vehiculos={vehiculos}
+        empresas={opcionesEmpresa}
+        empresaCliente={f.empresa_id}
+        fotosDe={(x) => {
+          const prefijo = `${x.clave}|`;
+          const motoId = x.actual?.moto?.id;
+          return (
+            <div>
+              <FotosPorTipo
+                grupos={[GRUPO_VEHICULO]}
+                existentes={motoId ? existentes.filter((d) => d.moto_id === motoId) : []}
+                pendientes={Object.fromEntries(Object.entries(pendientes).flatMap(([k, a]) => (k.startsWith(prefijo) ? [[k.slice(prefijo.length), a]] : [])))}
+                alElegir={(clave, archivo) => setPendientes((p) => ({ ...p, [prefijo + clave]: archivo }))}
+                alQuitarPendiente={(clave) => sinPendiente(prefijo + clave)}
+                alQuitarExistente={quitarExistente}
+              />
+            </div>
+          );
+        }}
+        alQuitar={(clave) => {
+          vehiculos.quitar(clave);
+          setPendientes((p) => Object.fromEntries(Object.entries(p).filter(([k]) => vehiculoDeClave(k) !== clave)));
+        }}
+      />
 
-      <Tarjeta titulo={`Fotos y documentos (${espaciosLlenos(existentes, pendientes)} de ${TOTAL_FOTOS})`}>
+      <Tarjeta titulo={`Fotos del cliente y documentos (${espaciosLlenos(delCliente, pendientes)} de ${TOTAL_FOTOS})`}>
         <FotosPorTipo
-          existentes={existentes}
-          pendientes={pendientes}
+          existentes={delCliente}
+          pendientes={Object.fromEntries(Object.entries(pendientes).filter(([k]) => !vehiculoDeClave(k)))}
           alElegir={(clave, archivo) => setPendientes((p) => ({ ...p, [clave]: archivo }))}
-          alQuitarPendiente={(clave) =>
-            setPendientes((p) => {
-              const resto = { ...p };
-              delete resto[clave];
-              return resto;
-            })
-          }
+          alQuitarPendiente={sinPendiente}
           alQuitarExistente={quitarExistente}
         />
         <p className="mt-3 text-sm text-tenue">Cada foto se sube por separado y se comprime a unos 120 KB. Para cambiar una, quítala y toma otra.</p>
@@ -306,7 +357,19 @@ function ContratosFirmados({ cliente, actuales }: { cliente: Cliente; actuales: 
 }
 
 /** Un formulario por vehículo (cada uno con su cronograma) y el botón para registrar otro. */
-function ListaVehiculos({ vehiculos }: { vehiculos: ReturnType<typeof useVehiculos> }) {
+function ListaVehiculos({
+  vehiculos,
+  empresas,
+  empresaCliente,
+  fotosDe,
+  alQuitar,
+}: {
+  vehiculos: ReturnType<typeof useVehiculos>;
+  empresas: { valor: string; texto: string }[];
+  empresaCliente: string;
+  fotosDe: (x: ItemVehiculo) => ReactNode;
+  alQuitar: (clave: string) => void;
+}) {
   return (
     <>
       {vehiculos.items.map((x, n) => (
@@ -315,7 +378,10 @@ function ListaVehiculos({ vehiculos }: { vehiculos: ReturnType<typeof useVehicul
           titulo={vehiculos.items.length > 1 ? `Vehículo ${n + 1}` : "Vehículo"}
           activa={x.actual || n > 0 ? null : x.activo}
           alActivar={(a) => vehiculos.activar(x.clave, a)}
-          alQuitar={!x.actual && n > 0 ? () => vehiculos.quitar(x.clave) : undefined}
+          alQuitar={!x.actual && n > 0 ? () => alQuitar(x.clave) : undefined}
+          empresas={empresas}
+          empresaCliente={empresaCliente}
+          fotos={fotosDe(x)}
           v={x.v}
           errores={x.errores}
           conContrato={!!x.actual?.contrato}

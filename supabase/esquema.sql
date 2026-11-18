@@ -151,8 +151,8 @@ create trigger tipo_doc_por_defecto before insert or update of dni, tipo_doc on 
   for each row execute function public.tipo_doc_por_defecto();
 update public.clientes set tipo_doc = case when length(dni) = 8 then 'DNI' else 'CE' end where dni is not null and tipo_doc is null;
 
--- Al cambiar la empresa de un cliente, sus motos y contratos pasan a la misma empresa.
--- Si ya tiene pagos válidos no se permite (el dinero ya entró a las cuentas de la otra empresa).
+-- Al cambiar la empresa del cliente, se mueven con él solo los vehículos que estaban en su empresa anterior
+-- (los de otra empresa se quedan donde están). El bloqueo por pagos lo hace empresa_moto_en_cascada.
 create or replace function public.empresa_cliente_en_cascada()
 returns trigger
 language plpgsql
@@ -161,15 +161,7 @@ set search_path = public
 as $$
 begin
   if new.empresa_id is distinct from old.empresa_id then
-    if exists (
-      select 1 from public.pagos p join public.contratos c on c.id = p.contrato_id
-      where c.cliente_id = new.id and not p.anulado
-    ) then
-      raise exception 'Este cliente ya tiene pagos registrados en la otra empresa: no se puede cambiar de empresa.'
-        using errcode = 'P0001';
-    end if;
-    update public.motos set empresa_id = new.empresa_id where cliente_id = new.id and empresa_id is distinct from new.empresa_id;
-    update public.contratos set empresa_id = new.empresa_id where cliente_id = new.id and empresa_id is distinct from new.empresa_id;
+    update public.motos set empresa_id = new.empresa_id where cliente_id = new.id and empresa_id = old.empresa_id;
   end if;
   return new;
 end;
@@ -258,6 +250,43 @@ alter table public.contratos add constraint contratos_nro_cuotas_check check (nr
 -- Páginas del contrato firmado y escaneado (documentos de tipo "contrato")
 alter table public.documentos add column if not exists contrato_id uuid references public.contratos (id) on delete cascade;
 create index if not exists documentos_contrato_idx on public.documentos (contrato_id);
+
+-- Fotos del vehículo: cada una ligada a su vehículo (un cliente puede tener varios).
+alter table public.documentos add column if not exists moto_id uuid references public.motos (id) on delete cascade;
+create index if not exists documentos_moto_idx on public.documentos (moto_id);
+-- Las fotos de vehículo de antes (sin vehículo) pasan al primer vehículo registrado del cliente.
+update public.documentos d
+set moto_id = (select m.id from public.motos m where m.cliente_id = d.cliente_id order by m.creado_en limit 1)
+where d.moto_id is null
+  and d.tipo in ('moto', 'moto_atras', 'moto_izquierda', 'moto_derecha', 'tarjeta_frente', 'tarjeta_reverso');
+
+-- Cada vehículo tiene su empresa: su contrato va siempre a la misma empresa que el vehículo.
+-- Si el vehículo ya tiene pagos válidos no se cambia (ese dinero ya entró a las cuentas de la otra empresa).
+create or replace function public.empresa_moto_en_cascada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.empresa_id is distinct from old.empresa_id then
+    if exists (
+      select 1 from public.pagos p join public.contratos c on c.id = p.contrato_id
+      where c.moto_id = new.id and not p.anulado
+    ) then
+      raise exception 'El vehículo %ya tiene pagos registrados en su empresa: no se puede cambiar de empresa.',
+        coalesce(new.placa || ' ', '') using errcode = 'P0001';
+    end if;
+    update public.contratos set empresa_id = new.empresa_id where moto_id = new.id and empresa_id is distinct from new.empresa_id;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.empresa_moto_en_cascada() from public, anon, authenticated;
+drop trigger if exists empresa_moto_en_cascada on public.motos;
+create trigger empresa_moto_en_cascada after update of empresa_id on public.motos
+  for each row execute function public.empresa_moto_en_cascada();
+
 -- Una moto solo puede tener un contrato activo
 -- Una moto puede tener 2 préstamos activos del MISMO cliente (préstamo 2 sobre la misma moto);
 -- que no sea de otro cliente lo controla crear_contrato.

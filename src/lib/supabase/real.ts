@@ -255,13 +255,13 @@ export function crearDatosReales(): Datos {
       return fila<Cliente>(r) as Cliente;
     },
     async documentos(clienteId) {
-      return todas<Documento>((a, b) => sb.from("documentos").select("id, cliente_id, tipo, ruta, contrato_id, creado_en").eq("cliente_id", clienteId).order("creado_en").range(a, b));
+      return todas<Documento>((a, b) => sb.from("documentos").select("id, cliente_id, tipo, ruta, contrato_id, moto_id, creado_en").eq("cliente_id", clienteId).order("creado_en").range(a, b));
     },
     async resumenDocumentos() {
-      return todas<Pick<Documento, "cliente_id" | "tipo" | "contrato_id">>((a, b) => sb.from("documentos").select("cliente_id, tipo, contrato_id").order("id").range(a, b));
+      return todas<Pick<Documento, "cliente_id" | "tipo" | "contrato_id" | "moto_id">>((a, b) => sb.from("documentos").select("cliente_id, tipo, contrato_id, moto_id").order("id").range(a, b));
     },
     async agregarDocumento(d) {
-      return fila<Documento>(await sb.from("documentos").insert(d).select("id, cliente_id, tipo, ruta, contrato_id, creado_en").single()) as Documento;
+      return fila<Documento>(await sb.from("documentos").insert(d).select("id, cliente_id, tipo, ruta, contrato_id, moto_id, creado_en").single()) as Documento;
     },
     async borrarDocumento(id) {
       const doc = fila<Pick<Documento, "ruta">>(await sb.from("documentos").select("ruta").eq("id", id).maybeSingle());

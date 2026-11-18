@@ -84,6 +84,7 @@ export interface Documento {
   tipo: TipoDocumento;
   ruta: string; // empresa_id/cliente_id/archivo.jpg en el bucket "documentos"
   contrato_id?: string | null; // solo las páginas del contrato firmado
+  moto_id?: string | null; // fotos del vehículo: a cuál de sus vehículos pertenecen
   creado_en: string;
 }
 

@@ -19,10 +19,12 @@ interface Props<T> {
   /** contenido principal de la tarjeta en celular (si no, se usa la primera columna) */
   tituloMovil?: (fila: T) => ReactNode;
   acento?: (fila: T) => string | undefined;
+  /** clases extra de una fila (p. ej. las filas desplegadas de un grupo) */
+  claseFila?: (fila: T) => string | undefined;
 }
 
 /** Tabla en tablet/escritorio; tarjetas apiladas en celular. */
-export function Tabla<T>({ columnas, filas, claveFila, alTocar, vacio = "No hay datos.", tituloMovil, acento }: Props<T>) {
+export function Tabla<T>({ columnas, filas, claveFila, alTocar, vacio = "No hay datos.", tituloMovil, acento, claseFila }: Props<T>) {
   if (filas.length === 0) {
     return <p className="rounded-2xl border border-dashed border-borde bg-superficie p-8 text-center text-tenue">{vacio}</p>;
   }
@@ -58,7 +60,7 @@ export function Tabla<T>({ columnas, filas, claveFila, alTocar, vacio = "No hay 
               <tr
                 key={claveFila(f)}
                 {...activable(f)}
-                className={`border-t border-borde ${alTocar ? "cursor-pointer hover:bg-marca-suave/50 focus-visible:bg-marca-suave/50 focus-visible:outline-none" : ""}`}
+                className={`border-t border-borde ${alTocar ? "cursor-pointer hover:bg-marca-suave/50 focus-visible:bg-marca-suave/50 focus-visible:outline-none" : ""} ${claseFila?.(f) ?? ""}`}
                 style={acento?.(f) ? { boxShadow: `inset 4px 0 0 ${acento(f)}` } : undefined}
               >
                 {columnas.map((c) => (
@@ -78,7 +80,7 @@ export function Tabla<T>({ columnas, filas, claveFila, alTocar, vacio = "No hay 
             key={claveFila(f)}
             {...activable(f)}
             role={alTocar ? "button" : undefined}
-            className={`rounded-2xl border border-borde bg-superficie p-4 ${alTocar ? "cursor-pointer active:bg-marca-suave/50 focus-visible:ring-3 focus-visible:ring-marca/30 focus-visible:outline-none" : ""}`}
+            className={`rounded-2xl border border-borde bg-superficie p-4 ${alTocar ? "cursor-pointer active:bg-marca-suave/50 focus-visible:ring-3 focus-visible:ring-marca/30 focus-visible:outline-none" : ""} ${claseFila?.(f) ?? ""}`}
             style={acento?.(f) ? { boxShadow: `inset 5px 0 0 ${acento(f)}` } : undefined}
           >
             <div className="font-semibold">{tituloMovil ? tituloMovil(f) : primera.celda(f)}</div>

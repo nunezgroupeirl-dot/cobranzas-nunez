@@ -103,7 +103,7 @@ export interface Datos {
   guardarCliente(c: NuevoCliente): Promise<Cliente>;
   documentos(clienteId: string): Promise<Documento[]>;
   /** Qué fotos tiene cada cliente (sin las rutas): para la pantalla "Datos pendientes". */
-  resumenDocumentos(): Promise<Pick<Documento, "cliente_id" | "tipo" | "contrato_id">[]>;
+  resumenDocumentos(): Promise<Pick<Documento, "cliente_id" | "tipo" | "contrato_id" | "moto_id">[]>;
   agregarDocumento(d: Omit<Documento, "id" | "creado_en">): Promise<Documento>;
   borrarDocumento(id: string): Promise<void>;
   // motos y contratos
