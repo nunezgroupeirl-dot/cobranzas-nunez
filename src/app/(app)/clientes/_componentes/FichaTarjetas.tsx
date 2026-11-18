@@ -146,7 +146,7 @@ function ResumenCapital({ contrato }: { contrato: Contrato }) {
   const total = contrato.monto_cuota * contrato.nro_cuotas;
   const interes =
     contrato.interes_pct != null
-      ? `${contrato.interes_pct.toLocaleString("es-PE")} % al año`
+      ? `${contrato.interes_pct.toLocaleString("es-PE")} % ${(contrato.capital ?? 0) > 12000 ? "al año" : "por mes"}`
       : contrato.interes_mes != null
         ? `${formatoSoles(contrato.interes_mes)} por mes`
         : "—";

@@ -68,15 +68,26 @@ export function validarVenta(v: Venta): Record<string, string> {
   return e;
 }
 
-/** Hasta este capital el interés va en soles por mes (S/ 500 automático);
- *  desde S/ 12 001, en % anual proporcional al plazo (50 % al año). Los dos se pueden cambiar. */
+/**
+ * Tres tramos según el capital (como lo resolvió el administrador):
+ *  - menos de S/ 2 500 → 20 % del capital por mes;
+ *  - de S/ 2 500 a S/ 12 000 → S/ 500 de interés por mes (+ S/ 3 de GPS = 503);
+ *  - más de S/ 12 000 → 50 % al año (a 12 meses se calcula por día: total ÷ 12 ÷ 30).
+ * Todo se redondea a favor de la empresa. El interés de cada tramo se puede cambiar.
+ */
+export const CAPITAL_MINIMO = 2500;
 export const CAPITAL_TOPE = 12000;
+export const INTERES_BAJO_PCT_DEFECTO = "20";
 export const INTERES_MES_DEFECTO = "500";
 export const INTERES_PCT_DEFECTO = "50";
 export const GPS_MES_DEFECTO = "3.00";
-/** Interés automático según el capital: S/ 500 por mes hasta S/ 12 000; 50 % al año desde S/ 12 001. */
-export const interesPorDefecto = (capital: string) => (Number(capital) > CAPITAL_TOPE ? INTERES_PCT_DEFECTO : INTERES_MES_DEFECTO);
-export const interesEnPorcentaje = (capital: string) => Number(capital) > CAPITAL_TOPE;
+export type Tramo = "bajo" | "medio" | "alto";
+export const tramoDe = (capital: string): Tramo => (Number(capital) > CAPITAL_TOPE ? "alto" : Number(capital) < CAPITAL_MINIMO ? "bajo" : "medio");
+/** Interés automático según el tramo: 20 % por mes, S/ 500 por mes o 50 % al año. */
+export const interesPorDefecto = (capital: string) =>
+  ({ bajo: INTERES_BAJO_PCT_DEFECTO, medio: INTERES_MES_DEFECTO, alto: INTERES_PCT_DEFECTO })[tramoDe(capital)];
+/** El interés se escribe en % (tramos bajo y alto) o en soles por mes (tramo medio). */
+export const interesEnPorcentaje = (capital: string) => tramoDe(capital) !== "medio";
 
 /**
  * Semanas que tiene cada plazo en meses, tal como lo indicó el administrador (1 mes = 4 semanas … 12 meses = 52).
@@ -107,11 +118,21 @@ export function mesesDelPlazo(nroCuotas: number, frecuencia: Frecuencia): number
 
 const centimos = (x: number) => Math.round(x * 100) / 100;
 
+/** Redondeo a favor de la empresa: hacia arriba al siguiente múltiplo (0.10 o 0.50). */
+export function redondearArriba(x: number, paso: number): number {
+  const centavos = Math.round(x * 100);
+  const p = Math.round(paso * 100);
+  return (Math.ceil(centavos / p) * p) / 100;
+}
+
 /**
- * Interés y precio total (capital + interés + GPS) a partir del capital:
- * hasta S/ 12 000 → interés en soles por mes × meses del plazo;
- * desde S/ 12 001 → % al año, proporcional al plazo (S/ 15 000 al 50 % en 7 meses = S/ 4 375);
- * GPS → soles por mes × meses del plazo.
+ * Precio total y cuota a partir del capital, el plazo y el tramo (las hojas del administrador):
+ *  - más de S/ 12 000 a 12 meses → por día: (capital + 50 %) ÷ 12 ÷ 30, sube a 0.10 → × 7 la semana, × 52 semanas
+ *    (13 000 → 54.20 al día → 379.40 a la semana). El GPS lo cubren los días de más (364 en vez de 360).
+ *  - los demás → interés del mes (sube a 0.10) × meses + capital + GPS S/ 3 × meses, ÷ cuotas; la cuota sube a 0.50
+ *    (17 000 a 5 meses → 708.40 × 5 + 17 000 + 15 = 20 557 ÷ 21 = 978.90 → 979).
+ *  - cobro diario → total ÷ (meses × 30), sube a 0.10; se cobran los días de las semanas del plazo (12 meses = 364).
+ * El precio total es lo que de verdad se cobra: cuota × n.º de cuotas.
  */
 export function calcularConInteres(v: Pick<Venta, "capital" | "interes" | "nro_cuotas" | "frecuencia" | "gps">) {
   const c = Number(v.capital);
@@ -119,18 +140,31 @@ export function calcularConInteres(v: Pick<Venta, "capital" | "interes" | "nro_c
   const n = Number(v.nro_cuotas);
   if (!(c > 0) || !v.interes.trim() || !(i >= 0) || !(Number.isInteger(n) && n > 0)) return null;
   const meses = mesesDelPlazo(n, v.frecuencia);
-  const porcentaje = interesEnPorcentaje(v.capital);
-  const interesSoles = centimos(porcentaje ? (((c * i) / 100) * meses) / 12 : i * meses);
-  if (v.frecuencia === "diario") {
-    // año de 360 días: la cuota es (capital + interés) ÷ (meses × 30); el cliente paga los días de las semanas
-    // del plazo (12 meses = 364) y esos días de más son el GPS
-    const cuota = centimos((c + interesSoles) / Math.max(1, Math.round(meses * 30)));
+  const tramo = tramoDe(v.capital);
+  const porcentaje = tramo !== "medio";
+  const porDia = tramo === "alto" && meses === 12 && (v.frecuencia === "semanal" || v.frecuencia === "diario");
+
+  if (porDia) {
+    const diaria = redondearArriba((c * (1 + i / 100)) / 12 / 30, 0.1);
+    const cuota = v.frecuencia === "diario" ? diaria : centimos(diaria * 7);
     const total = centimos(cuota * n);
-    return { porcentaje, meses, interesSoles, gpsSoles: centimos(total - c - interesSoles), total, cuota, diasGps: Math.max(0, n - Math.round(meses * 30)) };
+    const interesSoles = centimos((c * i) / 100);
+    return { tramo, porcentaje, porDia, meses, interesMes: centimos(interesSoles / 12), interesSoles, gpsSoles: 0, calculado: centimos(c + interesSoles), total, cuota, diaria, diasGps: 0 };
+  }
+
+  const interesMes = redondearArriba(tramo === "alto" ? (c * i) / 100 / 12 : tramo === "bajo" ? (c * i) / 100 : i, 0.1);
+  const interesSoles = centimos(interesMes * meses);
+  if (v.frecuencia === "diario") {
+    // los días de más (12 meses = 364 en vez de 360) son el GPS
+    const base = c + interesSoles;
+    const cuota = redondearArriba(base / Math.max(1, Math.round(meses * 30)), 0.1);
+    const total = centimos(cuota * n);
+    return { tramo, porcentaje, porDia, meses, interesMes, interesSoles, gpsSoles: centimos(total - base), calculado: centimos(base), total, cuota, diaria: cuota, diasGps: Math.max(0, n - Math.round(meses * 30)) };
   }
   const gpsSoles = centimos((Number(v.gps) || 0) * meses);
-  const total = centimos(c + interesSoles + gpsSoles);
-  return { porcentaje, meses, interesSoles, gpsSoles, total, cuota: centimos(total / n), diasGps: 0 };
+  const calculado = centimos(c + interesSoles + gpsSoles);
+  const cuota = redondearArriba(calculado / n, 0.5);
+  return { tramo, porcentaje, porDia, meses, interesMes, interesSoles, gpsSoles, calculado, total: centimos(cuota * n), cuota, diaria: 0, diasGps: 0 };
 }
 
 /** Si cambió el capital o el interés, se guarda aparte (lo hace solo un administrador). */

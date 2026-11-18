@@ -1680,8 +1680,8 @@ create policy "cn borrar documentos" on storage.objects for delete to authentica
 
 -- Capital prestado e interés de cada contrato (solo administradores; el cliente no lo ve:
 -- no sale en la consulta pública ni en el PDF del cronograma). Se activa con un botón en la pantalla.
--- Hasta S/ 12 000: interés en soles por mes × meses del plazo (S/ 500 automático).
--- Desde S/ 12 001: % al año, proporcional al plazo (50 % por defecto). GPS: S/ 3 por mes × meses.
+-- Menos de S/ 2 500: interes_pct = % del capital por mes (20 %). De S/ 2 500 a S/ 12 000: interes_mes = S/ por mes (500).
+-- Más de S/ 12 000: interes_pct = % al año (50 %; a 12 meses se calcula por día). GPS: S/ 3 por mes si hay vehículo.
 -- El precio total y la cuota se calculan en la pantalla y se pueden corregir. También la fecha de entrega del vehículo.
 alter table public.contratos add column if not exists capital numeric(12, 2);
 alter table public.contratos add column if not exists interes_pct numeric(6, 2);

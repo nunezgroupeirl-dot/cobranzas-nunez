@@ -44,7 +44,9 @@ export function calcularCancelacion(
   if (contrato.capital == null) return null;
   const desde = contrato.fecha_entrega ?? contrato.fecha_inicio;
   const meses = Math.min(Math.max(1, Math.ceil(mesesPlazo)), mesesEmpezados(desde, fecha));
-  const interesMes = contrato.interes_pct != null ? (contrato.capital * contrato.interes_pct) / 100 / 12 : (contrato.interes_mes ?? 0);
+  // el % guardado es al año si el capital pasa de S/ 12 000 y por mes si es menor de S/ 2 500 (como en el cronograma)
+  const pctMes = contrato.interes_pct == null ? null : contrato.capital > 12000 ? contrato.interes_pct / 12 : contrato.interes_pct;
+  const interesMes = Math.ceil(Math.round((pctMes != null ? (contrato.capital * pctMes) / 100 : (contrato.interes_mes ?? 0)) * 100) / 10) / 10;
   const interesUsado = centimos(interesMes * meses);
   const gpsUsado = centimos((contrato.gps_mes ?? 0) * meses);
   const totalUsado = centimos(contrato.capital + interesUsado + gpsUsado);

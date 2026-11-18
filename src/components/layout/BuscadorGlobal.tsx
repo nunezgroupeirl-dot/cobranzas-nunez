@@ -98,7 +98,15 @@ export function BuscadorGlobal() {
   // el cobrador de ruta no entra a la ficha: tocar al cliente lo lleva a cobrarle
   const ficha = (e: Fila) => (conFicha ? ir(`/clientes/ficha?id=${e.cliente_id}`) : cobrar(e));
 
+  const cerrar = () => setAbierto(false);
+
   const teclas = (ev: KeyboardEvent<HTMLInputElement>) => {
+    if (ev.key === "Escape") {
+      // Esc lo cierra la página misma: algunos navegadores no cierran el <dialog> cuando el foco está en el campo
+      ev.preventDefault();
+      cerrar();
+      return;
+    }
     if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
       ev.preventDefault();
       const paso = ev.key === "ArrowDown" ? 1 : -1;
@@ -129,7 +137,15 @@ export function BuscadorGlobal() {
       <dialog
         ref={dialogo}
         aria-label="Búsqueda rápida"
-        onClose={() => setAbierto(false)}
+        onClose={cerrar}
+        onCancel={(ev) => {
+          ev.preventDefault();
+          cerrar();
+        }}
+        // tocar fuera de la ventanita (en el fondo oscuro) la cierra
+        onClick={(ev) => {
+          if (ev.target === ev.currentTarget) cerrar();
+        }}
         className="mx-auto mt-[10vh] w-[min(40rem,calc(100%-2rem))] max-w-none rounded-2xl bg-superficie p-0 text-tinta shadow-2xl backdrop:bg-tinta/40"
       >
         {abierto && (
@@ -152,7 +168,17 @@ export function BuscadorGlobal() {
                 aria-controls="resultados-busqueda"
                 className="min-h-14 flex-1 bg-transparent text-lg outline-none focus-visible:outline-none"
               />
-              <kbd className="rounded-md border border-borde bg-fondo px-1.5 font-sans text-xs font-semibold text-tenue">Esc</kbd>
+              <button
+                type="button"
+                onClick={cerrar}
+                aria-label="Cerrar la búsqueda"
+                title="Cerrar (Esc)"
+                className="grid size-10 shrink-0 place-items-center rounded-lg text-tenue hover:bg-fondo hover:text-tinta"
+              >
+                <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden>
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
             </div>
 
             <ul id="resultados-busqueda" className="overflow-y-auto p-2" aria-label="Resultados">

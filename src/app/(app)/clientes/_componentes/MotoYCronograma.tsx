@@ -5,14 +5,13 @@ import { fechaCuota } from "@/lib/supabase/reglas";
 import type { Frecuencia } from "@/types/database";
 import { CampoPlaca } from "../../contratos/_componentes/CampoPlaca";
 import {
+  CAPITAL_MINIMO,
   CAPITAL_TOPE,
   GPS_MES_DEFECTO,
-  INTERES_MES_DEFECTO,
-  INTERES_PCT_DEFECTO,
   calcularConInteres,
   cuotasDelPlazo,
-  interesEnPorcentaje,
   interesPorDefecto,
+  tramoDe,
   type Venta,
 } from "./venta";
 
@@ -103,7 +102,7 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
   const nro = Number(v.nro_cuotas);
   const plural = FRECUENCIAS.find((f) => f.valor === v.frecuencia)?.plural ?? "";
   const calculo = v.usar_capital ? calcularConInteres(v) : null;
-  const enPorcentaje = interesEnPorcentaje(v.capital);
+  const tramo = tramoDe(v.capital);
   // con el botón prendido, al cambiar el capital, el interés, el GPS, el n.º de cuotas o la frecuencia,
   // el precio total y la cuota se calculan solos; los dos se pueden corregir a mano
   const conCalculo = (cambio: Partial<Venta>) => {
@@ -146,7 +145,8 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
           <input
             type="checkbox"
             checked={v.usar_capital}
-            onChange={(e) => alCambiar({ usar_capital: e.target.checked })}
+            // al prenderlo, el GPS viene marcado (hay vehículo); en un préstamo sin vehículo se desmarca
+            onChange={(e) => conCalculo({ usar_capital: e.target.checked, gps: e.target.checked && !v.gps ? GPS_MES_DEFECTO : v.gps })}
             className="size-5 shrink-0 accent-marca"
           />
           <span className="text-sm font-semibold">
@@ -181,24 +181,28 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
               className="num"
             />
             <Campo
-              etiqueta={enPorcentaje ? "Interés al año (%)" : "Interés por mes (S/)"}
+              etiqueta={tramo === "alto" ? "Interés al año (%)" : tramo === "bajo" ? "Interés por mes (%)" : "Interés por mes (S/)"}
               type="number"
               inputMode="decimal"
               min="0"
-              max={enPorcentaje ? "500" : undefined}
+              max={tramo === "medio" ? undefined : "500"}
               step="0.01"
               value={v.interes}
               onChange={(e) => conCalculo({ interes: e.target.value })}
               error={errores.interes}
               ayuda={
-                enPorcentaje
-                  ? `Desde ${formatoSoles(CAPITAL_TOPE + 1)}: ${INTERES_PCT_DEFECTO} % al año, proporcional al plazo (se puede cambiar).`
-                  : `Hasta ${formatoSoles(CAPITAL_TOPE)}: S/ ${INTERES_MES_DEFECTO} por mes × meses (se puede cambiar).`
+                tramo === "alto"
+                  ? `Más de ${formatoSoles(CAPITAL_TOPE)}: 50 % al año (a 12 meses se calcula por día). Se puede cambiar.`
+                  : tramo === "bajo"
+                    ? `Menos de ${formatoSoles(CAPITAL_MINIMO)}: 20 % del capital por mes. Se puede cambiar.`
+                    : `De ${formatoSoles(CAPITAL_MINIMO)} a ${formatoSoles(CAPITAL_TOPE)}: S/ 500 por mes (+ S/ 3 de GPS = 503). Se puede cambiar.`
               }
               className="num"
             />
-            {v.frecuencia === "diario" ? (
-              <p className="self-center text-sm text-tenue">En diario el GPS son los días de más: la cuota sale de 30 días por mes y se cobran 364 días al año.</p>
+            {v.frecuencia === "diario" || calculo?.porDia ? (
+              <p className="self-center text-sm text-tenue">
+                El GPS va en los días de más: la cuota sale de 30 días por mes y se cobran 364 días al año.
+              </p>
             ) : (
             <div className="flex flex-col gap-2">
               <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
@@ -208,8 +212,9 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
                   onChange={(e) => conCalculo({ gps: e.target.checked ? GPS_MES_DEFECTO : "" })}
                   className="size-5 accent-marca"
                 />
-                Sumar GPS
+                Sumar GPS (S/ 3 por mes)
               </label>
+              <p className="-mt-1 text-xs text-tenue">Con vehículo sí; si es préstamo sin vehículo, desmárcalo.</p>
               {v.gps.trim() !== "" && (
                 <Campo
                   etiqueta="GPS por mes (S/)"
@@ -234,16 +239,31 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
                   <span>
                     Capital: <b className="num">{formatoSoles(Number(v.capital))}</b>
                   </span>
-                  <span>
-                    Interés: <b className="num">{formatoSoles(calculo.interesSoles)}</b>
-                  </span>
-                  {calculo.gpsSoles > 0 && (
+                  {calculo.porDia ? (
                     <span>
-                      GPS{calculo.diasGps ? ` (${calculo.diasGps} días de más)` : ""}: <b className="num">{formatoSoles(calculo.gpsSoles)}</b>
+                      Capital + {v.interes} %: <b className="num">{formatoSoles(calculo.calculado)}</b> ÷ 12 ÷ 30 ={" "}
+                      <b className="num">{formatoSoles(calculo.diaria)} al día</b>
                     </span>
+                  ) : (
+                    <>
+                      <span>
+                        Interés: <b className="num">{formatoSoles(calculo.interesMes)}</b> por mes × {calculo.meses.toLocaleString("es-PE")} ={" "}
+                        <b className="num">{formatoSoles(calculo.interesSoles)}</b>
+                      </span>
+                      {calculo.gpsSoles > 0 && (
+                        <span>
+                          GPS{calculo.diasGps ? ` (${calculo.diasGps} días de más)` : ""}: <b className="num">{formatoSoles(calculo.gpsSoles)}</b>
+                        </span>
+                      )}
+                      <span>
+                        Suma: <b className="num">{formatoSoles(calculo.calculado)}</b>
+                      </span>
+                    </>
                   )}
-                  <span>
-                    Precio total: <b className="num">{formatoSoles(calculo.total)}</b>
+                  <span className="basis-full text-base">
+                    Cuota <b className="num">{formatoSoles(calculo.cuota)}</b> × {v.nro_cuotas} = Precio total{" "}
+                    <b className="num text-marca">{formatoSoles(calculo.total)}</b>
+                    <span className="text-tenue"> (redondeado a favor de la empresa)</span>
                   </span>
                 </span>
               ) : (
