@@ -7,11 +7,11 @@ import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, DOCUMENTOS,
 import { subirDocumento } from "@/lib/fotos";
 import { borrarBorrador, guardarArchivosBorrador, guardarBorrador, leerArchivosBorrador, leerBorrador } from "@/lib/borrador";
 import { ubicacionValida } from "@/lib/mapa";
-import type { TipoDoc, Cliente, Documento, TipoDocumento } from "@/types/database";
+import type { TipoDoc, Cliente, Documento } from "@/types/database";
 import { CampoUbicacion } from "./CampoUbicacion";
 import { FotosPorTipo } from "./FotosPorTipo";
 import { MotoYCronograma } from "./MotoYCronograma";
-import { TOTAL_FOTOS } from "./secciones";
+import { GRUPOS_FOTOS, TOTAL_FOTOS, tipoDeClave } from "./secciones";
 import { TarjetaContratoFirmado } from "../../contratos/_componentes/TarjetaContratoFirmado";
 import { useVehiculos } from "./useVehiculos";
 import type { VentaActual } from "./venta";
@@ -43,7 +43,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
   const hechos = useRef<{ cliente?: Cliente }>({});
   const [existentes, setExistentes] = useState<Documento[]>([]);
   // una foto nueva por tipo (cliente, DNI, moto…): se suben al guardar
-  const [pendientes, setPendientes] = useState<Partial<Record<TipoDocumento, File>>>({});
+  const [pendientes, setPendientes] = useState<Record<string, File>>({}); // clave: tipo, o "otro:n" (ver tipoDeClave)
 
   useEffect(() => {
     if (cliente) datos.documentos(cliente.id).then((d) => setExistentes(d.filter((x) => x.tipo !== "contrato")));
@@ -64,7 +64,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     leerArchivosBorrador(claveBorrador)
       .then((a) => {
         if (Object.keys(a).length) {
-          setPendientes(a as Partial<Record<TipoDocumento, File>>);
+          setPendientes(a);
           setRecuperado(true);
         }
       })
@@ -83,7 +83,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
   }, [claveBorrador, f, vehiculos.items, guardando]);
   useEffect(() => {
     if (!borradorListo.current || guardando) return;
-    void guardarArchivosBorrador(claveBorrador, pendientes as Record<string, File>);
+    void guardarArchivosBorrador(claveBorrador, pendientes);
   }, [claveBorrador, pendientes, guardando]);
   const descartarBorrador = async () => {
     if (!confirm("¿Borrar lo que llenaste y empezar de nuevo?")) return;
@@ -132,7 +132,8 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
       });
       // Una foto por tipo (máximo 6): se suben a la vez (cada una se comprime, sube y registra por su cuenta)
       await Promise.all(
-        (Object.entries(pendientes) as [TipoDocumento, File][]).map(async ([tipo, archivo]) => {
+        Object.entries(pendientes).map(async ([clave, archivo]) => {
+          const tipo = tipoDeClave(clave);
           const ruta = await subirDocumento(datos, guardado.empresa_id, guardado.id, tipo, archivo);
           await datos.agregarDocumento({ cliente_id: guardado.id, tipo, ruta });
         }),
@@ -222,15 +223,15 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
 
       <ListaVehiculos vehiculos={vehiculos} />
 
-      <Tarjeta titulo={`Fotos y documentos (${existentes.length + Object.keys(pendientes).length} de ${TOTAL_FOTOS})`}>
+      <Tarjeta titulo={`Fotos y documentos (${espaciosLlenos(existentes, pendientes)} de ${TOTAL_FOTOS})`}>
         <FotosPorTipo
           existentes={existentes}
           pendientes={pendientes}
-          alElegir={(tipo, archivo) => setPendientes((p) => ({ ...p, [tipo]: archivo }))}
-          alQuitarPendiente={(tipo) =>
+          alElegir={(clave, archivo) => setPendientes((p) => ({ ...p, [clave]: archivo }))}
+          alQuitarPendiente={(clave) =>
             setPendientes((p) => {
               const resto = { ...p };
-              delete resto[tipo];
+              delete resto[clave];
               return resto;
             })
           }
@@ -328,4 +329,10 @@ function ListaVehiculos({ vehiculos }: { vehiculos: ReturnType<typeof useVehicul
       )}
     </>
   );
+}
+
+/** Cuántos espacios de foto ya tienen algo (los de "varios" cuentan una vez). */
+function espaciosLlenos(existentes: Documento[], pendientes: Record<string, File>): number {
+  const tipos = new Set<string>([...existentes.map((d) => d.tipo), ...Object.keys(pendientes).map(tipoDeClave)]);
+  return GRUPOS_FOTOS.reduce((n, g) => n + g.espacios.filter((e) => tipos.has(e.tipo)).length, 0);
 }

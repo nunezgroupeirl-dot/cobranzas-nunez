@@ -6,7 +6,14 @@ export type TipoFoto = Exclude<TipoDocumento, "contrato">;
  * Las fotos del cliente agrupadas por partes (así la ficha no se ve llena): cada grupo muestra
  * miniaturas chicas que se amplían al tocarlas. Las hojas del contrato se suben en su pantalla.
  */
-export const GRUPOS_FOTOS: { titulo: string; ayuda: string; espacios: { tipo: TipoFoto; etiqueta: string }[] }[] = [
+/** Un espacio de foto. "varios": se pueden subir varias (aparece "+ Agregar otro" al costado). */
+export interface EspacioFoto {
+  tipo: TipoFoto;
+  etiqueta: string;
+  varios?: boolean;
+}
+
+export const GRUPOS_FOTOS: { titulo: string; ayuda: string; espacios: EspacioFoto[] }[] = [
   {
     titulo: "Cliente",
     ayuda: "El cliente solo, el cliente con su contrato y el documento por las 2 caras (que se lea el número).",
@@ -37,7 +44,10 @@ export const GRUPOS_FOTOS: { titulo: string; ayuda: string; espacios: { tipo: Ti
       { tipo: "recibo", etiqueta: "Recibo" },
     ],
   },
-  { titulo: "Otros", ayuda: "Cualquier otro documento. Foto o PDF.", espacios: [{ tipo: "otro", etiqueta: "Otro" }] },
+  { titulo: "Otros", ayuda: "Cualquier otro documento. Foto o PDF; se pueden agregar varios.", espacios: [{ tipo: "otro", etiqueta: "Otro", varios: true }] },
 ];
+
+/** Tipo de una foto pendiente: la clave es el tipo, o "tipo:n" en los espacios que aceptan varias. */
+export const tipoDeClave = (clave: string) => clave.split(":")[0] as TipoFoto;
 
 export const TOTAL_FOTOS = GRUPOS_FOTOS.reduce((n, g) => n + g.espacios.length, 0);
