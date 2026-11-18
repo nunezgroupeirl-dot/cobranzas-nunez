@@ -78,6 +78,16 @@ interface Opciones {
   vistaPrevia?: boolean;
 }
 
+/**
+ * Logo chico arriba a la izquierda: va en los contratos de todas las empresas menos Yarhua
+ * (y no en la plantilla en blanco, que no dice de qué empresa es).
+ */
+export function llevaLogo(empresa: string | undefined): boolean {
+  const nombre = (empresa ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  return !!nombre.trim() && !nombre.includes("YARHUA");
+}
+const urlLogo = () => `${typeof window === "undefined" ? "" : window.location.origin}/marca/logo-256.webp`;
+
 /** HTML del contrato: en blanco (sin `c`) o llenado con los datos de la pasarela. */
 export function htmlPlantillaContrato(c?: Partial<CamposContrato> | null, { vistaPrevia = false }: Opciones = {}): string {
   const d: Partial<CamposContrato> = c ?? {};
@@ -95,7 +105,8 @@ export function htmlPlantillaContrato(c?: Partial<CamposContrato> | null, { vist
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
 <style>
 @page{size:A4;margin:14mm 16mm 12mm}
-body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:10.5pt;line-height:1.8;margin:0}
+body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:10.5pt;line-height:1.8;margin:0;position:relative}
+.logo{position:absolute;left:0;margin-top:-2mm;width:17mm;height:17mm;border-radius:50%}
 h1{text-align:center;font-size:14pt;margin:0 0 6px;line-height:1.3}
 .codigo{text-align:right;font-size:9pt;margin-bottom:8px}
 p{margin:0 0 6px;text-align:justify}
@@ -115,6 +126,7 @@ b{font-weight:700}
 @media screen{body{max-width:180mm;margin:20px auto;padding:0 10mm}${vistaPrevia ? "" : ".ok{display:block;background:#fff5d6;border:1px solid #e6c65c;padding:8px 12px;border-radius:8px;font-size:10pt;margin-bottom:16px;line-height:1.4}"}}
 </style></head><body>
 <div class="ok">${aviso}</div>
+${lleno && llevaLogo(d.empresa) ? `<img class="logo" src="${esc(urlLogo())}" alt="">` : ""}
 <h1>Contrato de Alquiler Venta de ${lleno && elegido ? elegido.texto.replace(" lineal", "") : "Vehículo"}</h1>
 <div class="codigo">Placa N.º ${r(110, d.placa)}</div>
 
