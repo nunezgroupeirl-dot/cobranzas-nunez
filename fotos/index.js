@@ -1,9 +1,11 @@
 // Fotos · Cobranzas Nuñez
 // Worker de Cloudflare que guarda las fotos en R2 (10 GB gratis) en vez de Supabase Storage.
 // Aplica los MISMOS permisos que tenían los buckets de Supabase:
-//   · ver: cualquier usuario activo · subir comprobantes: dueño y cobradores · subir fotos del cliente: solo el dueño
-//   · borrar foto de pago: quien la subió o el dueño, y solo si ya no está ligada a un pago
-//   · borrar foto de cliente: el dueño, o quien la subió
+//   · ver: cualquier usuario activo · subir comprobantes: administradores y cobradores · subir fotos del cliente: administradores
+//   · borrar foto de pago: quien la subió o un administrador, y solo si ya no está ligada a un pago
+//   · borrar foto de cliente: un administrador, o quien la subió
+// Fotos (JPG) y documentos en PDF. Las fotos que ya estaban en Supabase Storage se copian solas a R2
+// la primera vez que alguien las abre (así no hay que mudarlas a mano).
 // Quién es el usuario lo decide Supabase: se valida su sesión en cada petición.
 //
 // Configuración (Cloudflare → el Worker → Settings):
@@ -12,9 +14,12 @@
 //   Secret:                 FIRMA_SECRETA (texto largo al azar; firma los enlaces de 1 hora)
 
 const BUCKETS = new Set(["evidencias", "documentos"]);
-// empresa_id/cliente_id/tipo-fecha-azar.jpg  (lo arma src/lib/fotos.ts)
-const RUTA_VALIDA = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[a-z]{2,12}-\d{10,15}-[a-z0-9]{1,10}\.jpg$/;
-const TAMANO_MAXIMO = 2 * 1024 * 1024; // las fotos llegan comprimidas (~120 KB)
+// empresa_id/cliente_id/tipo-fecha-azar.jpg o .pdf  (lo arma src/lib/fotos.ts)
+const RUTA_VALIDA = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[a-z]{2,12}-\d{10,15}-[a-z0-9]{1,10}\.(jpg|pdf)$/;
+const TIPOS = { jpg: "image/jpeg", pdf: "application/pdf" };
+// las fotos llegan comprimidas (~120 KB); los PDF se suben tal cual (hasta 10 MB, igual que en la app)
+const TAMANO_MAXIMO = { jpg: 2 * 1024 * 1024, pdf: 10 * 1024 * 1024 };
+const extension = (ruta) => (ruta.endsWith(".pdf") ? "pdf" : "jpg");
 const VIGENCIA_ENLACE = 3600; // segundos
 
 const CORS = {
@@ -63,6 +68,21 @@ async function ligadaAPago(env, token, ruta) {
   return (await r.json()).length > 0;
 }
 
+/**
+ * Foto que todavía está en Supabase Storage (de antes de usar R2): se descarga con la sesión del usuario
+ * (Supabase revisa el permiso) y se guarda en R2. Devuelve true si quedó en R2.
+ */
+async function traerDeSupabase(env, token, bucket, ruta, clave) {
+  const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/authenticated/${bucket}/${ruta}`, {
+    headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) return false;
+  const cuerpo = await r.arrayBuffer();
+  if (cuerpo.byteLength === 0) return false;
+  await env.FOTOS.put(clave, cuerpo, { httpMetadata: { contentType: TIPOS[extension(ruta)] }, customMetadata: { origen: "supabase" } });
+  return true;
+}
+
 /* ---------------- enlaces firmados (para <img src>) ---------------- */
 
 async function firma(env, texto) {
@@ -109,6 +129,10 @@ export default {
       const { bucket, ruta } = await peticion.json().catch(() => ({}));
       const p = partes(new URL(`/archivo/${bucket}/${ruta}`, url));
       if (!p) return fallo(400, "Foto no válida.");
+      // si aún no está en R2, se copia de Supabase Storage (fotos de antes del cambio)
+      if (!(await env.FOTOS.head(p.clave)) && !(await traerDeSupabase(env, tokenDe(peticion), p.bucket, p.ruta, p.clave))) {
+        return fallo(404, "La foto no existe.");
+      }
       const exp = Math.floor(Date.now() / 1000) + VIGENCIA_ENLACE;
       const sig = await firma(env, `${p.clave}:${exp}`);
       return responder({ url: `${url.origin}/archivo/${p.bucket}/${p.ruta}?exp=${exp}&sig=${sig}`, vence: exp });
@@ -126,7 +150,7 @@ export default {
       const obj = await env.FOTOS.get(p.clave);
       if (!obj) return fallo(404, "La foto no existe.");
       return new Response(obj.body, {
-        headers: { ...CORS, "Content-Type": "image/jpeg", "Cache-Control": `private, max-age=${Math.max(0, exp - Math.floor(Date.now() / 1000))}` },
+        headers: { ...CORS, "Content-Type": obj.httpMetadata?.contentType || TIPOS[extension(p.ruta)], "Cache-Control": `private, max-age=${Math.max(0, exp - Math.floor(Date.now() / 1000))}` },
       });
     }
 
@@ -136,15 +160,17 @@ export default {
 
     // Subir: comprobantes de pago (dueño y cobradores); fotos y documentos del cliente (solo el dueño)
     if (peticion.method === "PUT") {
-      if (p.bucket === "documentos" && !yo.admin) return fallo(403, "Solo el dueño puede subir fotos y documentos del cliente.");
-      if ((peticion.headers.get("Content-Type") || "") !== "image/jpeg") return fallo(415, "La foto debe ser JPG.");
+      if (p.bucket === "documentos" && !yo.admin) return fallo(403, "Solo un administrador puede subir fotos y documentos del cliente.");
+      const ext = extension(p.ruta);
+      if (ext === "pdf" && p.bucket !== "documentos") return fallo(415, "El comprobante de pago debe ser una foto.");
+      if ((peticion.headers.get("Content-Type") || "") !== TIPOS[ext]) return fallo(415, ext === "pdf" ? "El archivo debe ser PDF." : "La foto debe ser JPG.");
       const largo = Number(peticion.headers.get("Content-Length") || 0);
-      if (largo > TAMANO_MAXIMO) return fallo(413, "La foto es demasiado grande.");
+      if (largo > TAMANO_MAXIMO[ext]) return fallo(413, ext === "pdf" ? "El PDF pesa más de 10 MB." : "La foto es demasiado grande.");
       if (await env.FOTOS.head(p.clave)) return fallo(409, "Esa foto ya existe.");
       const cuerpo = await peticion.arrayBuffer();
-      if (cuerpo.byteLength === 0 || cuerpo.byteLength > TAMANO_MAXIMO) return fallo(413, "La foto está vacía o es demasiado grande.");
+      if (cuerpo.byteLength === 0 || cuerpo.byteLength > TAMANO_MAXIMO[ext]) return fallo(413, "El archivo está vacío o es demasiado grande.");
       await env.FOTOS.put(p.clave, cuerpo, {
-        httpMetadata: { contentType: "image/jpeg" },
+        httpMetadata: { contentType: TIPOS[ext] },
         customMetadata: { subido_por: yo.id },
       });
       return responder({ ok: true }, 201);
@@ -153,13 +179,20 @@ export default {
     // Borrar
     if (peticion.method === "DELETE") {
       const obj = await env.FOTOS.head(p.clave);
-      if (!obj) return new Response(null, { status: 204, headers: CORS });
+      if (!obj) {
+        // foto de antes del cambio que nunca se abrió: se borra en Supabase Storage (Supabase revisa el permiso)
+        await fetch(`${env.SUPABASE_URL}/storage/v1/object/${p.bucket}/${p.ruta}`, {
+          method: "DELETE",
+          headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${tokenDe(peticion)}` },
+        }).catch(() => undefined);
+        return new Response(null, { status: 204, headers: CORS });
+      }
       const esSuya = obj.customMetadata?.subido_por === yo.id;
       if (p.bucket === "evidencias") {
-        if (!esSuya && !yo.admin) return fallo(403, "Solo quien subió la foto o el dueño pueden descartarla.");
+        if (!esSuya && !yo.admin) return fallo(403, "Solo quien subió la foto o un administrador pueden descartarla.");
         if (await ligadaAPago(env, tokenDe(peticion), p.ruta)) return fallo(403, "La foto ya es evidencia de un pago y no se puede borrar.");
       } else if (!yo.admin && !esSuya) {
-        return fallo(403, "Solo el dueño o quien subió la foto puede borrarla.");
+        return fallo(403, "Solo un administrador o quien subió la foto puede borrarla.");
       }
       await env.FOTOS.delete(p.clave);
       return new Response(null, { status: 204, headers: CORS });
