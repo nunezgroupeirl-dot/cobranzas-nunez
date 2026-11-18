@@ -164,10 +164,10 @@ export function crearDatosReales(): Datos {
       return todas<Empresa>((a, b) => sb.from("empresas").select("id, nombre, ruc, representante, representante_dni, domicilio").order("nombre").range(a, b));
     },
     async cuentas() {
-      return todas<Cuenta>((a, b) => sb.from("cuentas").select("id, empresa_id, nombre, medio, activa").eq("activa", true).order("nombre").range(a, b));
+      return todas<Cuenta>((a, b) => sb.from("cuentas").select("id, empresa_id, nombre, entidad, titular, numero, medio, activa").eq("activa", true).order("nombre").range(a, b));
     },
     async todasLasCuentas() {
-      return todas<Cuenta>((a, b) => sb.from("cuentas").select("id, empresa_id, nombre, medio, activa").order("nombre").range(a, b));
+      return todas<Cuenta>((a, b) => sb.from("cuentas").select("id, empresa_id, nombre, entidad, titular, numero, medio, activa").order("nombre").range(a, b));
     },
     async guardarEmpresa(e) {
       const limpio = (t?: string | null) => t?.trim() || null;

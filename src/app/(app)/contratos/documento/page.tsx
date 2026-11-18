@@ -25,7 +25,7 @@ function DocumentoContrato() {
       moto,
       empresa,
       iniciales: camposGuardados(base, contrato.documento),
-      cuentas: cuentas.filter((c) => c.empresa_id === empresa.id).map((c) => c.nombre),
+      cuentas: cuentas.filter((c) => c.empresa_id === empresa.id || !c.empresa_id).map((c) => c.nombre), // las de la empresa y los Yape/Plin personales
     };
   }, [datos, id, empresas]);
 

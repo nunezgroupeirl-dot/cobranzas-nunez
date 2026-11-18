@@ -82,6 +82,35 @@ create table if not exists public.cuentas (
 );
 create index if not exists cuentas_empresa_idx on public.cuentas (empresa_id);
 
+-- Cuentas de cobro por partes: entidad (BCP, Interbank, Yape…), titular (a nombre de quién) y número.
+-- Yape y Plin pueden ser personales (sin empresa); las de banco siempre son de una empresa.
+alter table public.cuentas add column if not exists entidad text;
+alter table public.cuentas add column if not exists titular text;
+alter table public.cuentas add column if not exists numero  text;
+alter table public.cuentas alter column empresa_id drop not null;
+alter table public.cuentas drop constraint if exists cuentas_empresa_si_es_banco;
+alter table public.cuentas add constraint cuentas_empresa_si_es_banco check (empresa_id is not null or medio in ('yape', 'plin'));
+
+-- "nombre" (lo que se ve al registrar pagos y en los reportes) se arma solo: "BCP 1947… · Titular"
+create or replace function public.nombre_cuenta()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.entidad := nullif(trim(new.entidad), '');
+  new.titular := nullif(trim(new.titular), '');
+  new.numero  := nullif(regexp_replace(coalesce(new.numero, ''), '\s+', '', 'g'), '');
+  if new.entidad is not null and new.numero is not null then
+    new.nombre := new.entidad || ' ' || new.numero || coalesce(' · ' || new.titular, '');
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists nombre_cuenta on public.cuentas;
+create trigger nombre_cuenta before insert or update on public.cuentas
+  for each row execute function public.nombre_cuenta();
+
 -- Usuarios del sistema (uno por cada usuario de Supabase Auth)
 create table if not exists public.perfiles (
   id         uuid primary key references auth.users (id) on delete cascade,

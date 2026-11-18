@@ -1,4 +1,5 @@
 "use client";
+import { opcionesDeCuenta } from "@/lib/cuentas";
 import { useMemo, useRef, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import {
@@ -175,10 +176,11 @@ function ModalComprobanteAnterior({ abierto, contrato, cuotas, cuentas, alCerrar
   const total = cuotas.reduce((t, c) => t + c.monto, 0);
   const nombreEmpresa = useMemo(() => new Map(empresas.map((e) => [e.id, e.nombre])), [empresas]);
   // primero las cuentas de la empresa del contrato; un depósito en agente llega a una cuenta de banco
-  const opcionesCuenta = cuentas
-    .filter((c) => c.medio === medio || (medio === "agente" && c.medio === "banco"))
-    .sort((a, b) => Number(b.empresa_id === contrato.empresa_id) - Number(a.empresa_id === contrato.empresa_id))
-    .map((c) => ({ valor: c.id, texto: c.empresa_id === contrato.empresa_id ? c.nombre : `${c.nombre} (${nombreEmpresa.get(c.empresa_id) ?? ""})` }));
+  const opcionesCuenta = opcionesDeCuenta(
+    cuentas.filter((c) => c.medio === medio || (medio === "agente" && c.medio === "banco")),
+    contrato.empresa_id,
+    nombreEmpresa,
+  );
 
   const guardar = async () => {
     if (enviando.current) return;

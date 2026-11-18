@@ -1,4 +1,5 @@
 "use client";
+import { opcionesDeCuenta } from "@/lib/cuentas";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
@@ -6,7 +7,6 @@ import { useEmpresa } from "@/components/layout/empresa";
 import { DIAS_ATRAS_TRABAJADOR, sumarDias } from "@/lib/supabase/reglas";
 import { Aviso, Boton, Campo, Cargando, NOMBRE_MEDIO, OpcionesBoton, Selector, Tarjeta, TituloPagina, formatoSoles, hoyLima, mensajeDeError, useCarga } from "@/components/ui";
 import { borrarFoto, prepararFotoPago } from "@/lib/fotos";
-import { alfabetico } from "@/lib/texto";
 import type { MedioPago, RegistrarPagoResultado } from "@/types/database";
 import { BuscarContrato } from "../_componentes/BuscarContrato";
 import { FotoComprobante } from "../_componentes/FotoComprobante";
@@ -71,12 +71,10 @@ export default function RegistrarPago() {
 
   // Andrés recibe en cualquiera de sus cuentas: se muestran todas las del medio elegido,
   // primero las de la empresa del cliente. Un depósito en agente llega a una cuenta de banco.
-  const cuentasMedio = useMemo(() => {
-    const propia = (id: string) => Number(id === elegido?.empresa_id);
-    return (info?.cuentas ?? [])
-      .filter((c) => c.medio === medio || (medio === "agente" && c.medio === "banco"))
-      .sort((a, b) => propia(b.empresa_id) - propia(a.empresa_id) || alfabetico(a.nombre, b.nombre));
-  }, [info, elegido, medio]);
+  const cuentasMedio = useMemo(
+    () => (info?.cuentas ?? []).filter((c) => c.medio === medio || (medio === "agente" && c.medio === "banco")),
+    [info, medio],
+  );
 
   // elegir automáticamente la cuenta si solo hay una
   useEffect(() => {
@@ -156,10 +154,8 @@ export default function RegistrarPago() {
     );
   }
 
-  const opcionesCuenta = cuentasMedio.map((c) => ({
-    valor: c.id,
-    texto: c.empresa_id === elegido.empresa_id ? c.nombre : `${c.nombre} (${nombresEmpresa.get(c.empresa_id) ?? ""})`,
-  }));
+  // primero las de la empresa del cliente, luego los Yape/Plin personales y al final las de otras empresas
+  const opcionesCuenta = opcionesDeCuenta(cuentasMedio, elegido.empresa_id, nombresEmpresa);
 
   return (
     <>

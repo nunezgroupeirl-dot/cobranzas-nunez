@@ -43,8 +43,12 @@ export interface Empresa {
 
 export interface Cuenta {
   id: string;
-  empresa_id: string;
-  nombre: string; // "Yape Andrés", "BCP 191-..."
+  /** null = Yape o Plin personal (sirve para todas las empresas) */
+  empresa_id: string | null;
+  nombre: string; // se arma solo: "BCP 1947379402012 · Andrés Núñez"
+  entidad?: string | null; // BCP, Interbank, Yape, Plin…
+  titular?: string | null; // a nombre de quién está
+  numero?: string | null; // número de cuenta o de celular
   medio: MedioPago;
   activa: boolean;
 }

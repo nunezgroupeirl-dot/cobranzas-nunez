@@ -158,7 +158,7 @@ export function AsistenteContrato({ clientes, motos, contratos, cuentas, hoy, pr
             valores={b as unknown as Record<ClaveBorrador, string>}
             etiqueta={etiquetaBorrador}
             problema={problema}
-            cuentas={cuentas.filter((c) => c.empresa_id === empresaId && c.activa).map((c) => c.nombre)}
+            cuentas={cuentas.filter((c) => (c.empresa_id === empresaId || !c.empresa_id) && c.activa).map((c) => c.nombre)}
             mostrarErrores={intentado.has(paso)}
             alCambiar={poner}
             arriba={arriba[paso]}

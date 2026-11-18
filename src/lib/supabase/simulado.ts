@@ -6,6 +6,7 @@
  *   cobrador@prueba.pe / cobrador123  (cobrador)
  */
 import { normalizarPlaca } from "@/lib/placa";
+import { empresaOpcional, nombreCuenta } from "@/lib/cuentas";
 import type {
   Bucket,
   Cliente,
@@ -412,7 +413,9 @@ export function crearDatosSimulados(): Datos {
     async guardarCuenta(c) {
       const s = leer();
       exigirAdmin(s);
+      if (c.entidad?.trim() && c.numero?.trim()) c = { ...c, nombre: nombreCuenta({ entidad: c.entidad, numero: c.numero, titular: c.titular }) };
       if (!c.nombre.trim()) throw new ErrorDatos("DATOS", "Escribe el nombre de la cuenta.");
+      if (!c.empresa_id && !empresaOpcional(c.medio)) throw new ErrorDatos("DATOS", "Elige la empresa: las cuentas de banco son de una empresa.");
       if (c.id) {
         const i = s.cuentas.findIndex((x) => x.id === c.id);
         if (i < 0) throw new ErrorDatos("NO_EXISTE", "La cuenta no existe.");
