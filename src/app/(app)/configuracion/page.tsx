@@ -2,13 +2,13 @@
 import { useState } from "react";
 import { SoloAdmin, useSesion } from "@/components/layout/Sesion";
 import { Aviso, Boton, Campo, Cargando, Modal, NOMBRE_MEDIO, OpcionesBoton, Selector, Tabla, Tarjeta, TituloPagina, mensajeDeError, useCarga, type Columna } from "@/components/ui";
-import { ENTIDADES_BANCO, empresaOpcional, nombreCuenta, partesCuenta } from "@/lib/cuentas";
+import { ENTIDADES_BANCO, esBilletera, nombreCuenta, partesCuenta } from "@/lib/cuentas";
 import type { Cuenta, Empresa, MedioPago } from "@/types/database";
 import { CamposEmpresa, type FormEmpresa } from "./_componentes/CamposEmpresa";
 
 const MEDIOS_CUENTA: MedioPago[] = ["yape", "plin", "banco"];
 
-/** La cuenta por partes: entidad, a nombre de quién y número. empresa_id "" = personal (solo Yape y Plin). */
+/** La cuenta por partes: entidad, a nombre de quién y número. empresa_id "" = personal (sirve para todas las empresas). */
 type FormCuenta = { id?: string; medio: MedioPago; entidad: string; empresa_id: string; titular: string; numero: string; activa: boolean };
 
 const ENTIDAD_BILLETERA: Partial<Record<MedioPago, string>> = { yape: "Yape", plin: "Plin" };
@@ -57,12 +57,11 @@ function Configuracion() {
 
   const guardarCuenta = async () => {
     if (!cuenta) return;
-    const billetera = empresaOpcional(cuenta.medio);
+    const billetera = esBilletera(cuenta.medio);
     const entidad = billetera ? ENTIDAD_BILLETERA[cuenta.medio]! : cuenta.entidad.trim();
     const numero = cuenta.numero.replace(/\s+/g, "");
     if (!entidad) return setErrForm("Elige el banco.");
-    if (!billetera && !cuenta.empresa_id) return setErrForm("Elige la empresa: las cuentas de banco son de una empresa.");
-    if (billetera && !cuenta.empresa_id && !cuenta.titular.trim()) return setErrForm("Escribe a nombre de quién está (es un Yape/Plin personal).");
+    if (!cuenta.empresa_id && !cuenta.titular.trim()) return setErrForm("Escribe a nombre de quién está (es una cuenta personal).");
     if (billetera && !/^9\d{8}$/.test(numero)) return setErrForm("El celular debe tener 9 números y empezar con 9.");
     if (!billetera && !/^[\d-]{8,24}$/.test(numero)) return setErrForm("Escribe el número de cuenta (solo números).");
     setGuardando(true);
@@ -201,7 +200,7 @@ function Configuracion() {
     {
       clave: "personales",
       titulo: "Personales",
-      ayuda: "Yape y Plin que sirven para cobrar a clientes de todas las empresas.",
+      ayuda: "Cuentas personales (de banco, Yape o Plin) que sirven para cobrar a clientes de todas las empresas.",
       lista: enOrden(info.cuentas.filter((c) => !c.empresa_id)),
     },
   ].filter((g) => g.lista.length > 0 || g.clave !== "personales");
@@ -314,7 +313,7 @@ function Configuracion() {
                 setCuenta({ ...cuenta, medio, entidad: ENTIDAD_BILLETERA[medio] ?? (ENTIDAD_BILLETERA[cuenta.medio] ? "BCP" : cuenta.entidad) });
               }}
             />
-            {!empresaOpcional(cuenta.medio) && (
+            {!esBilletera(cuenta.medio) && (
               <>
                 <Campo etiqueta="Banco" value={cuenta.entidad} onChange={(e) => setCuenta({ ...cuenta, entidad: e.target.value })} list="entidades-banco" obligatorio ayuda="Elige de la lista o escribe otro." />
                 <datalist id="entidades-banco">
@@ -326,27 +325,26 @@ function Configuracion() {
             )}
             <Selector
               etiqueta="Empresa"
-              obligatorio={!empresaOpcional(cuenta.medio)}
               opciones={info.empresas.map((e) => ({ valor: e.id, texto: e.nombre }))}
               value={cuenta.empresa_id}
               onChange={(e) => setCuenta({ ...cuenta, empresa_id: e.target.value })}
-              vacio={empresaOpcional(cuenta.medio) ? "Ninguna: es personal (sirve para todas)" : "Elige…"}
-              ayuda={empresaOpcional(cuenta.medio) ? "Opcional: un Yape o Plin personal sirve para cobrar a clientes de todas las empresas." : undefined}
+              vacio="Ninguna: es personal (sirve para todas)"
+              ayuda="Opcional: una cuenta personal (de banco, Yape o Plin) sirve para cobrar a clientes de todas las empresas."
             />
             <Campo
               etiqueta="A nombre de"
               value={cuenta.titular}
               onChange={(e) => setCuenta({ ...cuenta, titular: e.target.value })}
               placeholder="Ej.: Andrés Alexander Núñez Torres"
-              obligatorio={empresaOpcional(cuenta.medio) && !cuenta.empresa_id}
+              obligatorio={!cuenta.empresa_id}
               ayuda={cuenta.empresa_id ? "Déjalo vacío si la cuenta está a nombre de la empresa." : "La persona dueña de la cuenta."}
             />
             <Campo
-              etiqueta={empresaOpcional(cuenta.medio) ? "Número de celular" : "Número de cuenta"}
+              etiqueta={esBilletera(cuenta.medio) ? "Número de celular" : "Número de cuenta"}
               inputMode="numeric"
               value={cuenta.numero}
               onChange={(e) => setCuenta({ ...cuenta, numero: e.target.value.replace(/[^\d-]/g, "") })}
-              maxLength={empresaOpcional(cuenta.medio) ? 9 : 24}
+              maxLength={esBilletera(cuenta.medio) ? 9 : 24}
               obligatorio
             />
             {(cuenta.entidad || ENTIDAD_BILLETERA[cuenta.medio]) && cuenta.numero && (

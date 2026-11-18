@@ -3,8 +3,11 @@ import type { Cuenta, MedioPago } from "@/types/database";
 /** Bancos y billeteras más usados (se puede escribir otro). */
 export const ENTIDADES_BANCO = ["BCP", "Interbank", "BBVA", "Scotiabank", "Banco de la Nación", "Caja Huancayo", "Caja Arequipa"];
 
-/** Yape y Plin pueden ser personales (sin empresa); las cuentas de banco siempre son de una empresa. */
-export const empresaOpcional = (medio: MedioPago) => medio === "yape" || medio === "plin";
+/** Yape y Plin: el número es un celular (9 números); en banco, el número de cuenta. */
+export const esBilletera = (medio: MedioPago) => medio === "yape" || medio === "plin";
+
+/** Medio del pago para mostrar: "Banco · Lemon" cuando pagó desde una entidad que no está entre las cuentas. */
+export const textoMedio = (nombreMedio: string, entidadOrigen?: string | null) => (entidadOrigen ? `${nombreMedio} · ${entidadOrigen}` : nombreMedio);
 
 /** Lo que se ve al registrar pagos y en los reportes: "BCP 1947379402012 · Andrés Núñez" (igual que en la base). */
 export function nombreCuenta(p: { entidad: string; numero: string; titular?: string | null }): string {
@@ -22,7 +25,7 @@ export function partesCuenta(c: Pick<Cuenta, "nombre" | "medio"> & Partial<Pick<
 
 /**
  * Opciones para elegir la cuenta donde llegó un pago: primero las de la empresa del contrato,
- * luego los Yape/Plin personales (sirven para todas) y al final las de otras empresas (con su nombre).
+ * luego las personales (sirven para todas) y al final las de otras empresas (con su nombre).
  */
 export function opcionesDeCuenta(cuentas: Cuenta[], empresaId: string | null | undefined, nombresEmpresa: Map<string, string>) {
   const orden = (c: Cuenta) => (c.empresa_id === empresaId ? 0 : c.empresa_id ? 2 : 1);

@@ -171,6 +171,8 @@ export interface Pago {
   motivo_anulacion: string | null;
   /** Comprobante de cuotas que el cuaderno ya daba por pagadas: el pago va justo a esas cuotas. */
   cuotas_anteriores?: number[] | null;
+  /** pagó desde una entidad que no está entre las cuentas (Lemon, Scotiabank…) */
+  entidad_origen?: string | null;
 }
 
 /* ---------- Vistas ---------- */
@@ -285,6 +287,8 @@ export interface RegistrarPagoArgs {
   nro_operacion: string | null;
   foto_ruta: string;
   foto_hash: string;
+  /** "Otra entidad": de qué banco o billetera hizo la transferencia */
+  entidad_origen?: string | null;
 }
 
 /** Comprobante de cuotas pagadas antes del sistema (del cuaderno). El monto es la suma de esas cuotas. */

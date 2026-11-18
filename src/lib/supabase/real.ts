@@ -431,7 +431,7 @@ export function crearDatosReales(): Datos {
       const filas = await todas<PagoConPerfil>((a, b) => {
         let q = sb
           .from("pagos")
-          .select("id, contrato_id, monto, fecha_pago, medio, cuenta_id, nro_operacion, foto_ruta, foto_hash, registrado_por, creado_en, anulado, motivo_anulacion, cuotas_anteriores, perfil:perfiles!pagos_registrado_por_fkey(nombre)")
+          .select("id, contrato_id, monto, fecha_pago, medio, cuenta_id, nro_operacion, foto_ruta, foto_hash, registrado_por, creado_en, anulado, motivo_anulacion, cuotas_anteriores, entidad_origen, perfil:perfiles!pagos_registrado_por_fkey(nombre)")
           .order("fecha_pago", { ascending: false })
           .order("creado_en", { ascending: false });
         if (filtro?.contrato_id) q = q.eq("contrato_id", filtro.contrato_id);
@@ -455,6 +455,8 @@ export function crearDatosReales(): Datos {
       });
       lanzar(r.error);
       const d = (Array.isArray(r.data) ? r.data[0] : r.data) as RegistrarPagoResultado;
+      // de qué entidad pagó (si no es una de las cuentas): el pago ya quedó registrado, esto solo lo anota
+      if (args.entidad_origen?.trim()) await sb.rpc("anotar_entidad_pago", { p_pago_id: d.pago_id, p_entidad: args.entidad_origen.trim() });
       return { pago_id: d.pago_id, cuotas_cubiertas: d.cuotas_cubiertas ?? [] };
     },
     async registrarPagoAnterior(args) {

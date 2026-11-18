@@ -1,4 +1,5 @@
 /** Hojas de Excel de los reportes (pantalla Reportes y reporte mensual). */
+import { textoMedio } from "@/lib/cuentas";
 import { NOMBRE_MEDIO, formatoFecha, formatoFechaHora } from "@/components/ui/formato";
 import { descargarExcel, type Hoja } from "@/lib/exportar";
 import { nombreMes, siguienteMes } from "@/lib/letras";
@@ -53,7 +54,7 @@ export async function hojaPagos(datos: Datos, empresas: Empresa[], desde: string
         con ? placa.get(con.moto_id) : undefined,
         con ? nombreEmpresa.get(con.empresa_id) : undefined,
         p.monto,
-        NOMBRE_MEDIO[p.medio],
+        textoMedio(NOMBRE_MEDIO[p.medio], p.entidad_origen),
         p.cuenta_id ? cuenta.get(p.cuenta_id) : undefined,
         p.nro_operacion,
         p.registrado_por_nombre,

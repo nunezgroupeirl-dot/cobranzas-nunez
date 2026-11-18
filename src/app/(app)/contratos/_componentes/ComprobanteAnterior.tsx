@@ -1,5 +1,5 @@
 "use client";
-import { opcionesDeCuenta } from "@/lib/cuentas";
+import { opcionesDeCuenta, textoMedio } from "@/lib/cuentas";
 import { useMemo, useRef, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import {
@@ -130,7 +130,7 @@ function ModalVoucher({ numero, aportes, cuentas, alCerrar }: { numero: number |
                 <b>Pagó:</b> {formatoFecha(p.fecha_pago)}
               </p>
               <p>
-                <b>Medio:</b> {NOMBRE_MEDIO[p.medio]}
+                <b>Medio:</b> {textoMedio(NOMBRE_MEDIO[p.medio], p.entidad_origen)}
                 {nombreCuenta(p.cuenta_id) ? ` · ${nombreCuenta(p.cuenta_id)}` : ""}
               </p>
               {p.nro_operacion && (

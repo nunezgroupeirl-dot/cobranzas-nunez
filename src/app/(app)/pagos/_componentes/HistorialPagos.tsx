@@ -1,4 +1,5 @@
 "use client";
+import { textoMedio } from "@/lib/cuentas";
 import { useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { AreaTexto, Aviso, Boton, Modal, NOMBRE_MEDIO, formatoFecha, formatoFechaHora, formatoSoles, mensajeDeError } from "@/components/ui";
@@ -71,7 +72,7 @@ export function HistorialPagos({ pagos, cuentas, etiquetas, alCambiar }: Props) 
                 </p>
               ) : null}
               <p className="text-sm text-tenue">
-                {NOMBRE_MEDIO[p.medio]}
+                {textoMedio(NOMBRE_MEDIO[p.medio], p.entidad_origen)}
                 {cuenta(p.cuenta_id) ? ` · ${cuenta(p.cuenta_id)}` : ""}
                 {p.nro_operacion ? ` · Op. ${p.nro_operacion}` : ""}
               </p>

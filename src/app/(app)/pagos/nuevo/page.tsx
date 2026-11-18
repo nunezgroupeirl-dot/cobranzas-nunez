@@ -14,7 +14,10 @@ import { PagoRegistrado } from "../_componentes/PagoRegistrado";
 import { ResumenCliente } from "../_componentes/ResumenCliente";
 
 const MEDIOS = Object.keys(NOMBRE_MEDIO) as MedioPago[];
-const OPCIONES_MEDIO = MEDIOS.map((m) => ({ valor: m, texto: NOMBRE_MEDIO[m] }));
+/** "Otra entidad": transferencia desde un banco o billetera que no está entre las cuentas (Lemon, Scotiabank…). Se guarda como banco. */
+const OTRA = "otra";
+const OPCIONES_MEDIO = [...MEDIOS.map((m) => ({ valor: m as string, texto: NOMBRE_MEDIO[m] })), { valor: OTRA, texto: "Otra entidad" }];
+const ENTIDADES_OTRAS = ["Lemon", "Scotiabank", "BBVA", "Interbank", "BCP", "Banco de la Nación", "Caja Huancayo", "Caja Arequipa", "Agora", "Tunki"];
 
 interface Borrador {
   monto: string;
@@ -23,6 +26,9 @@ interface Borrador {
   cuentaId: string;
   nroOp: string;
   foto: File | null;
+  /** solo con "Otra entidad" */
+  otra: boolean;
+  entidad: string;
 }
 
 /** Revisa el formulario antes de subir nada. Devuelve los errores por campo (vacío = todo bien). */
@@ -33,6 +39,7 @@ function validar(b: Borrador, minimo: string): Record<string, string> {
   if (!b.fecha) e.fecha = "Elige la fecha.";
   else if (b.fecha > hoyLima()) e.fecha = "La fecha no puede ser futura.";
   else if (minimo && b.fecha < minimo) e.fecha = `Solo un administrador puede registrar pagos de hace más de ${DIAS_ATRAS_TRABAJADOR} días.`;
+  if (b.otra && !b.entidad.trim()) e.entidad = "Escribe de qué entidad hizo el pago (Lemon, Scotiabank…).";
   if (conCuenta && !b.cuentaId) e.cuenta = "Elige la cuenta donde llegó el dinero.";
   if (conCuenta && !b.nroOp.trim()) e.nro = "Escribe el número de operación.";
   if (!b.foto) e.foto = b.medio === "efectivo" ? "Tómale una foto al cliente al recibir el dinero." : "La foto del comprobante es obligatoria.";
@@ -56,7 +63,11 @@ export default function RegistrarPago() {
 
   const [monto, setMonto] = useState("");
   const [fecha, setFecha] = useState(hoyLima);
-  const [medio, setMedio] = useState<MedioPago>("yape");
+  // lo elegido en los botones: un medio, o "otra" (entidad que no está registrada: se guarda como banco)
+  const [eleccion, setEleccion] = useState<string>("yape");
+  const otra = eleccion === OTRA;
+  const medio: MedioPago = otra ? "banco" : (eleccion as MedioPago);
+  const [entidad, setEntidad] = useState("");
   const [cuentaId, setCuentaId] = useState("");
   const [nroOp, setNroOp] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
@@ -92,6 +103,7 @@ export default function RegistrarPago() {
   const limpiar = () => {
     setMonto("");
     setNroOp("");
+    setEntidad("");
     setFoto(null);
     setFecha(hoyLima());
     setErrores({});
@@ -102,7 +114,7 @@ export default function RegistrarPago() {
 
   const registrar = async () => {
     if (!elegido || enviando.current) return;
-    const e = validar({ monto, fecha, medio, cuentaId, nroOp, foto }, minimo);
+    const e = validar({ monto, fecha, medio, cuentaId, nroOp, foto, otra, entidad }, minimo);
     setErrores(e);
     if (Object.keys(e).length || !foto) return;
 
@@ -124,6 +136,7 @@ export default function RegistrarPago() {
         nro_operacion: efectivo ? null : nroOp.trim(),
         foto_ruta: subida.ruta,
         foto_hash: subida.hash,
+        entidad_origen: otra ? entidad.trim() : null,
       });
       setResultado({ ...r, monto: Number(monto) });
     } catch (err) {
@@ -193,15 +206,35 @@ export default function RegistrarPago() {
                 <OpcionesBoton
                   etiqueta="Medio de pago"
                   opciones={OPCIONES_MEDIO}
-                  valor={medio}
+                  valor={eleccion}
                   alCambiar={(v) => {
                     // efectivo pide foto del cliente y los demás una captura: al cambiar entre ellos se vuelve a pedir la foto
                     if ((v === "efectivo") !== (medio === "efectivo")) cambiarFoto(null);
-                    setMedio(v as MedioPago);
+                    setEleccion(v);
                   }}
                   obligatorio
                 />
               </div>
+              {otra && (
+                <div className="sm:col-span-2">
+                  <Campo
+                    etiqueta="¿De qué entidad pagó?"
+                    value={entidad}
+                    onChange={(e) => setEntidad(e.target.value)}
+                    list="entidades-otras"
+                    maxLength={60}
+                    error={errores.entidad}
+                    placeholder="Ej.: Lemon, Scotiabank"
+                    ayuda="El banco o la billetera desde donde hizo la transferencia. Abajo elige la cuenta donde llegó el dinero."
+                    obligatorio
+                  />
+                  <datalist id="entidades-otras">
+                    {ENTIDADES_OTRAS.map((x) => (
+                      <option key={x} value={x} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
               {medio !== "efectivo" && (
                 <>
                   <Selector

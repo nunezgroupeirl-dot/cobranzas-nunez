@@ -83,13 +83,12 @@ create table if not exists public.cuentas (
 create index if not exists cuentas_empresa_idx on public.cuentas (empresa_id);
 
 -- Cuentas de cobro por partes: entidad (BCP, Interbank, Yape…), titular (a nombre de quién) y número.
--- Yape y Plin pueden ser personales (sin empresa); las de banco siempre son de una empresa.
+-- Cualquier cuenta puede ser personal (sin empresa): sirve para cobrar a clientes de todas las empresas.
 alter table public.cuentas add column if not exists entidad text;
 alter table public.cuentas add column if not exists titular text;
 alter table public.cuentas add column if not exists numero  text;
 alter table public.cuentas alter column empresa_id drop not null;
 alter table public.cuentas drop constraint if exists cuentas_empresa_si_es_banco;
-alter table public.cuentas add constraint cuentas_empresa_si_es_banco check (empresa_id is not null or medio in ('yape', 'plin'));
 
 -- "nombre" (lo que se ve al registrar pagos y en los reportes) se arma solo: "BCP 1947… · Titular"
 create or replace function public.nombre_cuenta()
@@ -1899,6 +1898,27 @@ grant execute on function public.crear_contrato(uuid, uuid, numeric, integer, da
 grant execute on function public.registrar_pago(uuid, numeric, date, public.medio_pago, uuid, text, text, text) to authenticated;
 revoke all on function public.registrar_pago_anterior(uuid, integer[], date, public.medio_pago, uuid, text, text, text) from public, anon;
 grant execute on function public.registrar_pago_anterior(uuid, integer[], date, public.medio_pago, uuid, text, text, text) to authenticated;
+
+-- Pago hecho desde una entidad que no está entre las cuentas (Lemon, Scotiabank…): se anota cuál.
+alter table public.pagos add column if not exists entidad_origen text check (entidad_origen is null or length(entidad_origen) <= 60);
+
+-- Anota la entidad de origen de un pago recién registrado (quien lo registró o un administrador).
+create or replace function public.anotar_entidad_pago(p_pago_id uuid, p_entidad text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.es_staff() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  update public.pagos set entidad_origen = left(nullif(trim(p_entidad), ''), 60)
+  where id = p_pago_id and not anulado and (registrado_por = auth.uid() or public.es_admin());
+end;
+$$;
+revoke all on function public.anotar_entidad_pago(uuid, text) from public, anon;
+grant execute on function public.anotar_entidad_pago(uuid, text) to authenticated;
 grant execute on function public.anular_pago(uuid, text) to authenticated;
 grant execute on function public.cerrar_contrato(uuid, text) to authenticated;
 grant execute on function public.actualizar_usuario(uuid, public.rol_usuario, boolean) to authenticated;
