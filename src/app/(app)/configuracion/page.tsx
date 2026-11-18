@@ -147,19 +147,19 @@ function Configuracion() {
 
   const colCuentas: Columna<Cuenta>[] = [
     {
+      clave: "entidad",
+      titulo: "Medio",
+      celda: (c) => <span className={`font-bold ${c.activa ? "" : "text-tenue line-through"}`}>{partesCuenta(c).entidad}</span>,
+    },
+    {
       clave: "titular",
       titulo: "A nombre de",
       celda: (c) => {
         const { titular } = partesCuenta(c);
-        return <span className={`font-semibold ${c.activa ? "" : "text-tenue line-through"}`}>{titular || nombreEmpresa(c.empresa_id)}</span>;
+        return <span className={c.activa ? "" : "text-tenue line-through"}>{titular || nombreEmpresa(c.empresa_id)}</span>;
       },
     },
     { clave: "numero", titulo: "Número", celda: (c) => <span className={`num ${c.activa ? "" : "text-tenue line-through"}`}>{partesCuenta(c).numero}</span> },
-    {
-      clave: "empresa",
-      titulo: "Empresa",
-      celda: (c) => (c.empresa_id ? nombreEmpresa(c.empresa_id) : <span className="text-tenue">Personal (todas las empresas)</span>),
-    },
     {
       clave: "estado",
       titulo: "Estado",
@@ -188,18 +188,23 @@ function Configuracion() {
     },
   ];
 
-  // las cuentas separadas por entidad (BCP, Interbank, Yape, Plin…)
-  const grupos = new Map<string, Cuenta[]>();
-  for (const c of info.cuentas) {
-    const e = partesCuenta(c).entidad;
-    grupos.set(e, [...(grupos.get(e) ?? []), c]);
-  }
-  const porEntidad = [...grupos]
-    .sort(([a], [b]) => ordenEntidad(a) - ordenEntidad(b) || a.localeCompare(b, "es"))
-    .map(([entidad, lista]) => ({
-      entidad,
-      lista: lista.sort((a, b) => Number(b.activa) - Number(a.activa) || (a.empresa_id ? 1 : 0) - (b.empresa_id ? 1 : 0) || nombreEmpresa(a.empresa_id).localeCompare(nombreEmpresa(b.empresa_id), "es")),
-    }));
+  // las cuentas de cada empresa (bancos primero, luego Yape y Plin) y al final los Yape/Plin personales
+  const enOrden = (lista: Cuenta[]) =>
+    [...lista].sort(
+      (a, b) =>
+        Number(b.activa) - Number(a.activa) ||
+        ordenEntidad(partesCuenta(a).entidad) - ordenEntidad(partesCuenta(b).entidad) ||
+        partesCuenta(a).entidad.localeCompare(partesCuenta(b).entidad, "es"),
+    );
+  const porEmpresa = [
+    ...info.empresas.map((e) => ({ clave: e.id, titulo: e.nombre, ayuda: "", lista: enOrden(info.cuentas.filter((c) => c.empresa_id === e.id)) })),
+    {
+      clave: "personales",
+      titulo: "Personales",
+      ayuda: "Yape y Plin que sirven para cobrar a clientes de todas las empresas.",
+      lista: enOrden(info.cuentas.filter((c) => !c.empresa_id)),
+    },
+  ].filter((g) => g.lista.length > 0 || g.clave !== "personales");
 
 
   return (
@@ -235,20 +240,32 @@ function Configuracion() {
           <p className="mb-3 text-sm text-tenue">
             Son las cuentas que se eligen al registrar un pago. Si un Yape llega a su tope, desactívalo: los pagos anteriores se conservan.
           </p>
-          {porEntidad.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-borde p-6 text-center text-tenue">Todavía no hay cuentas. Agrega las de bancos, Yape y Plin.</p>
-          ) : (
-            <div className="flex flex-col gap-5">
-              {porEntidad.map(({ entidad, lista }) => (
-                <section key={entidad} aria-label={entidad}>
-                  <h3 className="mb-2 text-lg font-bold">
-                    {entidad} <span className="text-sm font-semibold text-tenue">· {lista.length} {lista.length === 1 ? "cuenta" : "cuentas"}</span>
-                  </h3>
-                  <Tabla columnas={colCuentas} filas={lista} claveFila={(c) => c.id} />
-                </section>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-col gap-2">
+            {porEmpresa.map((g) => {
+              const medios = [...new Set(g.lista.filter((c) => c.activa).map((c) => partesCuenta(c).entidad))];
+              return (
+                <details key={g.clave} className="group rounded-2xl border border-borde bg-superficie">
+                  <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                    <span aria-hidden className="inline-block text-marca transition-transform group-open:rotate-90">
+                      ▸
+                    </span>
+                    <span className="text-lg font-bold">{g.titulo}</span>
+                    <span className="text-sm text-tenue">
+                      {g.lista.length === 0 ? "Sin cuentas todavía" : `${g.lista.length} ${g.lista.length === 1 ? "cuenta" : "cuentas"} · ${medios.join(", ") || "todas desactivadas"}`}
+                    </span>
+                  </summary>
+                  <div className="border-t border-borde p-3">
+                    {g.ayuda && <p className="mb-2 text-sm text-tenue">{g.ayuda}</p>}
+                    {g.lista.length > 0 ? (
+                      <Tabla columnas={colCuentas} filas={g.lista} claveFila={(c) => c.id} />
+                    ) : (
+                      <p className="text-sm text-tenue">Esta empresa aún no tiene cuentas. Agrégalas con “+ Agregar cuenta”.</p>
+                    )}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
         </Tarjeta>
       </div>
 
