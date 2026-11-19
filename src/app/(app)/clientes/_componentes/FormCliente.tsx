@@ -10,6 +10,7 @@ import { ubicacionValida } from "@/lib/mapa";
 import type { TipoDoc, Cliente, Documento } from "@/types/database";
 import { CampoUbicacion } from "./CampoUbicacion";
 import { FotosPorTipo } from "./FotosPorTipo";
+import { ProgresoGuardado, type EstadoFoto, type Progreso } from "./ProgresoGuardado";
 import { MotoYCronograma } from "./MotoYCronograma";
 import { GRUPOS_FOTOS, GRUPO_VEHICULO, TIPOS_VEHICULO, TOTAL_FOTOS, tipoDeClave, vehiculoDeClave } from "./secciones";
 import { TarjetaContratoFirmado } from "../../contratos/_componentes/TarjetaContratoFirmado";
@@ -122,11 +123,35 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     setExistentes((x) => x.filter((y) => y.id !== d.id));
   };
 
-  const guardar = async (e: { preventDefault: () => void }, despues: "solo" | "contrato") => {
-    e.preventDefault();
+  // la ventana que muestra el avance del guardado (pasos y fotos); null = cerrada
+  const [progreso, setProgreso] = useState<Progreso | null>(null);
+  const avanzar = (cambio: Partial<Progreso>) => setProgreso((p) => (p ? { ...p, ...cambio } : p));
+  const estadoFoto = (clave: string, estado: EstadoFoto) =>
+    setProgreso((p) => (p ? { ...p, fotos: p.fotos.map((x) => (x.clave === clave ? { ...x, estado } : x)) } : p));
+
+  const ultimo = useRef<"solo" | "contrato">("contrato"); // para "Reintentar"
+  const guardar = async (e: { preventDefault: () => void } | null, despues: "solo" | "contrato") => {
+    e?.preventDefault();
     if (!validar()) return;
+    ultimo.current = despues;
+    const destino = despues === "contrato" && !cliente ? "contrato" : "ficha";
+    const activos = new Set(vehiculos.items.filter((x) => x.activo).map((x) => x.clave));
+    // las fotos que se van a subir: las del cliente y las de cada vehículo que se registra
+    const entradas = Object.entries(pendientes).filter(([clave]) => {
+      const veh = vehiculoDeClave(clave);
+      return !veh || activos.has(veh);
+    });
     setGuardando(despues);
     setError(null);
+    setProgreso({
+      nombre: f.nombres.trim().split(/\s+/).slice(0, 2).join(" "),
+      editando: !!cliente,
+      conVehiculo: activos.size > 0,
+      destino,
+      paso: 0,
+      fotos: entradas.map(([clave, archivo]) => ({ clave, archivo, estado: "espera" })),
+      error: null,
+    });
     try {
       const guardado = await datos.guardarCliente({
         id: cliente?.id ?? hechos.current.cliente?.id,
@@ -140,35 +165,46 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
         recomendado_por: f.recomendado_por.trim() || null,
         ubicacion: f.ubicacion.trim() || null,
       });
-      // Las fotos del cliente se suben a la vez (cada una se comprime, sube y registra por su cuenta)
-      const subir = async (clave: string, archivo: File, motoId: string | null) => {
-        const tipo = tipoDeClave(clave);
-        const ruta = await subirDocumento(datos, guardado.empresa_id, guardado.id, tipo, archivo);
-        await datos.agregarDocumento({ cliente_id: guardado.id, tipo, ruta, moto_id: motoId });
-        sinPendiente(clave); // si algo falla después, al reintentar no se sube dos veces
-      };
-      const entradas = Object.entries(pendientes);
-      await Promise.all(entradas.filter(([clave]) => !vehiculoDeClave(clave)).map(([clave, archivo]) => subir(clave, archivo, null)));
-      hechos.current.cliente = guardado;
+      hechos.current.cliente = guardado; // al reintentar se actualiza este mismo cliente (no se crea otro)
+      avanzar({ paso: 1 });
       const primerNuevo = await vehiculos.guardarTodos(datos, guardado);
-      // y las de cada vehículo, ya guardado, ligadas a él (las de un vehículo que se dejó sin registrar no se suben)
-      const activos = new Set(vehiculos.items.filter((x) => x.activo).map((x) => x.clave));
-      await Promise.all(
-        entradas.flatMap(([clave, archivo]) => {
-          const veh = vehiculoDeClave(clave);
-          const moto = veh && activos.has(veh) ? vehiculos.motoDe(veh) : undefined;
-          return moto ? [subir(clave, archivo, moto)] : [];
-        }),
-      );
+      avanzar({ paso: 2 });
+      // Fotos: de 3 en 3 (con señal de celular rinde más que todas a la vez). Cada una se comprime, sube y registra
+      // por su cuenta; la que sube se quita de pendientes, así al reintentar no se sube dos veces.
+      const cola = [...entradas];
+      let fallidas = 0;
+      const trabajador = async () => {
+        for (let x = cola.shift(); x; x = cola.shift()) {
+          const [clave, archivo] = x;
+          estadoFoto(clave, "subiendo");
+          try {
+            const veh = vehiculoDeClave(clave);
+            const tipo = tipoDeClave(clave);
+            const ruta = await subirDocumento(datos, guardado.empresa_id, guardado.id, tipo, archivo);
+            await datos.agregarDocumento({ cliente_id: guardado.id, tipo, ruta, moto_id: veh ? (vehiculos.motoDe(veh) ?? null) : null });
+            sinPendiente(clave);
+            estadoFoto(clave, "listo");
+          } catch {
+            fallidas++;
+            estadoFoto(clave, "error");
+          }
+        }
+      };
+      await Promise.all([trabajador(), trabajador(), trabajador()]);
+      if (fallidas) throw new Error(`No se pudo subir ${fallidas === 1 ? "1 foto" : `${fallidas} fotos`}. Las demás ya quedaron guardadas.`);
       await borrarBorrador(claveBorrador); // ya quedó guardado de verdad
-      if (despues === "contrato" && !cliente) {
-        // "Guardar y llenar el contrato": directo al contrato con todo ya puesto (cliente, vehículo y cuotas)
-        router.push(primerNuevo ? `/contratos/documento?id=${primerNuevo}` : `/contratos/nuevo?cliente=${guardado.id}`);
-        return;
-      }
-      router.push(`/clientes/ficha?id=${guardado.id}`);
+      avanzar({ paso: 3 });
+      await new Promise((r) => setTimeout(r, 900)); // que se vea el check antes de cambiar de pantalla
+      router.push(
+        destino === "contrato"
+          ? // "Guardar y llenar el contrato": directo al contrato con todo ya puesto (cliente, vehículo y cuotas)
+            primerNuevo
+            ? `/contratos/documento?id=${primerNuevo}`
+            : `/contratos/nuevo?cliente=${guardado.id}`
+          : `/clientes/ficha?id=${guardado.id}`,
+      );
     } catch (err) {
-      setError(mensajeDeError(err));
+      avanzar({ error: mensajeDeError(err) });
       setGuardando("");
     }
   };
@@ -302,6 +338,17 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
         alCancelar={() => router.back()}
         alGuardarSolo={(e) => guardar(e, "solo")}
       />
+
+      {progreso && (
+        <ProgresoGuardado
+          progreso={progreso}
+          alReintentar={() => void guardar(null, ultimo.current)}
+          alCerrar={() => {
+            setError(progreso.error); // el aviso queda en el formulario
+            setProgreso(null);
+          }}
+        />
+      )}
     </form>
   );
 }

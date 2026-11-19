@@ -121,11 +121,20 @@ b{font-weight:700}
 .firma{display:flex;gap:10px;align-items:flex-start}
 .firma .linea{flex:1;border-top:1px solid #000;padding-top:4px;font-size:9.5pt;line-height:1.9}
 .huella{width:68px;height:88px;border:1px solid #888;border-radius:6px;flex:none;display:flex;align-items:flex-end;justify-content:center;font-size:7pt;color:#777;padding-bottom:3px;box-sizing:border-box}
+.hoja1{display:flex;flex-direction:column}
+.visado{margin-top:auto;padding-top:10px;break-inside:avoid;page-break-inside:avoid}
+.visado .firmas{margin-top:0;gap:28px}
+.visado .linea{font-size:9pt;line-height:1.6;padding-top:3px}
+.visado .huella{width:52px;height:66px}
+.visado .hoja{text-align:center;font-size:8pt;color:#555;margin-top:6px}
+@media print{.hoja1{min-height:266mm;break-after:page;page-break-after:always}}
+@media screen{.hoja1{border-bottom:2px dashed #bbb;padding-bottom:14px;margin-bottom:20px}}
 .pie{margin-top:22px;font-size:8pt;color:#555;border-top:1px solid #ccc;padding-top:4px;line-height:1.4}
 .ok{display:none}
 @media screen{body{max-width:180mm;margin:20px auto;padding:0 10mm}${vistaPrevia ? "" : ".ok{display:block;background:#fff5d6;border:1px solid #e6c65c;padding:8px 12px;border-radius:8px;font-size:10pt;margin-bottom:16px;line-height:1.4}"}}
 </style></head><body>
 <div class="ok">${aviso}</div>
+<div class="hoja1">
 ${lleno && llevaLogo(d.empresa) ? `<img class="logo" src="${esc(urlLogo())}" alt="">` : ""}
 <h1>Contrato de Alquiler Venta de ${lleno && elegido ? elegido.texto.replace(" lineal", "") : "Vehículo"}</h1>
 <div class="codigo">Placa N.º ${r(110, d.placa)}</div>
@@ -146,6 +155,16 @@ ${lleno && llevaLogo(d.empresa) ? `<img class="logo" src="${esc(urlLogo())}" alt
 <p><b>TERCERO.</b> <b>EL ARRENDATARIO</b> está prohibido de traspasar o subarrendar el vehículo materia del presente contrato, total o parcialmente, a favor de terceros, reservándose <b>EL ARRENDADOR</b> el derecho de resolver el presente contrato.</p>
 
 <p class="llenar"><b>CUARTO.</b> El plazo de duración del presente contrato es de ${r(50, d.plazo)} ${unidadPlazo(d, lleno)} previo acuerdo de ambas partes. La validez del presente contrato empieza el ${fechaRayas(d.inicio)} y termina el ${fechaRayas(fin(d))}. Al no cumplir los términos y condiciones del presente contrato, <b>EL ARRENDATARIO</b> queda obligado a devolver el vehículo en las mismas condiciones en que lo recibió, sin necesidad de notificación, requerimiento o aviso previo de <b>EL ARRENDADOR</b>. De incumplir con las cláusulas precedentes, se resolverá el contrato de pleno derecho, amparado en el artículo 1429 del Código Civil.</p>
+
+<!-- hoja 1: firma y huella de ambas partes al pie (la hoja 2 lleva las firmas completas) -->
+<div class="visado">
+<div class="firmas">
+<div class="firma"><div class="linea">Firma<br><b>EL ARRENDADOR</b></div><div class="huella">Huella</div></div>
+<div class="firma"><div class="linea">Firma<br><b>EL ARRENDATARIO</b></div><div class="huella">Huella</div></div>
+</div>
+<div class="hoja">Hoja 1 de 2</div>
+</div>
+</div>
 
 <p><b>QUINTO.</b> <b>EL ARRENDADOR</b> tiene el derecho a modificar el contrato, si se afectan las cláusulas pactadas en el contrato.</p>
 
