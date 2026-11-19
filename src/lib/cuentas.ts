@@ -33,6 +33,14 @@ export function opcionesDeCuenta(cuentas: Cuenta[], empresaId: string | null | u
     .sort((a, b) => orden(a) - orden(b) || a.nombre.localeCompare(b.nombre, "es"))
     .map((c) => ({
       valor: c.id,
-      texto: orden(c) === 0 ? c.nombre : orden(c) === 1 ? `${c.nombre} (personal)` : `${c.nombre} (${nombresEmpresa.get(c.empresa_id ?? "") ?? ""})`,
+      // la cuenta a nombre de la empresa (sin titular) lleva el nombre de la empresa, para que no salga "sin nombre"
+      texto:
+        orden(c) === 1
+          ? `${c.nombre} (personal)`
+          : orden(c) === 0
+            ? partesCuenta(c).titular
+              ? c.nombre
+              : `${c.nombre} · ${nombresEmpresa.get(c.empresa_id ?? "") ?? ""}`
+            : `${c.nombre} (${nombresEmpresa.get(c.empresa_id ?? "") ?? ""})`,
     }));
 }
