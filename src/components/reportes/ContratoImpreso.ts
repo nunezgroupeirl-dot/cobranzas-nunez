@@ -76,7 +76,8 @@ export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Mot
     motor: t(moto.motor),
     carroceria: t(moto.carroceria),
     plazo: String(contrato.nro_cuotas),
-    inicio: contrato.fecha_inicio,
+    // el contrato rige desde que se entrega el vehículo (no desde la 1.ª cuota); si no se anotó la entrega, desde la firma
+    inicio: contrato.fecha_entrega || hoy,
     renta: String(contrato.monto_cuota),
     frecuencia: FRECUENCIA_CONTRATO[contrato.frecuencia ?? "semanal"],
     cuenta: cuenta?.nombre ?? "",
@@ -119,7 +120,7 @@ const ETIQUETAS: Record<keyof CamposContrato, string> = {
   motor: "N.º de motor",
   carroceria: "Carrocería",
   plazo: "Plazo (n.º de cuotas)",
-  inicio: "Fecha de inicio",
+  inicio: "Fecha de entrega del vehículo",
   renta: "Renta",
   frecuencia: "Frecuencia de la renta",
   cuenta: "Cuenta de depósito",

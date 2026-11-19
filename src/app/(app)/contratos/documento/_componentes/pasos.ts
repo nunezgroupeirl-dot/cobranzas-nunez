@@ -88,7 +88,7 @@ export const PASOS: Paso[] = [
     guia: "Lo acordado con el cliente. El monto se escribe solo en letras en el contrato.",
     campos: [
       { clave: "plazo", soloNumeros: 4, guia: "Cuántas cuotas: en días, semanas, quincenas o meses según cómo paga (abajo).", ejemplo: "52" },
-      { clave: "inicio", tipo: "fecha" },
+      { clave: "inicio", tipo: "fecha", guia: "El día que se entrega el vehículo: desde ahí empieza el contrato (no es la fecha de la 1.ª cuota)." },
       { clave: "renta", tipo: "numero", guia: "En soles, lo que paga en cada depósito (por día, semana, quincena o mes).", ejemplo: "57.80" },
       {
         clave: "frecuencia",

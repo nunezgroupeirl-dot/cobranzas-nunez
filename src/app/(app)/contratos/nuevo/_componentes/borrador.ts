@@ -45,7 +45,8 @@ export function aCampos(b: Borrador): CamposContrato {
   const resto = Object.fromEntries(Object.entries(b).filter(([k]) => !["frec", "nro_cuotas", "celular", "precio"].includes(k))) as Omit<Borrador, "frec" | "nro_cuotas" | "celular" | "precio">;
   const frec = b.frec;
   const n = Number(b.nro_cuotas);
-  return { ...resto, plazo: Number.isInteger(n) && n > 0 ? String(n) : "", frecuencia: FRECUENCIA_CONTRATO[frec] };
+  // en el contrato, el inicio es la entrega del vehículo (el día de la firma), no la 1.ª cuota
+  return { ...resto, inicio: b.fecha_firma || b.inicio, plazo: Number.isInteger(n) && n > 0 ? String(n) : "", frecuencia: FRECUENCIA_CONTRATO[frec] };
 }
 
 export function problemaBorrador(b: Borrador, k: ClaveBorrador): string | null {
@@ -62,7 +63,7 @@ export function problemaBorrador(b: Borrador, k: ClaveBorrador): string | null {
     case "frec":
       return null;
     default:
-      return problemaCampo(aCampos(b), k as keyof CamposContrato);
+      return problemaCampo({ ...aCampos(b), inicio: b.inicio }, k as keyof CamposContrato); // aquí "inicio" es la 1.ª cuota
   }
 }
 
