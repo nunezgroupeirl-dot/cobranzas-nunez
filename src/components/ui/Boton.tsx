@@ -12,10 +12,27 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export function Boton({ variante, tamano, ancho, cargando, children, className = "", disabled, type = "button", ...resto }: Props) {
   return (
-    <button type={type} className={`${clasesBoton(variante, tamano, ancho)} ${className}`} disabled={disabled || cargando} {...resto}>
-      {cargando && <span className="size-4 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden />}
+    <button
+      type={type}
+      className={`${clasesBoton(variante, tamano, ancho)} ${cargando ? "cargando" : ""} ${className}`}
+      disabled={disabled || cargando}
+      aria-busy={cargando || undefined}
+      {...resto}
+    >
+      {cargando && <Puntos />}
       {children}
     </button>
+  );
+}
+
+/** Mientras guarda: tres puntos que laten con calma (en vez del circulito que gira rápido). */
+function Puntos() {
+  return (
+    <span className="inline-flex items-center gap-1" aria-hidden>
+      {[0, 160, 320].map((ms) => (
+        <span key={ms} className="punto size-1.5 rounded-full bg-current" style={{ animationDelay: `${ms}ms` }} />
+      ))}
+    </span>
   );
 }
 
