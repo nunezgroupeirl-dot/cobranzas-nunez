@@ -99,6 +99,8 @@ export interface Moto {
   placa: string | null; // null = falta (importado del cuaderno) o está en trámite
   /** La placa aún no sale: no cuenta como dato pendiente. */
   placa_tramite?: boolean;
+  /** desde cuándo estuvo con placa en trámite (no se borra al registrar la placa) */
+  tramite_desde?: string | null;
   tipo: string; // "Lineal", "Scooter", "Trimoto", "Otro"
   marca: string;
   color: string;

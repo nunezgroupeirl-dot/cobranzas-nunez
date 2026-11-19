@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import type { TramiteVencido } from "@/lib/tramite";
 import { useSesion } from "./Sesion";
 
 // No se consulta en cada clic: como mucho una vez cada 20 s, salvo al entrar a "Datos pendientes"
@@ -52,4 +53,27 @@ export function usePorInmovilizar(ruta: string): number {
   }, [datos, esAdmin, ruta]);
 
   return esAdmin ? cuantos : 0;
+}
+
+/**
+ * Placas en trámite que ya pasaron los 30 días sin contrato firmado: aviso arriba de cada pantalla
+ * que no se quita hasta que se suba el contrato firmado. Solo para administradores.
+ */
+export function useTramitesVencidos(ruta: string): TramiteVencido[] {
+  const { datos, esAdmin } = useSesion();
+  const [lista, setLista] = useState<TramiteVencido[]>([]);
+  const ultima = useRef(0);
+
+  useEffect(() => {
+    if (!esAdmin) return;
+    const ahora = Date.now();
+    if (ahora - ultima.current < ESPERA_MS && !AL_INSTANTE.some((r) => ruta.startsWith(r)) && !ruta.startsWith("/contratos")) return;
+    ultima.current = ahora;
+    datos
+      .tramitesVencidos()
+      .then(setLista)
+      .catch(() => undefined);
+  }, [datos, esAdmin, ruta]);
+
+  return esAdmin ? lista : [];
 }

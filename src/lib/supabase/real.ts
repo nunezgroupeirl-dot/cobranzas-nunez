@@ -8,6 +8,7 @@
  */
 import { normalizarPlaca } from "@/lib/placa";
 import { alfabetico } from "@/lib/texto";
+import { tramitesVencidos } from "@/lib/tramite";
 import type { PostgrestError } from "@supabase/supabase-js";
 import type {
   Auditoria,
@@ -350,6 +351,44 @@ export function crearDatosReales(): Datos {
       const r = await q.range(f.offset ?? 0, (f.offset ?? 0) + (f.limite ?? 100) - 1);
       lanzar(r.error);
       return (r.data ?? []) as Auditoria[];
+    },
+    async tramitesVencidos() {
+      // vehículos que estuvieron en trámite, sus contratos activos y cuáles ya tienen el contrato firmado subido
+      const motos = await todas<{ id: string; placa: string | null; tramite_desde: string | null }>((a, b) =>
+        sb.from("motos").select("id, placa, tramite_desde").not("tramite_desde", "is", null).order("id").range(a, b),
+      );
+      if (!motos.length) return [];
+      const porId = new Map(motos.map((m) => [m.id, m]));
+      const contratos = await todas<{ id: string; moto_id: string; cliente_id: string; fecha_entrega: string | null }>((a, b) =>
+        sb
+          .from("contratos")
+          .select("id, moto_id, cliente_id, fecha_entrega")
+          .eq("estado", "activo")
+          .in("moto_id", [...porId.keys()])
+          .order("id")
+          .range(a, b),
+      );
+      if (!contratos.length) return [];
+      const [firmados, clientes] = await Promise.all([
+        todas<{ contrato_id: string }>((a, b) =>
+          sb.from("documentos").select("contrato_id").eq("tipo", "contrato").in("contrato_id", contratos.map((c) => c.id)).order("id").range(a, b),
+        ),
+        todas<{ id: string; nombres: string }>((a, b) =>
+          sb.from("clientes").select("id, nombres").in("id", [...new Set(contratos.map((c) => c.cliente_id))]).order("id").range(a, b),
+        ),
+      ]);
+      const nombre = new Map(clientes.map((c) => [c.id, c.nombres]));
+      return tramitesVencidos(
+        contratos.map((c) => ({
+          contrato_id: c.id,
+          cliente_id: c.cliente_id,
+          cliente: nombre.get(c.cliente_id) ?? "",
+          placa: porId.get(c.moto_id)?.placa ?? null,
+          desde: c.fecha_entrega ?? porId.get(c.moto_id)?.tramite_desde ?? null,
+        })),
+        new Set(firmados.map((d) => d.contrato_id)),
+        new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10), // fecha real de Lima (sin el corte de las 22:00)
+      );
     },
     async porInmovilizar() {
       const r = await sb.from("v_morosos").select("contrato_id", { count: "exact", head: true }).eq("inmovilizar", true);

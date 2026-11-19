@@ -6,6 +6,7 @@
  * - Sin ellas en producción → error de configuración (nunca datos falsos por accidente).
  * Las pantallas solo importan getDatos(); así el modo no las toca.
  */
+import type { TramiteVencido } from "@/lib/tramite";
 import type {
   Auditoria,
   Bucket,
@@ -128,6 +129,8 @@ export interface Datos {
   contratosPorFirmar(): Promise<number>;
   /** Contratos activos con 4 semanas de deuda o más: vehículos para inmovilizar (aviso del menú, solo administradores). */
   porInmovilizar(): Promise<number>;
+  /** Placas en trámite con 30 días o más y sin contrato firmado subido (aviso para hacer el contrato). */
+  tramitesVencidos(): Promise<TramiteVencido[]>;
   contrato(id: string): Promise<Contrato | null>;
   crearContrato(args: CrearContratoArgs): Promise<string>;
   cuotas(contratoId: string): Promise<Cuota[]>;

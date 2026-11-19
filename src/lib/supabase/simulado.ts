@@ -7,6 +7,7 @@
  */
 import { normalizarPlaca } from "@/lib/placa";
 import { nombreCuenta } from "@/lib/cuentas";
+import { tramitesVencidos } from "@/lib/tramite";
 import type {
   Bucket,
   Cliente,
@@ -592,11 +593,11 @@ export function crearDatosSimulados(): Datos {
       if (m.id) {
         const i = s.motos.findIndex((x) => x.id === m.id);
         if (m.empresa_id && m.empresa_id !== s.motos[i].empresa_id) moverMotoDeEmpresa(s, s.motos[i], m.empresa_id);
-        s.motos[i] = { ...s.motos[i], ...m, placa, placa_tramite, id: m.id };
+        s.motos[i] = { ...s.motos[i], ...m, placa, placa_tramite, tramite_desde: s.motos[i].tramite_desde ?? (placa_tramite ? new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10) : null), id: m.id };
         guardar(s);
         return s.motos[i];
       }
-      const nueva: Moto = { ...m, placa, placa_tramite, id: nuevoId() };
+      const nueva: Moto = { ...m, placa, placa_tramite, tramite_desde: placa_tramite ? new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10) : null, id: nuevoId() };
       s.motos.push(nueva);
       guardar(s);
       return nueva;
@@ -710,6 +711,22 @@ export function crearDatosSimulados(): Datos {
         .sort((a, b) => b.creado_en.localeCompare(a.creado_en))
         .slice(0, f.limite ?? 100)
         .map((p, i) => ({ id: i + 1, usuario_id: p.registrado_por, accion: "insert" as const, tabla: "pagos", registro_id: p.id, detalle: { ...p }, creado_en: p.creado_en }));
+    },
+    async tramitesVencidos() {
+      const s = leer();
+      const firmados = new Set(s.documentos.filter((d) => d.tipo === "contrato" && d.contrato_id).map((d) => d.contrato_id as string));
+      return tramitesVencidos(
+        s.contratos
+          .filter((c) => c.estado === "activo")
+          .flatMap((c) => {
+            const m = s.motos.find((x) => x.id === c.moto_id);
+            const desde = m?.tramite_desde ?? (m?.placa_tramite ? c.creado_en.slice(0, 10) : null);
+            if (!m || !desde) return [];
+            return [{ contrato_id: c.id, cliente_id: c.cliente_id, cliente: s.clientes.find((x) => x.id === c.cliente_id)?.nombres ?? "", placa: m.placa, desde: c.fecha_entrega ?? desde }];
+          }),
+        firmados,
+        new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10),
+      );
     },
     async porInmovilizar() {
       return estadoClientes(leer()).filter((e) => e.inmovilizar).length;

@@ -45,7 +45,8 @@ export function FormMoto({ moto, clienteId, empresaInicial, alGuardar, alCancela
 
   const guardar = async () => {
     const e: Record<string, string> = {};
-    if (!f.tramite && f.placa.trim() && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(f.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
+    if (!f.tramite && !f.placa.trim()) e.placa = "Escribe la placa o marca «Placa en trámite».";
+    else if (!f.tramite && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(f.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
     if (!f.marca.trim()) e.marca = "Escribe la marca.";
     if (!f.color.trim()) e.color = "Escribe el color.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";

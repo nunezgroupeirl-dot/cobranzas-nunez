@@ -8,7 +8,8 @@ import { Marca } from "./Marca";
 import { FiltroEmpresa } from "./FiltroEmpresa";
 import { menuPara, type ItemMenu } from "./menu";
 import { RecordatorioReporte } from "./RecordatorioReporte";
-import { useContratosPorFirmar, usePorInmovilizar } from "./avisoContratos";
+import { useContratosPorFirmar, usePorInmovilizar, useTramitesVencidos } from "./avisoContratos";
+import { AvisoTramite } from "./AvisoTramite";
 import { AvisoInmovilizar } from "./AvisoInmovilizar";
 import { useSesion } from "./Sesion";
 import { NOMBRE_PUESTO } from "@/components/ui/formato";
@@ -51,6 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [masAbierto, setMasAbierto] = useState(false);
   const porFirmar = useContratosPorFirmar(ruta);
   const porInmovilizar = usePorInmovilizar(ruta);
+  const tramites = useTramitesVencidos(ruta);
   const [cambiandoClave, setCambiandoClave] = useState(false);
   const [avisoClave, setAvisoClave] = useState<string | null>(null);
   const esDueno = perfil.rol === "administrador";
@@ -136,6 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
           <RecordatorioReporte />
           <AvisoInmovilizar cuantos={porInmovilizar} enlace={conEmpresa("/morosos?filtro=inmovilizar")} enLista={ruta.startsWith("/morosos")} />
+          <AvisoTramite lista={tramites} conEmpresa={conEmpresa} />
           {children}
         </main>
       </div>

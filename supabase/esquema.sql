@@ -240,6 +240,25 @@ alter table public.motos drop constraint if exists motos_anio_check;
 alter table public.motos add constraint motos_anio_check check (anio is null or anio between 1990 and 2100);
 -- Placa en trámite: la moto ya se entregó pero la placa aún no sale (no cuenta como dato pendiente)
 alter table public.motos add column if not exists placa_tramite boolean not null default false;
+
+-- Desde cuándo la placa está en trámite (no se borra al registrar la placa): a los 30 días sale el aviso
+-- de hacer el contrato, y sigue hasta que se suba el contrato firmado.
+alter table public.motos add column if not exists tramite_desde date;
+create or replace function public.motos_tramite_desde()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.placa_tramite and new.tramite_desde is null then
+    new.tramite_desde := public.hoy_lima();
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists motos_tramite_desde on public.motos;
+create trigger motos_tramite_desde before insert or update on public.motos
+  for each row execute function public.motos_tramite_desde();
 alter table public.motos add column if not exists archivado boolean not null default false;
 alter table public.motos add column if not exists archivado_en timestamptz;
 alter table public.motos add column if not exists archivado_motivo text;
