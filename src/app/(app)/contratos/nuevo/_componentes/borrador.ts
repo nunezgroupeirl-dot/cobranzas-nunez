@@ -1,7 +1,7 @@
 import { FRECUENCIA_CONTRATO, UNIDAD_PLAZO, vehiculoDeTipo, etiquetaCampo, problemaCampo, type CamposContrato } from "@/components/reportes/ContratoImpreso";
 import type { Cliente, Cuenta, Empresa, Frecuencia, Moto } from "@/types/database";
 import { fechaCuota } from "@/lib/supabase/reglas";
-import { DUENO_REPRESENTANTE } from "@/lib/negocio";
+import { DUENO_REPRESENTANTE, domicilioDeEmpresa } from "@/lib/negocio";
 import { PASOS, type Paso } from "../../documento/_componentes/pasos";
 
 /**
@@ -124,7 +124,7 @@ export const datosEmpresa = (e: Empresa) => ({
   // el dueño firma por defecto; si la empresa tiene otro representante registrado, sale ese
   representante: t(e.representante) || DUENO_REPRESENTANTE.nombre,
   representante_dni: t(e.representante_dni) || DUENO_REPRESENTANTE.dni,
-  domicilio_empresa: t(e.domicilio),
+  domicilio_empresa: domicilioDeEmpresa(e.nombre), // el local: fijo según la empresa
 });
 
 export const datosCliente = (c: Cliente | null) => ({
@@ -151,7 +151,7 @@ export const datosMoto = (m: Moto | null) => ({
 
 export function borradorInicial(hoy: string, primeraCuota: string): Borrador {
   return {
-    ...{ empresa: "", ruc: "", representante: DUENO_REPRESENTANTE.nombre, representante_dni: DUENO_REPRESENTANTE.dni, domicilio_empresa: "" },
+    ...{ empresa: "", ruc: "", representante: DUENO_REPRESENTANTE.nombre, representante_dni: DUENO_REPRESENTANTE.dni, domicilio_empresa: domicilioDeEmpresa("") },
     ...datosCliente(null),
     ...datosMoto(null),
     frec: "semanal",

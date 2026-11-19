@@ -44,6 +44,17 @@ const limpiar = <K extends string>(c: CampoGuia<K>, x: string) => {
 function Control<K extends string>({ c, valores, etiqueta, problema, mostrarErrores, alCambiar }: { c: CampoGuia<K> } & Omit<Props<K>, "paso" | "cuentas" | "arriba" | "abajo">) {
   const valor = String(valores[c.clave] ?? "");
   const error = mostrarErrores ? problema(c.clave) : null;
+  if (c.fijo)
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="font-semibold">{etiqueta(c.clave)}</span>
+        <p className="flex min-h-12 items-center gap-2 rounded-xl border border-borde bg-fondo px-4 py-2 font-semibold">
+          <span aria-hidden>📍</span>
+          {valor || "—"}
+        </p>
+        {c.guia && <span className="text-sm text-tenue">{c.guia}</span>}
+      </div>
+    );
   if (c.tipo === "opciones" && c.opciones)
     return <OpcionesBoton etiqueta={etiqueta(c.clave)} opciones={c.opciones} valor={valor} alCambiar={(x) => alCambiar(c.clave, x)} obligatorio={!c.opcional} error={error} />;
   return <Campo etiqueta={etiqueta(c.clave)} obligatorio={!c.opcional} value={valor} error={error} onChange={(e) => alCambiar(c.clave, limpiar(c, e.target.value))} {...atributos(c)} />;

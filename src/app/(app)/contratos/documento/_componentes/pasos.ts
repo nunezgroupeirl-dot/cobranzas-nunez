@@ -15,6 +15,8 @@ export interface CampoGuia<K extends string = Clave> {
   soloNumeros?: number; // largo máximo
   /** no es obligatorio */
   opcional?: boolean;
+  /** se llena solo y no se edita (p. ej. el domicilio del local) */
+  fijo?: boolean;
 }
 
 export interface Paso<K extends string = Clave> {
@@ -36,7 +38,7 @@ export const PASOS: Paso[] = [
       { clave: "ruc", soloNumeros: 11, ejemplo: "20615867161" },
       { clave: "representante_dni", soloNumeros: 8, ejemplo: "48140469", guia: "Por defecto, el del dueño." },
       { clave: "representante", ancho: true, ejemplo: "Andrés Alexander Nuñez Torres", guia: "Por defecto firma el dueño; si firma otro, cambia el nombre y el DNI." },
-      { clave: "domicilio_empresa", ancho: true, guia: "Con distrito y provincia.", ejemplo: "Mz 6 Lt 4 Santiago Antúnez de Mayolo, Pamplona Alta, San Juan de Miraflores - Lima" },
+      { clave: "domicilio_empresa", ancho: true, fijo: true, guia: "El local de la empresa: sale solo (Yarhua, lote 16; las de Andrés Núñez, lote 4)." },
     ],
   },
   {

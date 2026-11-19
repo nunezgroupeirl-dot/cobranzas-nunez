@@ -1,4 +1,4 @@
-import { DUENO_REPRESENTANTE } from "@/lib/negocio";
+import { DUENO_REPRESENTANTE, domicilioDeEmpresa } from "@/lib/negocio";
 import { finContrato, htmlPlantillaContrato } from "./ContratoPlantilla";
 export { UNIDAD_PLAZO } from "./ContratoPlantilla";
 import type { Cliente, Contrato, Cuenta, Empresa, Frecuencia, Moto, TipoDoc } from "@/types/database";
@@ -59,7 +59,7 @@ export function camposDesdeSistema(empresa: Empresa, cliente: Cliente, moto: Mot
     // el dueño firma por defecto; si la empresa tiene otro representante registrado, sale ese
     representante: t(empresa.representante) || DUENO_REPRESENTANTE.nombre,
     representante_dni: t(empresa.representante_dni) || DUENO_REPRESENTANTE.dni,
-    domicilio_empresa: t(empresa.domicilio),
+    domicilio_empresa: domicilioDeEmpresa(empresa.nombre), // el local: fijo según la empresa
     cliente: cliente.nombres,
     doc_tipo: cliente.tipo_doc ?? (!cliente.dni || cliente.dni.length === 8 ? "DNI" : "CE"),
     doc_numero: t(cliente.dni),
@@ -92,6 +92,7 @@ export function camposGuardados(base: CamposContrato, guardado: Record<string, s
   if (!guardado) return base;
   const r = { ...base };
   for (const k of Object.keys(base) as (keyof CamposContrato)[]) if (typeof guardado[k] === "string") (r as Record<string, string>)[k] = guardado[k];
+  r.domicilio_empresa = base.domicilio_empresa; // el domicilio del local no se toma de lo guardado: es siempre el fijo
   return r;
 }
 
