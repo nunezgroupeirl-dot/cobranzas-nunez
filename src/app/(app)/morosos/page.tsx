@@ -34,8 +34,8 @@ export default function PaginaMorosos() {
     descargarExcel(`morosos_${hoyLima()}`, [
       {
         nombre: "Morosos",
-        columnas: ["Placa", "Cliente", "Documento", "Celular", "Empresa", "Semanas de atraso", "Color", "Inmovilizar", "Debe desde", "Cuota", "Deuda", "Último pago"],
-        filas: lista.map((m) => [m.placa, m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.empresa, m.semanas_atraso, m.color, m.inmovilizar ? "Sí" : "No", formatoFecha(m.vencida_desde), m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
+        columnas: ["Placa", "Cliente", "Documento", "Celular", "Celular 2", "Empresa", "Semanas de atraso", "Color", "Inmovilizar", "Debe desde", "Cuota", "Deuda", "Último pago"],
+        filas: lista.map((m) => [m.placa, m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.celular2 ?? "", m.empresa, m.semanas_atraso, m.color, m.inmovilizar ? "Sí" : "No", formatoFecha(m.vencida_desde), m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
       },
     ]);
 
@@ -74,24 +74,25 @@ export default function PaginaMorosos() {
     {
       clave: "celular",
       titulo: "Celular",
-      celda: (m) =>
-        m.celular ? (
-          <span className="inline-flex items-center gap-3">
-            <a href={`tel:${m.celular}`} className="num font-semibold text-marca underline">
-              {m.celular}
-            </a>
-            <a
-              href={enlaceWhatsApp(`Hola ${m.cliente.split(" ")[0]}, le recordamos que tiene ${m.semanas_atraso} semana(s) de atraso (${formatoSoles(m.deuda)}) del vehículo${m.placa ? ` ${m.placa}` : ""}.`, m.celular)}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-lg bg-verde-suave px-2 py-1 text-sm font-bold text-verde"
-            >
-              WhatsApp
-            </a>
+      celda: (m) => {
+        const numeros = [m.celular, m.celular2].filter((x): x is string => !!x);
+        if (!numeros.length) return "—";
+        const texto = `Hola ${m.cliente.split(" ")[0]}, le recordamos que tiene ${m.semanas_atraso} semana(s) de atraso (${formatoSoles(m.deuda)}) del vehículo${m.placa ? ` ${m.placa}` : ""}.`;
+        return (
+          <span className="flex flex-col gap-1.5">
+            {numeros.map((n) => (
+              <span key={n} className="inline-flex items-center gap-3">
+                <a href={`tel:${n}`} className="num font-semibold text-marca underline">
+                  {n}
+                </a>
+                <a href={enlaceWhatsApp(texto, n)} target="_blank" rel="noreferrer" className="rounded-lg bg-verde-suave px-2 py-1 text-sm font-bold text-verde">
+                  WhatsApp
+                </a>
+              </span>
+            ))}
           </span>
-        ) : (
-          "—"
-        ),
+        );
+      },
     },
     {
       clave: "atraso",

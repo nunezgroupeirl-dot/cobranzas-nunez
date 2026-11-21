@@ -68,6 +68,8 @@ export default function PaginaClientes() {
   // ?color=rojo llega desde el semáforo del panel
   const colorInicial = useSearchParams().get("color") ?? "";
   const [color, setColor] = useState<Color | "">(() => (COLORES_VALIDOS.has(colorInicial) ? (colorInicial as Color) : ""));
+  // orden de la lista: por nombre, o por fecha de registro (la flechita cambia entre recientes y antiguos)
+  const [orden, setOrden] = useState<"nombre" | "recientes" | "antiguos">("nombre");
   // clientes con varios vehículos que están desplegados
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
   const alternar = (id: string) =>
@@ -95,6 +97,7 @@ export default function PaginaClientes() {
         tipo_doc: c.tipo_doc,
         placa: motoDeCliente.get(c.id)?.placa ?? "",
         celular: c.celular,
+        celular2: c.celular2,
         empresa_id: c.empresa_id,
         empresa: empresas.find((e) => e.id === c.empresa_id)?.nombre ?? "",
         cuota: 0,
@@ -119,7 +122,7 @@ export default function PaginaClientes() {
   // clave de búsqueda por fila, calculada solo cuando llegan los datos
   // (con varios vehículos, se busca también por la placa de cada uno)
   const indice = useMemo(
-    () => new Map((filas ?? []).map((f) => [f, claveBusqueda(f.cliente, f.dni, ...(f.vehiculos ?? [f]).map((v) => v.placa))])),
+    () => new Map((filas ?? []).map((f) => [f, claveBusqueda(f.cliente, f.dni, f.celular, f.celular2, ...(f.vehiculos ?? [f]).map((v) => v.placa))])),
     [filas],
   );
 
@@ -129,9 +132,13 @@ export default function PaginaClientes() {
     const deColor = (f: Fila) => !color || (!f.sin_contrato && (f.vehiculos ?? [f]).some((v) => v.color === color));
     return (filas ?? [])
       .filter((f) => deEmpresa(f) && deColor(f) && coincide(indice.get(f) ?? "", q))
-      .sort((a, b) => alfabetico(a.cliente, b.cliente))
+      .sort((a, b) =>
+        orden === "nombre"
+          ? alfabetico(a.cliente, b.cliente)
+          : (orden === "recientes" ? -1 : 1) * (a.registrado ?? "").localeCompare(b.registrado ?? "") || alfabetico(a.cliente, b.cliente),
+      )
       .flatMap((f) => (f.vehiculos && abiertos.has(f.cliente_id) ? [f, ...f.vehiculos] : [f]));
-  }, [filas, indice, texto, color, empresa, abiertos]);
+  }, [filas, indice, texto, color, empresa, abiertos, orden]);
   const clientesVisibles = visibles.filter((f) => !f.numero).length;
 
   const columnas: Columna<Fila>[] = [
@@ -222,10 +229,33 @@ export default function PaginaClientes() {
           type="search"
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder="Buscar por nombre, DNI o placa"
+          placeholder="Buscar por nombre, DNI, placa o celular"
           aria-label="Buscar cliente"
           className="min-h-14 flex-1 rounded-2xl border border-borde bg-superficie px-5 text-lg focus:border-marca focus:ring-3 focus:ring-marca/20 focus:outline-none"
         />
+        <div className="flex gap-2" role="group" aria-label="Ordenar">
+          <button
+            type="button"
+            onClick={() => setOrden("nombre")}
+            aria-pressed={orden === "nombre"}
+            className={`min-h-12 rounded-xl border px-4 font-semibold whitespace-nowrap ${orden === "nombre" ? "border-tinta bg-tinta text-white" : "border-borde bg-superficie"}`}
+          >
+            A–Z
+          </button>
+          <button
+            type="button"
+            // primero "más recientes"; si ya está así, la flechita lo cambia a "más antiguos" (y viceversa)
+            onClick={() => setOrden(orden === "recientes" ? "antiguos" : "recientes")}
+            aria-pressed={orden !== "nombre"}
+            title="Ordenar por fecha de registro"
+            className={`flex min-h-12 items-center gap-2 rounded-xl border px-4 font-semibold whitespace-nowrap ${orden !== "nombre" ? "border-tinta bg-tinta text-white" : "border-borde bg-superficie"}`}
+          >
+            <span aria-hidden className="text-lg leading-none">
+              {orden === "antiguos" ? "↑" : "↓"}
+            </span>
+            {orden === "antiguos" ? "Más antiguos" : "Más recientes"}
+          </button>
+        </div>
         <div className="flex gap-2 overflow-x-auto" role="group" aria-label="Filtrar por color">
           {colores.map((c) => (
             <button

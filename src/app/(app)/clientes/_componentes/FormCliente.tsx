@@ -39,6 +39,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     tipo_doc: (cliente?.tipo_doc ?? (cliente?.dni ? (cliente.dni.length === 8 ? "DNI" : "CE") : "")) as "" | TipoDoc,
     dni: cliente?.dni ?? "",
     celular: cliente?.celular ?? "",
+    celular2: cliente?.celular2 ?? "",
     direccion: cliente?.direccion ?? "",
     referencia: cliente?.referencia ?? "",
     recomendado_por: cliente?.recomendado_por ?? "",
@@ -119,6 +120,8 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     if (f.dni && !f.tipo_doc) e.tipo_doc = "Elige el tipo de documento.";
     else if (f.dni && f.tipo_doc && !esDocumentoValido(f.dni, f.tipo_doc)) e.dni = DOCUMENTOS[f.tipo_doc].ayuda;
     if (f.celular && !/^9\d{8}$/.test(f.celular)) e.celular = "El celular debe tener 9 números y empezar con 9.";
+    if (f.celular2 && !/^9\d{8}$/.test(f.celular2)) e.celular2 = "El celular debe tener 9 números y empezar con 9.";
+    else if (f.celular2 && f.celular2 === f.celular) e.celular2 = "Es el mismo número de arriba.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     if (!ubicacionValida(f.ubicacion)) e.ubicacion = "Pega un enlace de Google Maps o coordenadas como -12.0464,-77.0428.";
     setErrores(e);
@@ -181,6 +184,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
         dni: f.dni || null,
         tipo_doc: f.tipo_doc || null,
         celular: f.celular || null,
+        celular2: f.celular2 || null,
         direccion: f.direccion.trim() || null,
         referencia: f.referencia.trim() || null,
         recomendado_por: f.recomendado_por.trim() || null,
@@ -310,6 +314,15 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
             value={f.celular}
             onChange={(e) => poner("celular", e.target.value.replace(/\D/g, ""))}
             error={errores.celular}
+          />
+          <Campo
+            etiqueta="Celular 2"
+            inputMode="tel"
+            maxLength={9}
+            value={f.celular2}
+            onChange={(e) => poner("celular2", e.target.value.replace(/\D/g, ""))}
+            error={errores.celular2}
+            ayuda="Opcional: si el cliente tiene otro número."
           />
           <Selector
             etiqueta="Empresa"

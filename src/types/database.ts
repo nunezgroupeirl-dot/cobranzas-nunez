@@ -70,6 +70,7 @@ export interface Cliente {
   /** qué documento es; se elige antes de escribir el número */
   tipo_doc?: TipoDoc | null;
   celular: string | null;
+  celular2?: string | null; // otro número (algunos clientes tienen dos)
   direccion: string | null;
   referencia: string | null;
   /** quién lo recomendó o el asesor de tienda que lo mandó a la empresa */
@@ -187,6 +188,7 @@ export interface EstadoCliente {
   dni: string | null;
   placa: string | null;
   celular: string | null;
+  celular2?: string | null; // otro número (algunos clientes tienen dos)
   empresa_id: string;
   empresa: string;
   cuota: number;

@@ -38,11 +38,22 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
   return (
     <Tarjeta className="lg:col-span-2" titulo="Datos">
       <dl className="grid gap-3 sm:grid-cols-2">
-        <Dato etiqueta="Celular">
-          {cliente.celular ? (
-            <a href={`tel:${cliente.celular}`} className="text-marca underline">
-              {cliente.celular}
-            </a>
+        <Dato etiqueta={cliente.celular2 ? "Celulares" : "Celular"}>
+          {cliente.celular || cliente.celular2 ? (
+            <span className="flex flex-col gap-1">
+              {[cliente.celular, cliente.celular2]
+                .filter((n): n is string => !!n)
+                .map((n) => (
+                  <span key={n} className="inline-flex items-center gap-3">
+                    <a href={`tel:${n}`} className="num text-marca underline">
+                      {n}
+                    </a>
+                    <a href={`https://wa.me/51${n}`} target="_blank" rel="noreferrer" className="rounded-lg bg-verde-suave px-2 py-0.5 text-sm font-bold text-verde">
+                      WhatsApp
+                    </a>
+                  </span>
+                ))}
+            </span>
           ) : null}
         </Dato>
         <Dato etiqueta="Dirección">{cliente.direccion}</Dato>

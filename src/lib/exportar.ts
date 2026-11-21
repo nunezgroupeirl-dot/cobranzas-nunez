@@ -15,7 +15,7 @@ export function textoWhatsApp(filas: EstadoCliente[], titulo: string): string {
   const lineas = filas.map(
     (f, i) =>
       `${i + 1}. ${EMOJI[f.color]} *${f.placa ?? "sin placa"}* · ${f.cliente}\n` +
-      `   📞 ${f.celular ?? "—"} · ${f.semanas_atraso} sem. · debe ${soles(f.deuda)} · últ. pago ${fecha(f.ultimo_pago)}`,
+      `   📞 ${[f.celular, f.celular2].filter(Boolean).join(" / ") || "—"} · ${f.semanas_atraso} sem. · debe ${soles(f.deuda)} · últ. pago ${fecha(f.ultimo_pago)}`,
   );
   return [`*${titulo}*`, `${filas.length} clientes · Total ${soles(total)}`, "", ...lineas].join("\n");
 }

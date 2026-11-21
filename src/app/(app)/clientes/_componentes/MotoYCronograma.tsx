@@ -130,7 +130,11 @@ function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "
   const conCalculo = (cambio: Partial<Venta>) => {
     const x = { ...v, ...cambio };
     if (!x.usar_capital) {
-      alCambiar(cambio);
+      // sin capital e interés: el precio total se llena solo con cuota × n.º de cuotas (se puede corregir a mano)
+      const c = Number(x.cuota);
+      const n = Number(x.nro_cuotas);
+      const automatico = ("cuota" in cambio || "nro_cuotas" in cambio) && c > 0 && Number.isInteger(n) && n > 0;
+      alCambiar(automatico ? { ...cambio, precio: (Math.round(c * n * 100) / 100).toFixed(2) } : cambio);
       return;
     }
     // al cambiar el capital, el interés vuelve al automático de su tramo (S/ 500 por mes o 50 % al año)
@@ -303,7 +307,7 @@ function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "
           min="0"
           step="0.01"
           value={v.cuota}
-          onChange={(e) => alCambiar({ cuota: e.target.value })}
+          onChange={(e) => conCalculo({ cuota: e.target.value })}
           error={errores.cuota}
           obligatorio
           className="num font-semibold"
@@ -329,7 +333,7 @@ function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "
             min="0"
             value={v.precio}
             onChange={(e) => cambiarPrecio(e.target.value)}
-            ayuda={calculo ? "Capital + interés (+ GPS). Si lo cambias, la cuota se recalcula." : "Opcional"}
+            ayuda={calculo ? "Capital + interés (+ GPS). Si lo cambias, la cuota se recalcula." : "Se llena solo: cuota × n.º de cuotas. Si lo cambias, la cuota se recalcula."}
             className="num"
           />
           <Campo

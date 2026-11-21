@@ -299,6 +299,7 @@ function estadoClientes(s: Estado): EstadoCliente[] {
         dni: cli?.dni ?? "",
         placa: moto?.placa ?? "",
         celular: cli?.celular ?? null,
+        celular2: cli?.celular2 ?? null,
         empresa_id: con.empresa_id,
         empresa: emp?.nombre ?? "",
         cuota: con.monto_cuota,

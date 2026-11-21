@@ -134,6 +134,7 @@ create table if not exists public.clientes (
   nombres     text not null check (length(trim(nombres)) > 0),
   dni         text unique,  -- DNI (8 números) o Carné de Extranjería (9 a 12); vacío = pendiente (cuadernos)
   celular     text check (celular is null or celular ~ '^9\d{8}$'),
+  celular2    text check (celular2 is null or celular2 ~ '^9\d{8}$'), -- algunos clientes tienen otro número
   direccion   text,
   referencia  text,
   creado_en   timestamptz not null default now()
@@ -145,6 +146,7 @@ alter table public.clientes drop constraint if exists clientes_ubicacion_check;
 alter table public.clientes add constraint clientes_ubicacion_check check (ubicacion is null or length(ubicacion) <= 500);
 -- Quién recomendó al cliente o el asesor de tienda que lo mandó a la empresa (texto libre, opcional)
 alter table public.clientes add column if not exists recomendado_por text;
+alter table public.clientes add column if not exists celular2 text check (celular2 is null or celular2 ~ '^9\d{8}$');
 alter table public.clientes drop constraint if exists clientes_recomendado_por_check;
 alter table public.clientes add constraint clientes_recomendado_por_check check (recomendado_por is null or length(recomendado_por) <= 200);
 alter table public.clientes alter column dni drop not null;
@@ -1376,7 +1378,8 @@ select
   -- 4 semanas de deuda (la cuota impaga más antigua venció hace más de 21 días): hay que inmovilizar el vehículo.
   -- Se mide por fecha para que valga igual en contratos diarios, semanales, quincenales y mensuales;
   -- en los semanales coincide con el rojo (4 cuotas vencidas).
-  coalesce(r.vencida_desde < public.hoy_lima() - 21, false) as inmovilizar
+  coalesce(r.vencida_desde < public.hoy_lima() - 21, false) as inmovilizar,
+  cl.celular2
 from public.contratos co
 join public.clientes cl on cl.id = co.cliente_id
 join public.motos m on m.id = co.moto_id

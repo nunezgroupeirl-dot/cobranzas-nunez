@@ -17,6 +17,7 @@ export async function hojaClientes(datos: Datos, empresa: string | null): Promis
     e.cliente,
     e.dni,
     e.celular,
+    e.celular2 ?? porId.get(e.cliente_id)?.celular2 ?? "",
     porId.get(e.cliente_id)?.direccion,
     e.placa,
     e.empresa,
@@ -29,7 +30,7 @@ export async function hojaClientes(datos: Datos, empresa: string | null): Promis
   ]);
   return {
     nombre: "Clientes",
-    columnas: ["Cliente", "DNI / C.E.", "Celular", "Dirección", "Placa", "Empresa", "Cuota", "Semanas de atraso", "Color", "Deuda vencida", "Último pago", "Próxima cuota"],
+    columnas: ["Cliente", "DNI / C.E.", "Celular", "Celular 2", "Dirección", "Placa", "Empresa", "Cuota", "Semanas de atraso", "Color", "Deuda vencida", "Último pago", "Próxima cuota"],
     filas,
   };
 }
