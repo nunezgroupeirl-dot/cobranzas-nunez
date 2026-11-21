@@ -312,7 +312,7 @@ where d.moto_id is null
   and d.tipo in ('moto', 'moto_atras', 'moto_izquierda', 'moto_derecha', 'tarjeta_frente', 'tarjeta_reverso');
 
 -- Cada vehículo tiene su empresa: su contrato va siempre a la misma empresa que el vehículo.
--- Si el vehículo ya tiene pagos válidos no se cambia (ese dinero ya entró a las cuentas de la otra empresa).
+-- Si el vehículo ya tiene pagos válidos, solo un administrador puede corregirla (todo queda en la auditoría).
 create or replace function public.empresa_moto_en_cascada()
 returns trigger
 language plpgsql
@@ -321,11 +321,12 @@ set search_path = public
 as $$
 begin
   if new.empresa_id is distinct from old.empresa_id then
-    if exists (
+    -- con pagos registrados, solo un administrador puede corregir la empresa (queda en la auditoría)
+    if not public.es_admin() and exists (
       select 1 from public.pagos p join public.contratos c on c.id = p.contrato_id
       where c.moto_id = new.id and not p.anulado
     ) then
-      raise exception 'El vehículo %ya tiene pagos registrados en su empresa: no se puede cambiar de empresa.',
+      raise exception 'El vehículo %ya tiene pagos registrados en su empresa: solo un administrador puede cambiarlo de empresa.',
         coalesce(new.placa || ' ', '') using errcode = 'P0001';
     end if;
     update public.contratos set empresa_id = new.empresa_id where moto_id = new.id and empresa_id is distinct from new.empresa_id;
