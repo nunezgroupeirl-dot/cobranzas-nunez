@@ -19,7 +19,24 @@ type Fila = EstadoCliente & {
   numero?: number;
   /** empresas de sus vehículos (para filtrar) */
   empresas?: string[];
+  /** cuándo se registró el cliente */
+  registrado?: string;
 };
+
+/** Fecha (en hora de Lima) en que se registró, y "hoy", "ayer" o "hace N días" debajo. */
+function Registrado({ iso }: { iso?: string }) {
+  if (!iso) return <span className="text-tenue">—</span>;
+  const enLima = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Lima" }); // AAAA-MM-DD
+  const dia = enLima(new Date(iso));
+  const dias = Math.round((Date.parse(enLima(new Date())) - Date.parse(dia)) / 86_400_000);
+  const [a, m, d] = dia.split("-");
+  return (
+    <span className="flex flex-col leading-tight">
+      <span className="num">{`${d}/${m}/${a}`}</span>
+      <span className={`text-xs ${dias <= 1 ? "font-semibold text-marca" : "text-tenue"}`}>{dias <= 0 ? "hoy" : dias === 1 ? "ayer" : `hace ${dias} días`}</span>
+    </span>
+  );
+}
 
 const PEOR: Record<Color, number> = { verde: 0, amarillo: 1, rojo: 2 };
 
@@ -95,7 +112,8 @@ export default function PaginaClientes() {
     const porCliente = new Map<string, Fila[]>();
     for (const e of [...estado].sort((a, b) => (creado.get(a.contrato_id) ?? "").localeCompare(creado.get(b.contrato_id) ?? "")))
       (porCliente.get(e.cliente_id) ?? porCliente.set(e.cliente_id, []).get(e.cliente_id))?.push({ ...e, moto: motoDeContrato.get(e.contrato_id) });
-    return [...[...porCliente.values()].flatMap(agrupar), ...sinContrato];
+    const registro = new Map(clientes.map((c) => [c.id, c.creado_en]));
+    return [...[...porCliente.values()].flatMap(agrupar), ...sinContrato].map((f) => ({ ...f, registrado: registro.get(f.cliente_id) }));
   }, [datos, empresas]);
 
   // clave de búsqueda por fila, calculada solo cuando llegan los datos
@@ -175,6 +193,7 @@ export default function PaginaClientes() {
     },
     { clave: "deuda", titulo: "Deuda", numero: true, celda: (f) => (f.sin_contrato ? "—" : formatoSoles(f.deuda)) },
     { clave: "ultimo", titulo: "Último pago", celda: (f) => formatoFecha(f.ultimo_pago), ocultarEnMovil: true },
+    { clave: "registrado", titulo: "Registrado", celda: (f) => (f.numero ? null : <Registrado iso={f.registrado} />) },
   ];
 
   const colores: { valor: Color | ""; texto: string }[] = [

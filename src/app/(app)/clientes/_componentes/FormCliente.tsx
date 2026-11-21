@@ -4,23 +4,32 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, DOCUMENTOS, TIPOS_DOC, Tarjeta, esDocumentoValido, limpiarDocumento, mensajeDeError } from "@/components/ui";
-import { subirDocumento } from "@/lib/fotos";
+import { borrarFoto, prepararFotoPago, subirDocumento } from "@/lib/fotos";
 import { borrarBorrador, guardarArchivosBorrador, guardarBorrador, leerArchivosBorrador, leerBorrador } from "@/lib/borrador";
 import { ubicacionValida } from "@/lib/mapa";
-import type { TipoDoc, Cliente, Documento } from "@/types/database";
+import type { TipoDoc, Cliente, Cuenta, Documento } from "@/types/database";
 import { CampoUbicacion } from "./CampoUbicacion";
+import { ComprobantesPagadas } from "./ComprobantesPagadas";
 import { FotosPorTipo } from "./FotosPorTipo";
 import { ProgresoGuardado, type EstadoFoto, type Progreso } from "./ProgresoGuardado";
 import { MotoYCronograma } from "./MotoYCronograma";
 import { GRUPOS_FOTOS, GRUPO_VEHICULO, TIPOS_VEHICULO, TOTAL_FOTOS, tipoDeClave, vehiculoDeClave } from "./secciones";
 import { TarjetaContratoFirmado } from "../../contratos/_componentes/TarjetaContratoFirmado";
 import { useVehiculos, type ItemVehiculo } from "./useVehiculos";
-import type { VentaActual } from "./venta";
+import { cuotasPorComprobar, type VentaActual } from "./venta";
 
 
 /** Datos del cliente, sus vehículos (cada uno con su cronograma), sus fotos y sus contratos firmados, en ese orden. */
 export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales?: VentaActual[] }) {
   const { datos, empresas } = useSesion();
+  // cuentas activas: para los comprobantes de cuotas ya pagadas
+  const [cuentas, setCuentas] = useState<Cuenta[]>([]);
+  useEffect(() => {
+    datos
+      .cuentas()
+      .then(setCuentas)
+      .catch(() => undefined);
+  }, [datos]);
   const empresaFiltro = useEmpresa();
   const router = useRouter();
 
@@ -113,7 +122,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     if (!ubicacionValida(f.ubicacion)) e.ubicacion = "Pega un enlace de Google Maps o coordenadas como -12.0464,-77.0428.";
     setErrores(e);
-    const vehiculosOk = vehiculos.validar();
+    const vehiculosOk = vehiculos.validar((id) => !!pendientes[COMP + id]); // los comprobantes de cuotas pagadas piden su foto
     return Object.keys(e).length === 0 && vehiculosOk;
   };
 
@@ -130,6 +139,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     setProgreso((p) => (p ? { ...p, fotos: p.fotos.map((x) => (x.clave === clave ? { ...x, estado } : x)) } : p));
 
   const ultimo = useRef<"solo" | "contrato">("contrato"); // para "Reintentar"
+  const compHechos = useRef(new Set<string>()); // comprobantes ya registrados (no se repiten al reintentar)
   const guardar = async (e: { preventDefault: () => void } | null, despues: "solo" | "contrato") => {
     e?.preventDefault();
     if (!validar()) return;
@@ -138,9 +148,19 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     const activos = new Set(vehiculos.items.filter((x) => x.activo).map((x) => x.clave));
     // las fotos que se van a subir: las del cliente y las de cada vehículo que se registra
     const entradas = Object.entries(pendientes).filter(([clave]) => {
+      if (clave.startsWith(COMP)) return false; // las fotos de comprobantes van con su pago (abajo)
       const veh = vehiculoDeClave(clave);
       return !veh || activos.has(veh);
     });
+    // los comprobantes de cuotas pagadas que faltan registrar (de cada vehículo que se guarda)
+    const porRegistrar = vehiculos.items
+      .filter((x) => x.activo)
+      .flatMap((x) => {
+        const faltan = cuotasPorComprobar(x.v, x.actual?.contrato?.cuotas_pagadas_inicial ?? 0);
+        return x.v.comprobantes
+          .filter((c) => !compHechos.current.has(c.id) && c.cuotas.some((n) => faltan.includes(n)))
+          .map((c) => ({ clave: x.clave, empresa: x.v.empresa_id || f.empresa_id, c: { ...c, cuotas: c.cuotas.filter((n) => faltan.includes(n)) } }));
+      });
     setGuardando(despues);
     setError(null);
     setProgreso({
@@ -150,6 +170,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
       destino,
       paso: 0,
       fotos: entradas.map(([clave, archivo]) => ({ clave, archivo, estado: "espera" })),
+      comprobantes: { total: porRegistrar.length, listos: 0 },
       error: null,
     });
     try {
@@ -192,8 +213,39 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
       };
       await Promise.all([trabajador(), trabajador(), trabajador()]);
       if (fallidas) throw new Error(`No se pudo subir ${fallidas === 1 ? "1 foto" : `${fallidas} fotos`}. Las demás ya quedaron guardadas.`);
-      await borrarBorrador(claveBorrador); // ya quedó guardado de verdad
+      // Comprobantes de las cuotas que ya venía pagando: cada uno queda como pago anterior de esas cuotas
+      // (con el control de N.º de operación y captura repetidos). Uno por uno, para decir cuál falló.
       avanzar({ paso: 3 });
+      for (const [i, { clave, empresa, c }] of porRegistrar.entries()) {
+        const contratoId = vehiculos.contratoDe(clave);
+        const archivo = pendientes[COMP + c.id];
+        if (!contratoId || !archivo) continue;
+        let ruta = "";
+        try {
+          // react-doctor-disable-next-line async-await-in-loop
+          const foto = await prepararFotoPago(datos, empresa, guardado.id, archivo);
+          ruta = foto.ruta;
+          // react-doctor-disable-next-line async-await-in-loop
+          await datos.registrarPagoAnterior({
+            contrato_id: contratoId,
+            cuotas: c.cuotas,
+            fecha_pago: c.fecha,
+            medio: c.medio,
+            cuenta_id: c.medio === "efectivo" ? null : c.cuenta_id,
+            nro_operacion: c.medio === "efectivo" ? null : c.nro_operacion.trim(),
+            foto_ruta: foto.ruta,
+            foto_hash: foto.hash,
+          });
+        } catch (err) {
+          if (ruta) void borrarFoto(datos, "evidencias", ruta); // la foto no quedó en ningún pago
+          throw new Error(`Comprobante de la cuota ${c.cuotas.join(", ")}: ${mensajeDeError(err)}`);
+        }
+        compHechos.current.add(c.id); // al reintentar, este ya no se vuelve a registrar
+        sinPendiente(COMP + c.id);
+        avanzar({ comprobantes: { total: porRegistrar.length, listos: i + 1 } });
+      }
+      await borrarBorrador(claveBorrador); // ya quedó guardado de verdad
+      avanzar({ paso: 4 });
       await new Promise((r) => setTimeout(r, 900)); // que se vea el check antes de cambiar de pantalla
       router.push(
         destino === "contrato"
@@ -210,6 +262,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
   };
 
   const opcionesEmpresa = useMemo(() => empresas.map((e) => ({ valor: e.id, texto: e.nombre })), [empresas]);
+  const nombresEmpresa = useMemo(() => new Map(empresas.map((e) => [e.id, e.nombre])), [empresas]);
   // las fotos del vehículo se muestran dentro de cada vehículo
   const delCliente = existentes.filter((d) => !d.moto_id && !TIPOS_VEHICULO.has(d.tipo));
 
@@ -310,6 +363,19 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
             </div>
           );
         }}
+        comprobantesDe={(x) => (
+          <ComprobantesPagadas
+            faltan={cuotasPorComprobar(x.v, x.actual?.contrato?.cuotas_pagadas_inicial ?? 0)}
+            comprobantes={x.v.comprobantes ?? []}
+            alCambiar={(lista) => vehiculos.cambiar(x.clave, { comprobantes: lista })}
+            archivos={Object.fromEntries((x.v.comprobantes ?? []).flatMap((c) => (pendientes[COMP + c.id] ? [[c.id, pendientes[COMP + c.id]]] : [])))}
+            alElegirArchivo={(id, archivo) => (archivo ? setPendientes((p) => ({ ...p, [COMP + id]: archivo })) : sinPendiente(COMP + id))}
+            cuentas={cuentas}
+            empresaId={x.v.empresa_id || f.empresa_id}
+            nombresEmpresa={nombresEmpresa}
+            error={x.errores.comprobantes}
+          />
+        )}
         alQuitar={(clave) => {
           vehiculos.quitar(clave);
           setPendientes((p) => Object.fromEntries(Object.entries(p).filter(([k]) => vehiculoDeClave(k) !== clave)));
@@ -409,12 +475,14 @@ function ListaVehiculos({
   empresas,
   empresaCliente,
   fotosDe,
+  comprobantesDe,
   alQuitar,
 }: {
   vehiculos: ReturnType<typeof useVehiculos>;
   empresas: { valor: string; texto: string }[];
   empresaCliente: string;
   fotosDe: (x: ItemVehiculo) => ReactNode;
+  comprobantesDe: (x: ItemVehiculo) => ReactNode;
   alQuitar: (clave: string) => void;
 }) {
   return (
@@ -429,6 +497,7 @@ function ListaVehiculos({
           empresas={empresas}
           empresaCliente={empresaCliente}
           fotos={fotosDe(x)}
+          comprobantes={comprobantesDe(x)}
           v={x.v}
           errores={x.errores}
           conContrato={!!x.actual?.contrato}
@@ -449,3 +518,6 @@ function espaciosLlenos(existentes: Documento[], pendientes: Record<string, File
   const tipos = new Set<string>([...existentes.map((d) => d.tipo), ...Object.keys(pendientes).map(tipoDeClave)]);
   return GRUPOS_FOTOS.reduce((n, g) => n + g.espacios.filter((e) => tipos.has(e.tipo)).length, 0);
 }
+
+/** Clave de la foto de un comprobante de cuotas pagadas (va con los demás archivos del borrador, pero no como foto del cliente). */
+const COMP = "comprobante:";

@@ -37,13 +37,15 @@ interface Props {
   empresaCliente: string;
   /** las fotos de este vehículo (4 lados y tarjeta de propiedad) */
   fotos?: ReactNode;
+  /** comprobantes de las cuotas que ya venía pagando (van justo debajo de "cuotas pagadas") */
+  comprobantes?: ReactNode;
 }
 
 /**
  * La moto (placa) y el cronograma de pagos del cliente, en dos tarjetas.
  * Sirve al crear y al editar; el contrato en papel se llena aparte.
  */
-export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, titulo, alQuitar, empresas, empresaCliente, fotos }: Props) {
+export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, titulo, alQuitar, empresas, empresaCliente, fotos, comprobantes }: Props) {
   const visible = activa !== false;
   const id = titulo.replace(/\W+/g, "-").toLowerCase();
   return (
@@ -105,7 +107,7 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
 
       {visible && (
         <Tarjeta titulo={`Cronograma de pagos${titulo === "Vehículo" ? "" : ` · ${titulo}`}`}>
-          <CamposCronograma v={v} errores={errores} alCambiar={alCambiar} />
+          <CamposCronograma v={v} errores={errores} alCambiar={alCambiar} comprobantes={comprobantes} />
           <p className="mt-4 text-sm text-tenue">
             {conContrato
               ? "Si cambias la cuota, el número de cuotas, la fecha o la frecuencia, el cronograma se vuelve a armar y los pagos ya registrados se aplican de nuevo."
@@ -117,7 +119,7 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
   );
 }
 
-function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores" | "alCambiar">) {
+function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "v" | "errores" | "alCambiar" | "comprobantes">) {
   const cuota = Number(v.cuota);
   const nro = Number(v.nro_cuotas);
   const plural = FRECUENCIAS.find((f) => f.valor === v.frecuencia)?.plural ?? "";
@@ -347,10 +349,11 @@ function CamposCronograma({ v, errores, alCambiar }: Pick<Props, "v" | "errores"
           value={v.pagadas}
           onChange={(e) => alCambiar({ pagadas: e.target.value })}
           error={errores.pagadas}
-          ayuda="Si ya venía pagando. Luego puedes subir el voucher de cada una."
+          ayuda="Si ya venía pagando: abajo se sube el comprobante de esas cuotas (obligatorio)."
           className="num"
         />
       </div>
+      {comprobantes}
       {cuota > 0 && nro > 0 && v.fecha_inicio && (
         <p className="rounded-xl bg-marca-suave px-3 py-2 text-sm font-medium">
           {nro} cuotas {plural} de <b className="num">{formatoSoles(cuota)}</b>: del {fechaLarga(v.fecha_inicio)} al{" "}

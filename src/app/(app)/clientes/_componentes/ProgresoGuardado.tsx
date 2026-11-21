@@ -11,8 +11,8 @@ export interface FotoEnCola {
   estado: EstadoFoto;
 }
 
-/** 0 datos del cliente · 1 vehículos y cronograma · 2 fotos · 3 listo (abre el contrato o la ficha) */
-export type PasoGuardado = 0 | 1 | 2 | 3;
+/** 0 datos del cliente · 1 vehículos y cronograma · 2 fotos · 3 comprobantes de cuotas pagadas · 4 listo (abre el contrato o la ficha) */
+export type PasoGuardado = 0 | 1 | 2 | 3 | 4;
 
 export interface Progreso {
   nombre: string;
@@ -21,6 +21,8 @@ export interface Progreso {
   destino: "contrato" | "ficha";
   paso: PasoGuardado;
   fotos: FotoEnCola[];
+  /** comprobantes de cuotas ya pagadas que se registran como pagos anteriores */
+  comprobantes: { total: number; listos: number };
   /** si algo falló: el mensaje y en qué paso */
   error: string | null;
 }
@@ -41,11 +43,12 @@ export function ProgresoGuardado({ progreso: p, alReintentar, alCerrar }: Props)
 
   const listas = p.fotos.filter((f) => f.estado === "listo").length;
   const fallidas = p.fotos.filter((f) => f.estado === "error").length;
-  const terminado = p.paso === 3 && !p.error;
+  const terminado = p.paso === 4 && !p.error;
   const pasos: { paso: PasoGuardado; texto: string; ver: boolean }[] = [
     { paso: 0, texto: "Datos del cliente", ver: true },
     { paso: 1, texto: "Vehículo y cronograma", ver: p.conVehiculo },
     { paso: 2, texto: "Fotos y documentos", ver: p.fotos.length > 0 },
+    { paso: 3, texto: "Comprobantes de cuotas pagadas", ver: p.comprobantes.total > 0 },
   ];
 
   return (
@@ -93,6 +96,11 @@ export function ProgresoGuardado({ progreso: p, alReintentar, alCerrar }: Props)
                           {x.paso === 2 && p.fotos.length > 0 && (
                             <span className="num text-sm text-tenue">
                               {listas} de {p.fotos.length}
+                            </span>
+                          )}
+                          {x.paso === 3 && (
+                            <span className="num text-sm text-tenue">
+                              {p.comprobantes.listos} de {p.comprobantes.total}
                             </span>
                           )}
                         </div>

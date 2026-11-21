@@ -42,8 +42,9 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
   const quitar = (clave: string) => setItems((xs) => xs.filter((x) => x.clave !== clave || x.actual));
 
   /** Revisa los vehículos activos; marca los errores de cada uno. */
-  const validar = () => {
-    const revisados = items.map((x) => ({ ...x, errores: x.activo ? validarVenta(x.v) : {} }));
+  /** `conFoto`: si el comprobante (de cuotas ya pagadas) tiene su foto. */
+  const validar = (conFoto: (id: string) => boolean = () => false) => {
+    const revisados = items.map((x) => ({ ...x, errores: x.activo ? validarVenta(x.v, x.actual?.contrato?.cuotas_pagadas_inicial ?? 0, conFoto) : {} }));
     setItems(revisados);
     return revisados.every((x) => Object.keys(x.errores).length === 0);
   };
@@ -74,6 +75,10 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
     setItems(guardados.map((x) => ({ ...x, v: { ...ventaVacia(hoyLima()), ...x.v }, errores: {} })));
   };
 
+  /** El contrato (cronograma) ya guardado de un item del formulario. */
+  const contratoDe = (clave: string): string | undefined =>
+    hechos.current[clave]?.contratoId ?? items.find((x) => x.clave === clave)?.actual?.contrato?.id ?? undefined;
+
   /** El vehículo ya guardado de un item del formulario (para ligarle sus fotos). */
   const motoDe = (clave: string): string | undefined =>
     hechos.current[clave]?.moto?.id ?? items.find((x) => x.clave === clave)?.actual?.moto?.id ?? undefined;
@@ -82,5 +87,5 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
   const seguirEmpresa = (antes: string, despues: string) =>
     setItems((xs) => xs.map((x) => (!x.v.empresa_id || x.v.empresa_id === antes ? { ...x, v: { ...x.v, empresa_id: despues } } : x)));
 
-  return { items, cambiar, activar, agregar, quitar, validar, guardarTodos, restaurar, motoDe, seguirEmpresa, alguno: items.some((x) => x.activo) };
+  return { items, cambiar, activar, agregar, quitar, validar, guardarTodos, restaurar, motoDe, contratoDe, seguirEmpresa, alguno: items.some((x) => x.activo) };
 }

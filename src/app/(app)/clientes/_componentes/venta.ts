@@ -1,6 +1,6 @@
 import { sumarDias } from "@/components/ui";
 import type { Datos } from "@/lib/supabase/datos";
-import type { Cliente, Contrato, Frecuencia, Moto } from "@/types/database";
+import type { Cliente, Contrato, Frecuencia, MedioPago, Moto } from "@/types/database";
 
 /** Moto y cronograma de un cliente nuevo (todo como texto, tal como se escribe en el formulario). */
 export interface Venta {
@@ -27,6 +27,53 @@ export interface Venta {
   gps: string;
   /** fecha en que se entrega el vehículo */
   fecha_entrega: string;
+  /** comprobantes de las cuotas que ya venía pagando (obligatorios si hay cuotas pagadas); la foto va aparte */
+  comprobantes: ComprobanteVenta[];
+}
+
+/** Un comprobante (voucher, captura o recibo) de cuotas pagadas antes del sistema. */
+export interface ComprobanteVenta {
+  id: string;
+  /** las cuotas que cubre (1, 2, 3…) */
+  cuotas: number[];
+  fecha: string;
+  medio: MedioPago;
+  cuenta_id: string;
+  nro_operacion: string;
+}
+
+export const comprobanteVacio = (hoy: string): ComprobanteVenta => ({
+  id: `comp-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+  cuotas: [],
+  fecha: hoy,
+  medio: "yape",
+  cuenta_id: "",
+  nro_operacion: "",
+});
+
+/** Las cuotas pagadas que necesitan su comprobante: todas al crear; al editar, solo las que se agregan. */
+export function cuotasPorComprobar(v: Venta, pagadasAntes: number): number[] {
+  const p = Number(v.pagadas) || 0;
+  return p > pagadasAntes ? Array.from({ length: p - pagadasAntes }, (_, i) => pagadasAntes + i + 1) : [];
+}
+
+/** Qué falta en los comprobantes (o null si está todo). `conFoto`: si ese comprobante ya tiene su foto. */
+export function problemaComprobantes(v: Venta, pagadasAntes: number, conFoto: (id: string) => boolean): string | null {
+  const faltan = cuotasPorComprobar(v, pagadasAntes);
+  if (!faltan.length) return null;
+  const lista = v.comprobantes.filter((c) => c.cuotas.some((n) => faltan.includes(n)));
+  if (!lista.length) return `Sube el comprobante de ${faltan.length === 1 ? "la cuota pagada" : `las ${faltan.length} cuotas pagadas`}.`;
+  for (const [i, c] of lista.entries()) {
+    const n = lista.length > 1 ? ` del comprobante ${i + 1}` : "";
+    if (!conFoto(c.id)) return `Falta la foto${n}.`;
+    if (!c.fecha) return `Falta la fecha${n}.`;
+    if (c.medio !== "efectivo" && !c.cuenta_id) return `Elige la cuenta donde llegó el dinero${n}.`;
+    if (c.medio !== "efectivo" && !c.nro_operacion.trim()) return `Escribe el N.º de operación${n}.`;
+  }
+  const cubiertas = new Set(lista.flatMap((c) => c.cuotas));
+  const sin = faltan.filter((n) => !cubiertas.has(n));
+  if (sin.length) return `Falta el comprobante de la cuota ${sin.join(", ")}: márcala en el comprobante que la pagó o agrega otro.`;
+  return null;
 }
 
 export const ventaVacia = (hoy: string): Venta => ({
@@ -48,11 +95,14 @@ export const ventaVacia = (hoy: string): Venta => ({
   interes: "",
   gps: "",
   fecha_entrega: "",
+  comprobantes: [],
 });
 
 /** Errores por campo (vacío = todo bien). */
-export function validarVenta(v: Venta): Record<string, string> {
+export function validarVenta(v: Venta, pagadasAntes = 0, conFoto: (id: string) => boolean = () => false): Record<string, string> {
   const e: Record<string, string> = {};
+  const comp = problemaComprobantes(v, pagadasAntes, conFoto);
+  if (comp) e.comprobantes = comp;
   // obligatorio: o la placa o "Placa en trámite" marcado
   if (!v.tramite && !v.placa.trim()) e.placa = "Escribe la placa o marca «Placa en trámite».";
   else if (!v.tramite && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(v.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
