@@ -286,6 +286,7 @@ export function FotoVoucher({ foto, efectivo, error, alCambiar }: { foto: File |
         <Boton variante="secundario" tamano="chico" onClick={() => alCambiar(null)}>
           Cambiar foto
         </Boton>
+        {error && <p className="w-full text-sm font-semibold text-rojo">{error}</p>}
       </div>
     );
   return (

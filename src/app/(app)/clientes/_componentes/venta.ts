@@ -57,22 +57,28 @@ export function cuotasPorComprobar(v: Venta, pagadasAntes: number): number[] {
   return p > pagadasAntes ? Array.from({ length: p - pagadasAntes }, (_, i) => pagadasAntes + i + 1) : [];
 }
 
-/** Qué falta en los comprobantes (o null si está todo). `conFoto`: si ese comprobante ya tiene su foto. */
-export function problemaComprobantes(v: Venta, pagadasAntes: number, conFoto: (id: string) => boolean): string | null {
+/**
+ * Qué falta en los comprobantes (o null si está todo). Cada cuota pagada lleva su propio comprobante,
+ * y ninguno puede repetir el N.º de operación ni la captura de otro. `conFoto`: si esa cuota ya tiene su foto.
+ */
+export function problemaComprobantes(v: Venta, pagadasAntes: number, conFoto: (id: string) => boolean, fotoRepetida: (id: string) => number | null = () => null): string | null {
   const faltan = cuotasPorComprobar(v, pagadasAntes);
   if (!faltan.length) return null;
-  const lista = v.comprobantes.filter((c) => c.cuotas.some((n) => faltan.includes(n)));
-  if (!lista.length) return `Sube el comprobante de ${faltan.length === 1 ? "la cuota pagada" : `las ${faltan.length} cuotas pagadas`}.`;
-  for (const [i, c] of lista.entries()) {
-    const n = lista.length > 1 ? ` del comprobante ${i + 1}` : "";
-    if (!conFoto(c.id)) return `Falta la foto${n}.`;
-    if (!c.fecha) return `Falta la fecha${n}.`;
-    if (c.medio !== "efectivo" && !c.cuenta_id) return `Elige la cuenta donde llegó el dinero${n}.`;
-    if (c.medio !== "efectivo" && !c.nro_operacion.trim()) return `Escribe el N.º de operación${n}.`;
+  const operaciones = new Map<string, number>();
+  for (const n of faltan) {
+    const c = v.comprobantes.find((x) => x.cuotas.includes(n));
+    if (!c || !conFoto(c.id)) return `Falta la captura del comprobante de la cuota ${n}.`;
+    const otra = fotoRepetida(c.id);
+    if (otra) return `La captura de la cuota ${n} es la misma que la de la cuota ${otra}: cada cuota lleva su propio comprobante.`;
+    if (!c.fecha) return `Falta la fecha del pago de la cuota ${n}.`;
+    if (c.medio !== "efectivo") {
+      if (!c.cuenta_id) return `Elige la cuenta donde llegó el pago de la cuota ${n}.`;
+      const op = c.nro_operacion.trim();
+      if (!op) return `Escribe el N.º de operación de la cuota ${n}.`;
+      if (operaciones.has(op)) return `El N.º de operación ${op} está en la cuota ${operaciones.get(op)} y en la ${n}: cada pago tiene su propio número.`;
+      operaciones.set(op, n);
+    }
   }
-  const cubiertas = new Set(lista.flatMap((c) => c.cuotas));
-  const sin = faltan.filter((n) => !cubiertas.has(n));
-  if (sin.length) return `Falta el comprobante de la cuota ${sin.join(", ")}: márcala en el comprobante que la pagó o agrega otro.`;
   return null;
 }
 
@@ -99,9 +105,14 @@ export const ventaVacia = (hoy: string): Venta => ({
 });
 
 /** Errores por campo (vacío = todo bien). */
-export function validarVenta(v: Venta, pagadasAntes = 0, conFoto: (id: string) => boolean = () => false): Record<string, string> {
+export function validarVenta(
+  v: Venta,
+  pagadasAntes = 0,
+  conFoto: (id: string) => boolean = () => false,
+  fotoRepetida: (id: string) => number | null = () => null,
+): Record<string, string> {
   const e: Record<string, string> = {};
-  const comp = problemaComprobantes(v, pagadasAntes, conFoto);
+  const comp = problemaComprobantes(v, pagadasAntes, conFoto, fotoRepetida);
   if (comp) e.comprobantes = comp;
   // obligatorio: o la placa o "Placa en trámite" marcado
   if (!v.tramite && !v.placa.trim()) e.placa = "Escribe la placa o marca «Placa en trámite».";

@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, DOCUMENTOS, TIPOS_DOC, Tarjeta, esDocumentoValido, limpiarDocumento, mensajeDeError } from "@/components/ui";
-import { borrarFoto, prepararFotoPago, subirDocumento } from "@/lib/fotos";
+import { borrarFoto, prepararFotoPago, sha256, subirDocumento } from "@/lib/fotos";
+import { fechaCuota } from "@/lib/supabase/reglas";
 import { borrarBorrador, guardarArchivosBorrador, guardarBorrador, leerArchivosBorrador, leerBorrador } from "@/lib/borrador";
 import { ubicacionValida } from "@/lib/mapa";
 import type { TipoDoc, Cliente, Cuenta, Documento } from "@/types/database";
@@ -127,7 +128,8 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     if (!ubicacionValida(f.ubicacion)) e.ubicacion = "Pega un enlace de Google Maps o coordenadas como -12.0464,-77.0428.";
     setErrores(e);
-    const vehiculosOk = vehiculos.validar((id) => !!pendientes[COMP + id]); // los comprobantes de cuotas pagadas piden su foto
+    // los comprobantes de cuotas pagadas piden su foto, y no puede ser la misma en dos cuotas
+    const vehiculosOk = vehiculos.validar((id) => !!pendientes[COMP + id], repetidaDe);
     return Object.keys(e).length === 0 && vehiculosOk;
   };
 
@@ -145,6 +147,23 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
 
   const ultimo = useRef<"solo" | "contrato">("contrato"); // para "Reintentar"
   const compHechos = useRef(new Set<string>()); // comprobantes ya registrados (no se repiten al reintentar)
+  // huella (SHA-256) de la captura de cada comprobante de cuota pagada
+  const [huellas, setHuellas] = useState<Record<string, string>>({});
+  /** Si la captura de ese comprobante es igual a la de otro (con foto puesta): el número de esa otra cuota. */
+  const repetidaDe = (id: string): number | null => {
+    const h = huellas[id];
+    if (!h || !pendientes[COMP + id]) return null;
+    const cuota = (k: string) => Number(/-cuota-(\d+)$/.exec(k)?.[1] ?? 0);
+    // la que se repite es la de número mayor: avisa cuál cuota ya tiene esa captura
+    const otro = Object.keys(huellas).find((k) => k !== id && huellas[k] === h && pendientes[COMP + k] && cuota(k) < cuota(id));
+    return otro ? cuota(otro) || null : null;
+  };
+  // capturas que vienen del borrador: también se les saca la huella
+  useEffect(() => {
+    for (const [k, archivo] of Object.entries(pendientes))
+      if (k.startsWith(COMP) && !huellas[k.slice(COMP.length)])
+        void sha256(archivo).then((h) => setHuellas((x) => ({ ...x, [k.slice(COMP.length)]: h })));
+  }, [pendientes, huellas]);
   const guardar = async (e: { preventDefault: () => void } | null, despues: "solo" | "contrato") => {
     e?.preventDefault();
     if (!validar()) return;
@@ -385,7 +404,15 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
             comprobantes={x.v.comprobantes ?? []}
             alCambiar={(lista) => vehiculos.cambiar(x.clave, { comprobantes: lista })}
             archivos={Object.fromEntries((x.v.comprobantes ?? []).flatMap((c) => (pendientes[COMP + c.id] ? [[c.id, pendientes[COMP + c.id]]] : [])))}
-            alElegirArchivo={(id, archivo) => (archivo ? setPendientes((p) => ({ ...p, [COMP + id]: archivo })) : sinPendiente(COMP + id))}
+            alElegirArchivo={(id, archivo) => {
+              if (!archivo) return sinPendiente(COMP + id);
+              setPendientes((p) => ({ ...p, [COMP + id]: archivo }));
+              // huella de la imagen: así se nota si suben la misma captura en dos cuotas
+              void sha256(archivo).then((h) => setHuellas((x) => ({ ...x, [id]: h })));
+            }}
+            fechaDe={(n) => (x.v.fecha_inicio ? fechaCuota(x.v.fecha_inicio, n - 1, x.v.frecuencia) : null)}
+            repetidaDe={repetidaDe}
+            prefijo={x.clave}
             cuentas={cuentas}
             empresaId={x.v.empresa_id || f.empresa_id}
             nombresEmpresa={nombresEmpresa}

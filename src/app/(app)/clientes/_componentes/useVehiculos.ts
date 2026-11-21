@@ -43,8 +43,8 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
 
   /** Revisa los vehículos activos; marca los errores de cada uno. */
   /** `conFoto`: si el comprobante (de cuotas ya pagadas) tiene su foto. */
-  const validar = (conFoto: (id: string) => boolean = () => false) => {
-    const revisados = items.map((x) => ({ ...x, errores: x.activo ? validarVenta(x.v, x.actual?.contrato?.cuotas_pagadas_inicial ?? 0, conFoto) : {} }));
+  const validar = (conFoto: (id: string) => boolean = () => false, fotoRepetida: (id: string) => number | null = () => null) => {
+    const revisados = items.map((x) => ({ ...x, errores: x.activo ? validarVenta(x.v, x.actual?.contrato?.cuotas_pagadas_inicial ?? 0, conFoto, fotoRepetida) : {} }));
     setItems(revisados);
     return revisados.every((x) => Object.keys(x.errores).length === 0);
   };
