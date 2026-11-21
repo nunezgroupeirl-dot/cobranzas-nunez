@@ -1,6 +1,7 @@
 /**
  * Exportar: copiar lista en formato WhatsApp y generar Excel (.xlsx) sin librerías externas.
  */
+import { numeroWhatsApp } from "@/lib/telefono";
 import type { EstadoCliente } from "@/types/database";
 
 /* ---------------- WhatsApp ---------------- */
@@ -49,7 +50,7 @@ export async function copiarTexto(texto: string): Promise<boolean> {
 
 /** Abre WhatsApp con el texto (en celular abre la app). */
 export function enlaceWhatsApp(texto: string, celular?: string | null): string {
-  const numero = celular ? `51${celular.replace(/\D/g, "").slice(-9)}` : "";
+  const numero = celular ? numeroWhatsApp(celular) : ""; // peruano o de otro país (con "+")
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
 

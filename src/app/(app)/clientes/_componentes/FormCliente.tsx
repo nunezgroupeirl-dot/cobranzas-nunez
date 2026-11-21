@@ -1,4 +1,5 @@
 "use client";
+import { CELULAR_2_VALIDO, limpiarCelular2 } from "@/lib/telefono";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSesion } from "@/components/layout/Sesion";
@@ -120,7 +121,8 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
     if (f.dni && !f.tipo_doc) e.tipo_doc = "Elige el tipo de documento.";
     else if (f.dni && f.tipo_doc && !esDocumentoValido(f.dni, f.tipo_doc)) e.dni = DOCUMENTOS[f.tipo_doc].ayuda;
     if (f.celular && !/^9\d{8}$/.test(f.celular)) e.celular = "El celular debe tener 9 números y empezar con 9.";
-    if (f.celular2 && !/^9\d{8}$/.test(f.celular2)) e.celular2 = "El celular debe tener 9 números y empezar con 9.";
+    if (f.celular2 && !CELULAR_2_VALIDO.test(f.celular2))
+      e.celular2 = f.celular2.startsWith("+") ? "Revisa el número: el código del país y el número completo (ej.: +58 4121234567)." : "Escribe 9 números (Perú) o, si es de otro país, empieza con + y su código.";
     else if (f.celular2 && f.celular2 === f.celular) e.celular2 = "Es el mismo número de arriba.";
     if (!f.empresa_id) e.empresa_id = "Elige la empresa.";
     if (!ubicacionValida(f.ubicacion)) e.ubicacion = "Pega un enlace de Google Maps o coordenadas como -12.0464,-77.0428.";
@@ -318,11 +320,12 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
           <Campo
             etiqueta="Celular 2"
             inputMode="tel"
-            maxLength={9}
+            maxLength={16}
             value={f.celular2}
-            onChange={(e) => poner("celular2", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => poner("celular2", limpiarCelular2(e.target.value))}
             error={errores.celular2}
-            ayuda="Opcional: si el cliente tiene otro número."
+            placeholder="Ej.: 987654321 o +58 4121234567"
+            ayuda="Opcional. Puede ser de otro país: empieza con + y su código (Venezuela +58, Cuba +53, México +52, Colombia +57)."
           />
           <Selector
             etiqueta="Empresa"

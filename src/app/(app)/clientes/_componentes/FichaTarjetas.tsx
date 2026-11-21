@@ -1,4 +1,5 @@
 "use client";
+import { numeroWhatsApp } from "@/lib/telefono";
 import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
 import { useSesion } from "@/components/layout/Sesion";
 import { BotonEnlace, Cargando, Dato, EtiquetaSemaforo, NOMBRE_DOCUMENTO, NOMBRE_ESTADO_CONTRATO, Tarjeta, formatoFecha, formatoSoles } from "@/components/ui";
@@ -48,7 +49,7 @@ export function TarjetaDatos({ cliente, documentos }: { cliente: Cliente; docume
                     <a href={`tel:${n}`} className="num text-marca underline">
                       {n}
                     </a>
-                    <a href={`https://wa.me/51${n}`} target="_blank" rel="noreferrer" className="rounded-lg bg-verde-suave px-2 py-0.5 text-sm font-bold text-verde">
+                    <a href={`https://wa.me/${numeroWhatsApp(n)}`} target="_blank" rel="noreferrer" className="rounded-lg bg-verde-suave px-2 py-0.5 text-sm font-bold text-verde">
                       WhatsApp
                     </a>
                   </span>

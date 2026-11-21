@@ -134,7 +134,7 @@ create table if not exists public.clientes (
   nombres     text not null check (length(trim(nombres)) > 0),
   dni         text unique,  -- DNI (8 números) o Carné de Extranjería (9 a 12); vacío = pendiente (cuadernos)
   celular     text check (celular is null or celular ~ '^9\d{8}$'),
-  celular2    text check (celular2 is null or celular2 ~ '^9\d{8}$'), -- algunos clientes tienen otro número
+  celular2    text check (celular2 is null or celular2 ~ '^(9\d{8}|\+[1-9]\d{7,14})$'), -- otro número: de Perú o de otro país con + y su código
   direccion   text,
   referencia  text,
   creado_en   timestamptz not null default now()
@@ -146,7 +146,9 @@ alter table public.clientes drop constraint if exists clientes_ubicacion_check;
 alter table public.clientes add constraint clientes_ubicacion_check check (ubicacion is null or length(ubicacion) <= 500);
 -- Quién recomendó al cliente o el asesor de tienda que lo mandó a la empresa (texto libre, opcional)
 alter table public.clientes add column if not exists recomendado_por text;
-alter table public.clientes add column if not exists celular2 text check (celular2 is null or celular2 ~ '^9\d{8}$');
+alter table public.clientes add column if not exists celular2 text;
+alter table public.clientes drop constraint if exists clientes_celular2_check;
+alter table public.clientes add constraint clientes_celular2_check check (celular2 is null or celular2 ~ '^(9\d{8}|\+[1-9]\d{7,14})$');
 alter table public.clientes drop constraint if exists clientes_recomendado_por_check;
 alter table public.clientes add constraint clientes_recomendado_por_check check (recomendado_por is null or length(recomendado_por) <= 200);
 alter table public.clientes alter column dni drop not null;
