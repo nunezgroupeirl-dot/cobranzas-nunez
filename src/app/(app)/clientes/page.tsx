@@ -57,6 +57,19 @@ function agrupar(filas: Fila[]): Fila[] {
   ];
 }
 
+/**
+ * Con una empresa elegida, el cliente que tiene vehículos en varias empresas se ve solo con los de esa empresa:
+ * su estado, deuda y último pago son los de esos vehículos (si en Romi está al día, en Romi sale al día
+ * aunque en Yarhua deba).
+ */
+function soloDeEmpresa(f: Fila, empresa: string | null): Fila {
+  if (!empresa || !f.vehiculos) return f;
+  const suyos = f.vehiculos.filter((v) => v.empresa_id === empresa);
+  if (suyos.length === f.vehiculos.length || suyos.length === 0) return f;
+  if (suyos.length === 1) return { ...suyos[0], numero: undefined, registrado: f.registrado };
+  return { ...agrupar(suyos)[0], registrado: f.registrado };
+}
+
 const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo", "atraso"]);
 /** Filtro de estado: un color del semáforo, o "atraso" (1–3 sem. y 4+ sem. juntos). */
 type FiltroColor = Color | "atraso" | "";
@@ -150,7 +163,9 @@ export default function PaginaClientes() {
       return vs.some((v) => v.color === color);
     };
     return (filas ?? [])
-      .filter((f) => deEmpresa(f) && deColor(f) && coincide(indice.get(f) ?? "", q))
+      .filter((f) => deEmpresa(f) && coincide(indice.get(f) ?? "", q))
+      .map((f) => soloDeEmpresa(f, empresa))
+      .filter(deColor)
       .sort((a, b) =>
         orden === "nombre"
           ? alfabetico(a.cliente, b.cliente)
@@ -381,7 +396,7 @@ function ClientesPorEmpresa({
 }) {
   const vehiculosDe = new Map(resumen.map((r) => [r.empresa_id, r.vehiculos]));
   const tarjetas = empresas.map((e) => {
-    const suyas = filas.filter((f) => (f.empresas ?? [f.empresa_id]).includes(e.id));
+    const suyas = filas.filter((f) => (f.empresas ?? [f.empresa_id]).includes(e.id)).map((f) => soloDeEmpresa(f, e.id));
     return {
       ...e,
       clientes: suyas.length,

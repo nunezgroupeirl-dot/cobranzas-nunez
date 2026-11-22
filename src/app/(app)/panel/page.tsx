@@ -9,6 +9,7 @@ import { BarraColores } from "./_componentes/BarraColores";
 import { DetalleSemana } from "./_componentes/DetalleSemana";
 import { EspacioFotos } from "./_componentes/EspacioFotos";
 import { GraficoSemanas, type Semana } from "./_componentes/GraficoSemanas";
+import { Ingresos } from "./_componentes/Ingresos";
 
 const SEMANAS = 8;
 /** Con R2 configurado las fotos no ocupan Supabase: el medidor no hace falta. */
@@ -88,6 +89,9 @@ function Panel() {
           <p className="mt-1.5 text-xs text-tenue">Toca un color para ver esos clientes.</p>
         </div>
       </section>
+
+      {/* Lo cobrado por días (lo principal), semanas, meses y años, y por qué medio */}
+      <Ingresos empresa={empresa} />
 
       {/* Lo registrado: clientes, vehículos y todo lo que falta cobrar */}
       <section className="mt-4 grid overflow-hidden rounded-2xl border border-borde bg-superficie sm:grid-cols-3" aria-label="Registrados">
