@@ -139,6 +139,13 @@ function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "
       alCambiar(automatico ? { ...cambio, precio: (Math.round(c * n * 100) / 100).toFixed(2) } : cambio);
       return;
     }
+    // la cuota la pueden corregir a mano: se respeta tal cual y el precio total pasa a ser cuota × n.º de cuotas
+    if ("cuota" in cambio) {
+      const c = Number(x.cuota);
+      const n = Number(x.nro_cuotas);
+      alCambiar(c > 0 && Number.isInteger(n) && n > 0 ? { ...cambio, precio: (Math.round(c * n * 100) / 100).toFixed(2) } : cambio);
+      return;
+    }
     // al cambiar el capital, el interés vuelve al automático de su tramo (S/ 500 por mes o 50 % al año)
     if ("capital" in cambio) x.interes = x.capital.trim() ? interesPorDefecto(x.capital) : "";
     const r = calcularConInteres(x);
@@ -291,7 +298,7 @@ function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "
                   <span className="basis-full text-base">
                     Cuota <b className="num">{formatoSoles(calculo.cuota)}</b> × {v.nro_cuotas} = Precio total{" "}
                     <b className="num text-marca">{formatoSoles(calculo.total)}</b>
-                    <span className="text-tenue"> (redondeado a favor de la empresa)</span>
+                    {Math.abs(calculo.total - calculo.calculado) >= 0.01 && <span className="text-tenue"> (diferencia de céntimos por la división; puedes corregir la cuota a mano)</span>}
                   </span>
                 </span>
               ) : (
