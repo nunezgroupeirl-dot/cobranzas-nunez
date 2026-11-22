@@ -387,7 +387,7 @@ export function crearDatosReales(): Datos {
           desde: c.fecha_entrega ?? porId.get(c.moto_id)?.tramite_desde ?? null,
         })),
         new Set(firmados.map((d) => d.contrato_id)),
-        new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10), // fecha real de Lima (sin el corte de las 22:00)
+        new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10), // fecha de Lima
       );
     },
     async porInmovilizar() {

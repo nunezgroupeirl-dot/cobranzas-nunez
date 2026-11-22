@@ -234,7 +234,7 @@ export default function PaginaConsulta() {
               <TarjetaContrato key={c.placa} c={c} />
             ))}
             <p className="px-1 text-sm text-tenue">
-              Lo que pagaste hoy puede tardar en aparecer hasta que la oficina lo registre. Lo pagado después de las 10:00 p.m. cuenta para el día siguiente.
+              Lo que pagaste hoy puede tardar en aparecer hasta que la oficina lo registre. Lo pagado después de medianoche cuenta para el día siguiente.
             </p>
           </div>
         )}

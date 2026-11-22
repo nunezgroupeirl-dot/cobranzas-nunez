@@ -1,4 +1,5 @@
 "use client";
+import { CampoCombustible } from "../../_componentes/CampoCombustible";
 import type { ReactNode } from "react";
 import { Campo, OpcionesBoton, Tarjeta } from "@/components/ui";
 import type { CampoGuia, Paso } from "./pasos";
@@ -55,6 +56,7 @@ function Control<K extends string>({ c, valores, etiqueta, problema, mostrarErro
         {c.guia && <span className="text-sm text-tenue">{c.guia}</span>}
       </div>
     );
+  if (c.tipo === "combustible") return <CampoCombustible etiqueta={etiqueta(c.clave)} valor={valor} alCambiar={(x) => alCambiar(c.clave, x)} obligatorio={!c.opcional} error={error ?? undefined} />;
   if (c.tipo === "opciones" && c.opciones)
     return <OpcionesBoton etiqueta={etiqueta(c.clave)} opciones={c.opciones} valor={valor} alCambiar={(x) => alCambiar(c.clave, x)} obligatorio={!c.opcional} error={error} />;
   return <Campo etiqueta={etiqueta(c.clave)} obligatorio={!c.opcional} value={valor} error={error} onChange={(e) => alCambiar(c.clave, limpiar(c, e.target.value))} {...atributos(c)} />;

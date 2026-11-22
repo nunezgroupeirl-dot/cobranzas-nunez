@@ -7,7 +7,7 @@ export interface CampoGuia<K extends string = Clave> {
   /** texto de ayuda bajo el campo */
   guia?: string;
   ejemplo?: string;
-  tipo?: "texto" | "numero" | "fecha" | "opciones";
+  tipo?: "texto" | "numero" | "fecha" | "opciones" | "combustible";
   opciones?: { valor: string; texto: string }[];
   /** ocupa las dos columnas */
   ancho?: boolean;
@@ -77,7 +77,7 @@ export const PASOS: Paso[] = [
       { clave: "modelo", mayusculas: true, ejemplo: "TVS KING LS+ DP IT" },
       { clave: "anio", soloNumeros: 4, ejemplo: "2027" },
       { clave: "clase", mayusculas: true, ejemplo: "L5" },
-      { clave: "combustible", mayusculas: true, ejemplo: "BI-COMBUSTIBLE GLP" },
+      { clave: "combustible", tipo: "combustible" },
       { clave: "color", mayusculas: true, ejemplo: "AZUL" },
       { clave: "carroceria", mayusculas: true, ejemplo: "TRIMOTO PASAJEROS" },
       { clave: "serie", mayusculas: true, ejemplo: "MD6M14LA3V4AA1841" },

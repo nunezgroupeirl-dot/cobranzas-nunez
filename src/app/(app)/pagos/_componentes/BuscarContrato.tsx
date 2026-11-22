@@ -6,7 +6,16 @@ import type { EstadoCliente } from "@/types/database";
 import { claveBusqueda, coincide, normalizar } from "../../clientes/_componentes/buscar";
 
 /** Paso 1 de Registrar pago: buscar al cliente por nombre, DNI o placa. */
-export function BuscarContrato({ estados, alElegir }: { estados: EstadoCliente[]; alElegir: (contratoId: string) => void }) {
+export function BuscarContrato({
+  estados,
+  vehiculos,
+  alElegir,
+}: {
+  estados: EstadoCliente[];
+  /** con varios vehículos: "Vehículo 1, 2…" y su tipo/marca, para no confundirlos */
+  vehiculos?: Map<string, { numero: number; total: number; descripcion: string }>;
+  alElegir: (contratoId: string) => void;
+}) {
   const empresa = useEmpresa();
   const [busca, setBusca] = useState("");
 
@@ -48,6 +57,12 @@ export function BuscarContrato({ estados, alElegir }: { estados: EstadoCliente[]
               <span>
                 <span className="block font-bold">{e.cliente}</span>
                 <span className="text-sm text-tenue">
+                  {(vehiculos?.get(e.contrato_id)?.total ?? 1) > 1 && (
+                    <b className="text-marca">
+                      Vehículo {vehiculos?.get(e.contrato_id)?.numero}
+                      {vehiculos?.get(e.contrato_id)?.descripcion ? ` (${vehiculos.get(e.contrato_id)?.descripcion})` : ""} ·{" "}
+                    </b>
+                  )}
                   <Placa placa={e.placa} tamano="chico" /> · {textoDocumento(e.dni, e.tipo_doc)}
                 </span>
               </span>

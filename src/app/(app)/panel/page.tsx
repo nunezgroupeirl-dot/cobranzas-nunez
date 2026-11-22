@@ -96,7 +96,7 @@ function Panel() {
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-3 rounded-sm bg-borde" aria-hidden /> Cuotas que vencían
               </span>
-              <span>Semana de lunes a domingo. Después de las 10:00 p.m. cuenta para el día siguiente.</span>
+              <span>Semana de lunes a domingo. El día cambia a medianoche.</span>
             </p>
           </div>
           <DetalleSemana semana={semanaElegida} filas={vista.filas} empresas={vista.lista} />

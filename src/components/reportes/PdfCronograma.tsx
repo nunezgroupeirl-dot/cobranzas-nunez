@@ -70,7 +70,7 @@ ${ruc ? `<div class="t" style="letter-spacing:.05em">RUC ${esc(ruc)}</div>` : ""
 </section>
 <table><thead><tr><th>N.º</th><th>Vence</th><th class="n">Cuota</th><th class="n">Pagado</th><th>Fecha de pago</th><th>Estado</th></tr></thead>
 <tbody>${filas}</tbody></table>
-<footer>Verde: pagada a tiempo · Amarillo: pagada con atraso · Rojo: vencida · Blanco: pendiente. Lo registrado hasta las 10:00 p.m. cuenta para ese día.</footer>
+<footer>Verde: pagada a tiempo · Amarillo: pagada con atraso · Rojo: vencida · Blanco: pendiente. El día cambia a medianoche.</footer>
 <script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>
 </body></html>`;
 }

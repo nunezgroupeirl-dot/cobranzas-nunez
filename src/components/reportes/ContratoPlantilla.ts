@@ -159,8 +159,8 @@ ${lleno && llevaLogo(d.empresa) ? `<img class="logo" src="${esc(urlLogo())}" alt
 <!-- hoja 1: firma y huella de ambas partes al pie (la hoja 2 lleva las firmas completas) -->
 <div class="visado">
 <div class="firmas">
-<div class="firma"><div class="linea">Firma<br><b>EL ARRENDADOR</b></div><div class="huella">Huella</div></div>
-<div class="firma"><div class="linea">Firma<br><b>EL ARRENDATARIO</b></div><div class="huella">Huella</div></div>
+<div class="firma"><div class="linea">${firmaDato(d.empresa, 200)}<br>Ruc: ${firmaDato(d.ruc, 160)}<br><b>EL ARRENDADOR</b></div><div class="huella">Huella</div></div>
+<div class="firma"><div class="linea">${firmaDato(d.cliente, 200)}<br>${lleno ? (DOC_FIRMA[d.doc_tipo ?? "DNI"] ?? "DNI") : "Doc."} N.º ${firmaDato(d.doc_numero, 160)}<br><b>EL ARRENDATARIO</b></div><div class="huella">Huella</div></div>
 </div>
 <div class="hoja">Hoja 1 de 2</div>
 </div>

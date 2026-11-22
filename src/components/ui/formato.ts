@@ -129,17 +129,14 @@ export function mensajeDeError(e: unknown): string {
   return "Algo salió mal. Inténtalo otra vez.";
 }
 
-/** Fecha de hoy en Lima (YYYY-MM-DD). Lo registrado después de las 10:00 p.m. cuenta para el día siguiente. */
-/** Fecha de hoy en Lima, sin más (para contratos y documentos). La regla de las 10 p.m. es solo para pagos: ver hoyLima. */
+/** Fecha de hoy en Lima (YYYY-MM-DD). El día cambia a medianoche. */
 export function fechaLima(ahora: Date = new Date()): string {
   return new Date(ahora.getTime() - 5 * 3_600_000).toISOString().slice(0, 10);
 }
 
+/** Fecha de hoy en Lima para pagos y cuotas: igual que fechaLima (lo pagado después de medianoche es del día siguiente). */
 export function hoyLima(ahora: Date = new Date()): string {
-  const lima = new Date(ahora.getTime() - 5 * 3_600_000);
-  const minutos = lima.getUTCHours() * 60 + lima.getUTCMinutes();
-  const base = minutos > 22 * 60 ? new Date(lima.getTime() + 86_400_000) : lima;
-  return base.toISOString().slice(0, 10);
+  return fechaLima(ahora);
 }
 
 export function sumarDias(fecha: string, dias: number): string {

@@ -1,9 +1,13 @@
 "use client";
 import { Campo } from "@/components/ui";
 
+import { CampoCombustible } from "./CampoCombustible";
 import { CAMPOS_FICHA, type FichaTecnica } from "./fichaTecnica";
 
-const ETIQUETAS: Record<keyof FichaTecnica, { texto: string; ejemplo: string }> = {
+const ETIQUETAS: Record<
+  keyof FichaTecnica,
+  { texto: string; ejemplo: string }
+> = {
   modelo: { texto: "Modelo", ejemplo: "TVS KING LS+ DP IT" },
   anio: { texto: "Año de modelo", ejemplo: "2027" },
   clase: { texto: "Clase", ejemplo: "L5" },
@@ -14,25 +18,54 @@ const ETIQUETAS: Record<keyof FichaTecnica, { texto: string; ejemplo: string }> 
 };
 
 /** Datos de la tarjeta de propiedad que salen en el contrato impreso. Todos opcionales. */
-export function CamposFichaTecnica({ valores, alCambiar, abierta = false }: { valores: FichaTecnica; alCambiar: (k: keyof FichaTecnica, v: string) => void; abierta?: boolean }) {
+export function CamposFichaTecnica({
+  valores,
+  alCambiar,
+  abierta = false,
+}: {
+  valores: FichaTecnica;
+  alCambiar: (k: keyof FichaTecnica, v: string) => void;
+  abierta?: boolean;
+}) {
   const completos = CAMPOS_FICHA.filter((k) => valores[k].trim()).length;
   return (
-    <details className="rounded-xl border border-borde p-3" open={abierta || completos > 0}>
+    <details
+      className="rounded-xl border border-borde p-3"
+      open={abierta || completos > 0}
+    >
       <summary className="cursor-pointer font-semibold">
-        Datos para el contrato <span className="font-normal text-tenue">(tarjeta de propiedad · {completos} de {CAMPOS_FICHA.length})</span>
+        Datos para el contrato{" "}
+        <span className="font-normal text-tenue">
+          (tarjeta de propiedad · {completos} de {CAMPOS_FICHA.length})
+        </span>
       </summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {CAMPOS_FICHA.map((k) => (
-          <Campo
-            key={k}
-            etiqueta={ETIQUETAS[k].texto}
-            placeholder={ETIQUETAS[k].ejemplo}
-            value={valores[k]}
-            inputMode={k === "anio" ? "numeric" : undefined}
-            maxLength={k === "anio" ? 4 : 60}
-            onChange={(e) => alCambiar(k, k === "anio" ? e.target.value.replace(/\D/g, "") : e.target.value.toUpperCase())}
-          />
-        ))}
+        {CAMPOS_FICHA.map((k) =>
+          k === "combustible" ? (
+            <CampoCombustible
+              key={k}
+              valor={valores[k]}
+              alCambiar={(v) => alCambiar(k, v)}
+            />
+          ) : (
+            <Campo
+              key={k}
+              etiqueta={ETIQUETAS[k].texto}
+              placeholder={ETIQUETAS[k].ejemplo}
+              value={valores[k]}
+              inputMode={k === "anio" ? "numeric" : undefined}
+              maxLength={k === "anio" ? 4 : 60}
+              onChange={(e) =>
+                alCambiar(
+                  k,
+                  k === "anio"
+                    ? e.target.value.replace(/\D/g, "")
+                    : e.target.value.toUpperCase(),
+                )
+              }
+            />
+          ),
+        )}
       </div>
     </details>
   );

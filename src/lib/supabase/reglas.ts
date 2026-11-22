@@ -7,14 +7,9 @@ import type { Color, Contrato, Cuota, EstadoCuota, ErrorPago, Pago, RegistrarPag
 
 const MS_DIA = 86_400_000;
 const OFFSET_LIMA_MS = 5 * 3_600_000; // Lima es UTC-5 todo el año
-const CORTE_MINUTOS = 22 * 60; // 10:00 p.m.
-
-/** Fecha (YYYY-MM-DD) a la que cuenta algo registrado ahora. Después de las 10:00 p.m. (Lima) cuenta para el día siguiente. */
+/** Fecha (YYYY-MM-DD) a la que cuenta algo registrado ahora: el día de Lima (cambia a medianoche). */
 export function fechaOperativaLima(ahora: Date = new Date()): string {
-  const lima = new Date(ahora.getTime() - OFFSET_LIMA_MS);
-  const minutos = lima.getUTCHours() * 60 + lima.getUTCMinutes();
-  const base = minutos > CORTE_MINUTOS ? new Date(lima.getTime() + MS_DIA) : lima;
-  return base.toISOString().slice(0, 10);
+  return new Date(ahora.getTime() - OFFSET_LIMA_MS).toISOString().slice(0, 10);
 }
 
 export function sumarDias(fecha: string, dias: number): string {

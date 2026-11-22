@@ -24,7 +24,7 @@
 --    · Cada pago va a la cuota pendiente más antigua y guarda la fecha real de pago.
 --    · Todo pago lleva foto. No se repite n.º de operación ni imagen.
 --    · Sin intereses ni mora: la cuota es fija.
---    · Lo registrado hasta las 10:00 p.m. (Lima) cuenta para ese día.
+--    · El día es el de Lima: cambia a medianoche.
 -- =============================================================================
 
 
@@ -431,19 +431,15 @@ alter table public.contratos add column if not exists documento jsonb;
 -- 3. FUNCIONES DE APOYO
 -- =============================================================================
 
--- Fecha operativa en Lima: después de las 10:00 p.m. cuenta para el día siguiente
+-- Fecha operativa en Lima: el día cambia a medianoche
 create or replace function public.hoy_lima()
 returns date
 language sql
 stable
 set search_path = ''
 as $$
-  select case
-    when extract(hour from (now() at time zone 'America/Lima')) * 60
-       + extract(minute from (now() at time zone 'America/Lima')) > 22 * 60
-    then (now() at time zone 'America/Lima')::date + 1
-    else (now() at time zone 'America/Lima')::date
-  end;
+  -- el día de Lima: lo registrado después de medianoche cuenta para el día siguiente
+  select (now() at time zone 'America/Lima')::date;
 $$;
 
 -- ¿El usuario conectado es un trabajador activo?
