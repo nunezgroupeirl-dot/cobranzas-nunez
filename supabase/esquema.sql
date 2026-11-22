@@ -302,6 +302,11 @@ alter table public.contratos add constraint contratos_nro_cuotas_check check (nr
 alter table public.documentos add column if not exists contrato_id uuid references public.contratos (id) on delete cascade;
 create index if not exists documentos_contrato_idx on public.documentos (contrato_id);
 
+-- Contrato con varios vehículos (venta de 2, 3… con un solo cronograma): el principal es contratos.moto_id;
+-- los demás llevan aquí el contrato al que pertenecen.
+alter table public.motos add column if not exists contrato_id uuid references public.contratos (id) on delete set null;
+create index if not exists motos_contrato_idx on public.motos (contrato_id);
+
 -- Fotos del vehículo: cada una ligada a su vehículo (un cliente puede tener varios).
 alter table public.documentos add column if not exists moto_id uuid references public.motos (id) on delete cascade;
 create index if not exists documentos_moto_idx on public.documentos (moto_id);
@@ -1378,7 +1383,10 @@ select
   -- Se mide por fecha para que valga igual en contratos diarios, semanales, quincenales y mensuales;
   -- en los semanales coincide con el rojo (4 cuotas vencidas).
   coalesce(r.vencida_desde < public.hoy_lima() - 21, false) as inmovilizar,
-  cl.celular2
+  cl.celular2,
+  -- contrato con varios vehículos: las placas de los demás ("EN TRÁMITE" si aún no sale)
+  (select string_agg(coalesce(m2.placa, 'EN TRÁMITE'), ' · ' order by m2.creado_en)
+     from public.motos m2 where m2.contrato_id = co.id and m2.id <> co.moto_id) as otras_placas
 from public.contratos co
 join public.clientes cl on cl.id = co.cliente_id
 join public.motos m on m.id = co.moto_id

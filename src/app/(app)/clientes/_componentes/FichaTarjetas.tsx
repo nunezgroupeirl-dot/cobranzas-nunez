@@ -2,7 +2,7 @@
 import { numeroWhatsApp } from "@/lib/telefono";
 import { BotonPdfCronograma } from "@/components/reportes/PdfCronograma";
 import { useSesion } from "@/components/layout/Sesion";
-import { BotonEnlace, Cargando, Dato, EtiquetaSemaforo, NOMBRE_DOCUMENTO, NOMBRE_ESTADO_CONTRATO, Tarjeta, formatoFecha, formatoSoles } from "@/components/ui";
+import { BotonEnlace, Cargando, Dato, EtiquetaSemaforo, NOMBRE_DOCUMENTO, NOMBRE_ESTADO_CONTRATO, Placa, Tarjeta, formatoFecha, formatoSoles } from "@/components/ui";
 import type { Cliente, Contrato, Cuota, Documento, EstadoCliente, Moto } from "@/types/database";
 import { CronogramaConComprobantes } from "../../contratos/_componentes/ComprobanteAnterior";
 import { Foto } from "./Foto";
@@ -178,6 +178,7 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, document
           })}
         </div>
       )}
+      {contrato && moto && <VehiculosDelContrato contrato={contrato} principal={moto} motos={motos} />}
       {moto && (
         <details className="mb-4 rounded-xl border border-borde p-3" open={fotosMoto.length > 0}>
           <summary className="cursor-pointer font-semibold">Fotos de este vehículo ({fotosMoto.length})</summary>
@@ -230,5 +231,25 @@ function ResumenCapital({ contrato }: { contrato: Contrato }) {
         </Dato>
       )}
     </dl>
+  );
+}
+
+/** Contrato con varios vehículos (venta de 2, 3…): todos los de este cronograma, con su placa. */
+function VehiculosDelContrato({ contrato, principal, motos }: { contrato: Contrato; principal: Moto; motos: Map<string, Moto> }) {
+  const extras = [...motos.values()].filter((m) => m.contrato_id === contrato.id && m.id !== contrato.moto_id).sort((a, b) => (a.creado_en ?? "").localeCompare(b.creado_en ?? ""));
+  if (!extras.length) return null;
+  return (
+    <div className="mb-4 rounded-xl border-2 border-marca/40 bg-marca-suave/40 p-3">
+      <p className="mb-2 font-bold">{extras.length + 1} vehículos en este contrato (un solo cronograma)</p>
+      <ul className="flex flex-col gap-1.5">
+        {[principal, ...extras].map((m, i) => (
+          <li key={m.id} className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-semibold">Vehículo {i + 1}</span>
+            <Placa placa={m.placa} tramite={m.placa_tramite} tamano="chico" />
+            <span className="text-tenue">{[m.tipo, m.marca, m.modelo, m.color].filter(Boolean).join(" · ")}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

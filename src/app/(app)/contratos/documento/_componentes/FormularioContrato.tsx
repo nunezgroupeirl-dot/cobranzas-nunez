@@ -16,6 +16,8 @@ interface Props {
   empresa: Empresa;
   iniciales: CamposContrato;
   cuentas: string[];
+  /** contrato con varios vehículos: los demás (se editan en el cliente) */
+  extras?: Moto[];
 }
 
 const nulo = (x: string) => x.trim() || null;
@@ -25,7 +27,7 @@ const ULTIMO = TOTAL_PASOS - 1;
  * Pasarela del contrato: 4 pasos + revisión, uno a la vez. Todo es obligatorio
  * (solo quedan en blanco firmas y huellas). Al final sale la plantilla del contrato ya llenada, lista para firmar.
  */
-export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales, cuentas }: Props) {
+export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales, cuentas, extras = [] }: Props) {
   const { datos } = useSesion();
   // Los datos iniciales solo arrancan el formulario (la página lo monta con key = id del contrato)
   // react-doctor-disable-next-line no-derived-useState
@@ -115,7 +117,7 @@ export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales
     try {
       await guardar();
       ventana.document.open();
-      ventana.document.write(htmlContrato(f));
+      ventana.document.write(htmlContrato(f, { extras }));
       ventana.document.close();
       setAviso({ tipo: "exito", texto: "Listo: en la ventana nueva elige la impresora o “Guardar como PDF”. Ya firmado, súbelo en la pantalla del contrato." });
     } catch (e) {
@@ -196,7 +198,7 @@ export function FormularioContrato({ contrato, cliente, moto, empresa, iniciales
       <aside className="hidden lg:block">
         <div className="sticky top-20 flex flex-col gap-2">
           <p className="text-sm font-semibold text-tenue">Vista previa · así saldrá el contrato</p>
-          <iframe title="Vista previa del contrato" sandbox="" srcDoc={htmlContrato(previa, { vistaPrevia: true })} className="h-[calc(100dvh-8rem)] w-full rounded-2xl border border-borde bg-white" />
+          <iframe title="Vista previa del contrato" sandbox="" srcDoc={htmlContrato(previa, { vistaPrevia: true, extras })} className="h-[calc(100dvh-8rem)] w-full rounded-2xl border border-borde bg-white" />
         </div>
       </aside>
     </div>

@@ -29,7 +29,63 @@ export interface Venta {
   fecha_entrega: string;
   /** comprobantes de las cuotas que ya venía pagando (obligatorios si hay cuotas pagadas); la foto va aparte */
   comprobantes: ComprobanteVenta[];
+  /** venta de varios vehículos con un solo contrato y un solo cronograma (este es el principal) */
+  varios: boolean;
+  /** los demás vehículos de ese contrato */
+  extras: VehiculoExtra[];
 }
+
+/** Vehículo adicional de un contrato con varios vehículos (sale en el contrato con sus datos). */
+export interface VehiculoExtra {
+  clave: string;
+  /** ya guardado */
+  id?: string;
+  tipo: string;
+  placa: string;
+  tramite: boolean;
+  marca: string;
+  color: string;
+  modelo: string;
+  anio: string;
+  clase: string;
+  combustible: string;
+  serie: string;
+  motor: string;
+  carroceria: string;
+}
+
+export const extraVacio = (tipo = "Mototaxi"): VehiculoExtra => ({
+  clave: `extra-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+  tipo,
+  placa: "",
+  tramite: false,
+  marca: "",
+  color: "",
+  modelo: "",
+  anio: "",
+  clase: "",
+  combustible: "",
+  serie: "",
+  motor: "",
+  carroceria: "",
+});
+
+const extraDe = (m: Moto): VehiculoExtra => ({
+  clave: `extra-${m.id}`,
+  id: m.id,
+  tipo: m.tipo || "Mototaxi",
+  placa: m.placa ?? "",
+  tramite: !m.placa && !!m.placa_tramite,
+  marca: m.marca ?? "",
+  color: m.color ?? "",
+  modelo: m.modelo ?? "",
+  anio: m.anio ? String(m.anio) : "",
+  clase: m.clase ?? "",
+  combustible: m.combustible ?? "",
+  serie: m.serie ?? "",
+  motor: m.motor ?? "",
+  carroceria: m.carroceria ?? "",
+});
 
 /** Un comprobante (voucher, captura o recibo) de cuotas pagadas antes del sistema. */
 export interface ComprobanteVenta {
@@ -102,6 +158,8 @@ export const ventaVacia = (hoy: string): Venta => ({
   gps: "",
   fecha_entrega: "",
   comprobantes: [],
+  varios: false,
+  extras: [],
 });
 
 /** Errores por campo (vacío = todo bien). */
@@ -112,6 +170,18 @@ export function validarVenta(
   fotoRepetida: (id: string) => number | null = () => null,
 ): Record<string, string> {
   const e: Record<string, string> = {};
+  if (v.varios) {
+    if (!v.extras.length) e.extras = "Agrega los otros vehículos de este contrato (o quita la opción de varios vehículos).";
+    else
+      for (const [i, x] of v.extras.entries()) {
+        const n = `Vehículo ${i + 2}`;
+        if (!x.tramite && !x.placa.trim()) e.extras ??= `${n}: escribe la placa o marca «Placa en trámite».`;
+        else if (!x.tramite && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(x.placa.trim())) e.extras ??= `${n}: escribe bien la placa (ej.: 1234-AB).`;
+        else if (!x.marca.trim()) e.extras ??= `${n}: falta la marca.`;
+      }
+    const placas = [v.tramite ? "" : v.placa, ...v.extras.map((x) => (x.tramite ? "" : x.placa))].map((p) => p.trim().toUpperCase().replace("-", "")).filter(Boolean);
+    if (new Set(placas).size !== placas.length) e.extras ??= "Hay una placa repetida entre los vehículos de este contrato.";
+  }
   const comp = problemaComprobantes(v, pagadasAntes, conFoto, fotoRepetida);
   if (comp) e.comprobantes = comp;
   // obligatorio: o la placa o "Placa en trámite" marcado
@@ -263,6 +333,46 @@ async function guardarCapitalSiCambio(
 export interface Hechos {
   moto?: Moto;
   contratoId?: string;
+  /** vehículos adicionales ya guardados (clave del formulario → id), para no repetirlos al reintentar */
+  extras?: Record<string, string>;
+}
+
+/**
+ * Los demás vehículos de un contrato con varios: se crean o actualizan ligados al contrato (misma empresa que el
+ * principal); los que se quitaron del formulario se eliminan. Sin "varios", se quitan todos.
+ */
+export async function guardarExtras(datos: Datos, cliente: Cliente, v: Venta, contratoId: string, empresaId: string, antes: Moto[], hechos: Hechos) {
+  hechos.extras ??= {};
+  const lista = v.varios ? v.extras : [];
+  for (const x of lista) {
+    const id = x.id ?? hechos.extras[x.clave];
+    const anio = Number(x.anio);
+    // react-doctor-disable-next-line async-await-in-loop
+    const m = await datos.guardarMoto({
+      ...(id ? { id } : {}),
+      cliente_id: cliente.id,
+      empresa_id: empresaId,
+      contrato_id: contratoId,
+      placa: x.tramite ? null : x.placa.trim().toUpperCase(),
+      placa_tramite: x.tramite,
+      tipo: x.tipo,
+      marca: x.marca.trim(),
+      color: x.color.trim(),
+      modelo: x.modelo.trim() || null,
+      anio: Number.isInteger(anio) && anio > 1900 ? anio : null,
+      clase: x.clase.trim() || null,
+      combustible: x.combustible.trim() || null,
+      serie: x.serie.trim() || null,
+      motor: x.motor.trim() || null,
+      carroceria: x.carroceria.trim() || null,
+    } as Moto);
+    hechos.extras[x.clave] = m.id;
+  }
+  const quedan = new Set(lista.map((x) => x.id ?? hechos.extras?.[x.clave]));
+  for (const m of antes.filter((y) => !quedan.has(y.id))) {
+    // react-doctor-disable-next-line async-await-in-loop
+    await datos.eliminarMoto(m.id);
+  }
 }
 
 /** Registra la moto y crea el cronograma (contrato sin llenar). Devuelve el id del contrato. */
@@ -296,6 +406,8 @@ export async function guardarVenta(datos: Datos, cliente: Cliente, v: Venta, hec
 export interface VentaActual {
   moto: Moto | null;
   contrato: Contrato | null;
+  /** contrato con varios vehículos: los demás */
+  extras?: Moto[];
 }
 
 /** Los vehículos del cliente para editarlos: uno por contrato (los activos primero) y los que aún no tienen contrato. */
@@ -307,15 +419,20 @@ export async function cargarVehiculos(datos: Datos, clienteId: string): Promise<
   const conContrato = new Set(suyos.map((c) => c.moto_id));
   const porId = new Map(motos.map((m) => [m.id, m]));
   return [
-    ...suyos.map((contrato) => ({ moto: porId.get(contrato.moto_id) ?? null, contrato })),
-    ...motos.filter((m) => m.cliente_id === clienteId && !m.archivado && !conContrato.has(m.id)).map((moto) => ({ moto, contrato: null })),
+    ...suyos.map((contrato) => ({
+      moto: porId.get(contrato.moto_id) ?? null,
+      contrato,
+      extras: motos.filter((m) => m.contrato_id === contrato.id && m.id !== contrato.moto_id).sort((a, b) => (a.creado_en ?? "").localeCompare(b.creado_en ?? "")),
+    })),
+    // los vehículos adicionales de un contrato van con su contrato, no sueltos
+    ...motos.filter((m) => m.cliente_id === clienteId && !m.archivado && !m.contrato_id && !conContrato.has(m.id)).map((moto) => ({ moto, contrato: null })),
   ];
 }
 
 const texto = (n: number | null | undefined) => (n == null ? "" : String(n));
 
 /** El formulario lleno con la moto y el contrato que ya tiene. */
-export function ventaDe(hoy: string, { moto, contrato }: VentaActual): Venta {
+export function ventaDe(hoy: string, { moto, contrato, extras = [] }: VentaActual): Venta {
   const base = ventaVacia(hoy);
   return {
     ...base,
@@ -343,6 +460,8 @@ export function ventaDe(hoy: string, { moto, contrato }: VentaActual): Venta {
           interes: texto(contrato.interes_pct ?? contrato.interes_mes),
           gps: texto(contrato.gps_mes),
           fecha_entrega: contrato.fecha_entrega ?? "",
+          varios: extras.length > 0,
+          extras: extras.map(extraDe),
         }
       : {}),
   };

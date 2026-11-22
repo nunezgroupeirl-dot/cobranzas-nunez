@@ -19,7 +19,7 @@ export async function hojaClientes(datos: Datos, empresa: string | null): Promis
     e.celular,
     e.celular2 ?? porId.get(e.cliente_id)?.celular2 ?? "",
     porId.get(e.cliente_id)?.direccion,
-    e.placa,
+    e.otras_placas ? `${e.placa ?? "EN TRÁMITE"} + ${e.otras_placas}` : e.placa,
     e.empresa,
     e.cuota,
     e.semanas_atraso,

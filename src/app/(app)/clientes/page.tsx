@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, textoDocumento, useCarga, type Columna, Placa, IconoVehiculo } from "@/components/ui";
+import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, textoDocumento, useCarga, type Columna, Placa, IconoVehiculo, OtrasPlacas } from "@/components/ui";
 import type { Color, EstadoCliente, Moto } from "@/types/database";
 import { alfabetico } from "@/lib/texto";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
@@ -122,7 +122,7 @@ export default function PaginaClientes() {
   // clave de búsqueda por fila, calculada solo cuando llegan los datos
   // (con varios vehículos, se busca también por la placa de cada uno)
   const indice = useMemo(
-    () => new Map((filas ?? []).map((f) => [f, claveBusqueda(f.cliente, f.dni, f.celular, f.celular2, ...(f.vehiculos ?? [f]).map((v) => v.placa))])),
+    () => new Map((filas ?? []).map((f) => [f, claveBusqueda(f.cliente, f.dni, f.celular, f.celular2, ...(f.vehiculos ?? [f]).flatMap((v) => [v.placa, v.otras_placas]))])),
     [filas],
   );
 
@@ -178,6 +178,7 @@ export default function PaginaClientes() {
           <span className="flex items-center gap-2">
             <IconoVehiculo tipo={f.moto?.tipo} />
             <Placa placa={f.moto?.placa ?? f.placa} tramite={f.moto?.placa_tramite} tamano="chico" />
+            <OtrasPlacas placas={f.otras_placas} />
           </span>
         ) : (
           <span className="text-tenue">—</span>

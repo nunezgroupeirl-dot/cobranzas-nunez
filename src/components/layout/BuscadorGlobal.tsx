@@ -78,7 +78,7 @@ export function BuscadorGlobal() {
     if (!abierto && d.open) d.close();
   }, [abierto]);
 
-  const indice = useMemo(() => (filas ?? []).map((e) => ({ e, clave: claveBusqueda(e.cliente, e.dni, e.placa) })), [filas]);
+  const indice = useMemo(() => (filas ?? []).map((e) => ({ e, clave: claveBusqueda(e.cliente, e.dni, e.placa, e.otras_placas) })), [filas]);
   const resultados = useMemo(() => {
     const q = normalizar(texto);
     if (!q) return [];

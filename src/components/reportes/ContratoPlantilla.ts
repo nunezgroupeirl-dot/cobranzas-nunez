@@ -76,6 +76,48 @@ const unidadPlazo = (c: Partial<CamposContrato>, lleno: boolean) => {
 interface Opciones {
   /** Para el recuadro de vista previa: sin aviso de pantalla ni impresión automática. */
   vistaPrevia?: boolean;
+  /** contrato con varios vehículos: los demás (el principal son los datos del contrato) */
+  extras?: VehiculoExtraContrato[];
+}
+
+/** Datos de un vehículo adicional, tal como salen en el contrato. */
+export interface VehiculoExtraContrato {
+  placa: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  anio?: number | string | null;
+  color?: string | null;
+  clase?: string | null;
+  combustible?: string | null;
+  serie?: string | null;
+  motor?: string | null;
+  carroceria?: string | null;
+}
+
+/** "A, B y C" */
+const enLista = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
+
+/** Contrato con varios vehículos: cada uno en un bloque corto con sus datos (así entran en la hoja 1). */
+function fichaVarios(vehiculos: VehiculoExtraContrato[]): string {
+  const dato = (etq: string, x: unknown) => (x != null && String(x).trim() ? `${etq}: <b>${esc(String(x).trim().toUpperCase())}</b>` : "");
+  return `<ol class="varios">${vehiculos
+    .map(
+      (v, i) =>
+        `<li><b>Vehículo ${i + 1} · Placa ${esc(v.placa?.trim() ? v.placa.trim().toUpperCase() : "EN TRÁMITE")}</b> — ${[
+          dato("Marca", v.marca),
+          dato("Modelo", v.modelo),
+          dato("Año", v.anio),
+          dato("Color", v.color),
+          dato("Clase", v.clase),
+          dato("Combustible", v.combustible),
+          dato("Carrocería", v.carroceria),
+          dato("N.º de serie", v.serie),
+          dato("N.º motor", v.motor),
+        ]
+          .filter(Boolean)
+          .join(" · ")}</li>`,
+    )
+    .join("")}</ol>`;
 }
 
 /**
@@ -89,20 +131,24 @@ export function llevaLogo(empresa: string | undefined): boolean {
 const urlLogo = () => `${typeof window === "undefined" ? "" : window.location.origin}/marca/logo-256.webp`;
 
 /** HTML del contrato: en blanco (sin `c`) o llenado con los datos de la pasarela. */
-export function htmlPlantillaContrato(c?: Partial<CamposContrato> | null, { vistaPrevia = false }: Opciones = {}): string {
+export function htmlPlantillaContrato(c?: Partial<CamposContrato> | null, { vistaPrevia = false, extras = [] }: Opciones = {}): string {
   const d: Partial<CamposContrato> = c ?? {};
   const lleno = !!c;
+  // venta de varios vehículos con un solo contrato: plural y todas las placas
+  const varios = lleno && extras.length > 0;
+  const placaDe = (p: string | null | undefined) => (p?.trim() ? p.trim().toUpperCase() : "EN TRÁMITE");
+  const placas = [placaDe(d.placa), ...extras.map((x) => placaDe(x.placa))];
   const elegido = VEHICULOS_CONTRATO.find((v) => v.valor === d.vehiculo);
   const mototaxi = !elegido || elegido.valor === "MOTOTAXI";
   const cuenta = partirCuenta(d.cuenta);
-  const titulo = lleno ? `Contrato ${d.placa || "sin placa"} - ${d.cliente || ""}` : "Contrato de Alquiler Venta - plantilla en blanco";
+  const titulo = lleno ? `Contrato ${varios ? placas.join(" · ") : d.placa || "sin placa"} - ${d.cliente || ""}` : "Contrato de Alquiler Venta - plantilla en blanco";
   const aviso = lleno
     ? "Contrato llenado. En la ventana de impresión elige la impresora o <b>Guardar como PDF</b>. Solo faltan las firmas y las huellas."
     : "Plantilla en blanco. En la ventana de impresión elige la impresora o <b>Guardar como PDF</b>.";
 
   // bajo la firma, los datos van en texto simple (como en el contrato firmado); en blanco, con raya
   const firmaDato = (x: string | undefined, ancho: number) => (lleno && x?.trim() ? esc(x) : r(ancho));
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
 <style>
 @page{size:A4;margin:14mm 16mm 12mm}
 body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:10.5pt;line-height:1.8;margin:0;position:relative}
@@ -122,6 +168,8 @@ b{font-weight:700}
 .firma .linea{flex:1;border-top:1px solid #000;padding-top:4px;font-size:9.5pt;line-height:1.9}
 .huella{width:68px;height:88px;border:1px solid #888;border-radius:6px;flex:none;display:flex;align-items:flex-end;justify-content:center;font-size:7pt;color:#777;padding-bottom:3px;box-sizing:border-box}
 .hoja1{display:flex;flex-direction:column}
+ol.varios{margin:2px 0 8px 18px;padding:0;font-size:9.5pt;line-height:1.5}
+ol.varios li{margin-bottom:3px}
 .visado{margin-top:auto;padding-top:10px;break-inside:avoid;page-break-inside:avoid}
 .visado .firmas{margin-top:0;gap:28px}
 .visado .linea{font-size:9pt;line-height:1.6;padding-top:3px}
@@ -136,12 +184,17 @@ b{font-weight:700}
 <div class="ok">${aviso}</div>
 <div class="hoja1">
 ${lleno && llevaLogo(d.empresa) ? `<img class="logo" src="${esc(urlLogo())}" alt="">` : ""}
-<h1>Contrato de Alquiler Venta de ${lleno && elegido ? elegido.texto.replace(" lineal", "") : "Vehículo"}</h1>
-<div class="codigo">Placa N.º ${r(110, d.placa)}</div>
+<h1>Contrato de Alquiler Venta de ${lleno && elegido ? `${elegido.texto.replace(" lineal", "")}${varios ? "s" : ""}` : varios ? "Vehículos" : "Vehículo"}</h1>
+<div class="codigo">${varios ? `Placas N.º <b>${esc(placas.join(" · "))}</b>` : `Placa N.º ${r(110, d.placa)}`}</div>
 
-<p class="llenar">Conste por el presente documento el contrato de <b>ALQUILER VENTA</b> del vehículo de placa de rodaje N.º ${r(100, d.placa)} que celebran de una parte la empresa ${r(300, d.empresa)}, con número de RUC ${r(130, d.ruc)}, representada por el Sr. ${r(270, d.representante)} con DNI de N.º ${r(110, d.representante_dni)}, con domicilio en ${d.domicilio_empresa?.trim() ? r(560, d.domicilio_empresa) : `${r(560)} ${r(300)}`}, a quien en adelante se le llamará <b>EL ARRENDADOR</b>; y de la otra parte el Sr. ${r(330, d.cliente)} con ${casilla("DNI", lleno && d.doc_tipo === "DNI")} ${casilla("Carné de Extranjería", lleno && d.doc_tipo === "CE")} ${casilla("Cédula", lleno && d.doc_tipo === "CEDULA")} ${casilla("Pasaporte", lleno && d.doc_tipo === "PASAPORTE")} N.º ${r(130, d.doc_numero)}, con domicilio en ${d.domicilio_cliente?.trim() ? r(520, d.domicilio_cliente) : `${r(520)} ${r(340)}`}, que para los efectos del presente contrato se le denominará <b>EL ARRENDATARIO</b>, sujeto a los términos y condiciones siguientes:</p>
+<p class="llenar">Conste por el presente documento el contrato de <b>ALQUILER VENTA</b> ${varios ? `de los vehículos de placas de rodaje N.º <b>${esc(enLista(placas))}</b>` : `del vehículo de placa de rodaje N.º ${r(100, d.placa)}`} que celebran de una parte la empresa ${r(300, d.empresa)}, con número de RUC ${r(130, d.ruc)}, representada por el Sr. ${r(270, d.representante)} con DNI de N.º ${r(110, d.representante_dni)}, con domicilio en ${d.domicilio_empresa?.trim() ? r(560, d.domicilio_empresa) : `${r(560)} ${r(300)}`}, a quien en adelante se le llamará <b>EL ARRENDADOR</b>; y de la otra parte el Sr. ${r(330, d.cliente)} con ${casilla("DNI", lleno && d.doc_tipo === "DNI")} ${casilla("Carné de Extranjería", lleno && d.doc_tipo === "CE")} ${casilla("Cédula", lleno && d.doc_tipo === "CEDULA")} ${casilla("Pasaporte", lleno && d.doc_tipo === "PASAPORTE")} N.º ${r(130, d.doc_numero)}, con domicilio en ${d.domicilio_cliente?.trim() ? r(520, d.domicilio_cliente) : `${r(520)} ${r(340)}`}, que para los efectos del presente contrato se le denominará <b>EL ARRENDATARIO</b>, sujeto a los términos y condiciones siguientes:</p>
 
-<p class="llenar"><b>PRIMERO.</b> <b>EL ARRENDADOR</b> da en alquiler venta a <b>EL ARRENDATARIO</b> el vehículo ${VEHICULOS_CONTRATO.map((v) => casilla(v.valor === "MOTOCICLETA" ? "MOTOCICLETA" : v.texto.toUpperCase(), lleno && d.vehiculo === v.valor)).join(" ")} de placa de rodaje N.º ${r(100, d.placa)}, que presenta las siguientes características:</p>
+${
+  varios
+    ? `<p class="llenar"><b>PRIMERO.</b> <b>EL ARRENDADOR</b> da en alquiler venta a <b>EL ARRENDATARIO</b> los <b>${placas.length} vehículos</b> de placas de rodaje N.º <b>${esc(enLista(placas))}</b>, que presentan las siguientes características:</p>
+${fichaVarios([{ placa: d.placa ?? null, marca: d.marca, modelo: d.modelo, anio: d.anio, color: d.color, clase: d.clase, combustible: d.combustible, serie: d.serie, motor: d.motor, carroceria: d.carroceria }, ...extras])}
+`
+    : `<p class="llenar"><b>PRIMERO.</b> <b>EL ARRENDADOR</b> da en alquiler venta a <b>EL ARRENDATARIO</b> el vehículo ${VEHICULOS_CONTRATO.map((v) => casilla(v.valor === "MOTOCICLETA" ? "MOTOCICLETA" : v.texto.toUpperCase(), lleno && d.vehiculo === v.valor)).join(" ")} de placa de rodaje N.º ${r(100, d.placa)}, que presenta las siguientes características:</p>
 <div class="ficha">
 <div>Clase: ${r(150, d.clase)}</div><div>Combustible: ${r(170, d.combustible)}</div>
 <div>Marca: ${r(150, d.marca)}</div><div>Color: ${r(200, d.color)}</div>
@@ -149,7 +202,8 @@ ${lleno && llevaLogo(d.empresa) ? `<img class="logo" src="${esc(urlLogo())}" alt
 <div>Año de modelo: ${r(100, d.anio)}</div><div>N.º motor: ${r(185, d.motor)}</div>
 <div></div><div>Carrocería: ${r(180, d.carroceria)}</div>
 </div>
-
+`
+}
 <p><b>SEGUNDO.</b> <b>EL ARRENDATARIO</b> destinará el vehículo materia del presente contrato única y exclusivamente al <b>SERVICIO DE ${lleno && !mototaxi ? "TRANSPORTE" : lleno ? "MOTOTAXI" : "MOTOTAXI / TRANSPORTE"}</b>, quedando prohibido variar su finalidad.</p>
 
 <p><b>TERCERO.</b> <b>EL ARRENDATARIO</b> está prohibido de traspasar o subarrendar el vehículo materia del presente contrato, total o parcialmente, a favor de terceros, reservándose <b>EL ARRENDADOR</b> el derecho de resolver el presente contrato.</p>
@@ -188,6 +242,16 @@ ${lleno && llevaLogo(d.empresa) ? `<img class="logo" src="${esc(urlLogo())}" alt
 </div>
 ${vistaPrevia ? "" : "<script>window.onload=function(){setTimeout(function(){window.print()},400)}</script>"}
 </body></html>`;
+  return varios ? enPlural(html) : html;
+}
+
+/** Contrato con varios vehículos: las cláusulas hablan de "los vehículos". */
+function enPlural(html: string): string {
+  return html
+    .replaceAll("del vehículo", "de los vehículos")
+    .replaceAll("al vehículo", "a los vehículos")
+    .replaceAll("el vehículo", "los vehículos")
+    .replaceAll("en que lo recibió", "en que los recibió");
 }
 
 /** Abre la plantilla en blanco lista para imprimir o guardar como PDF. */

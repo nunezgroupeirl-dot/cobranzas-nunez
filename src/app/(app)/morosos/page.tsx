@@ -4,7 +4,7 @@ import { enlaceRuta } from "@/lib/mapa";
 import { useEffect, useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, useCarga, type Columna, Placa } from "@/components/ui";
+import { Aviso, Boton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, useCarga, type Columna, Placa, OtrasPlacas } from "@/components/ui";
 import { copiarTexto, descargarExcel, enlaceWhatsApp, textoWhatsApp } from "@/lib/exportar";
 import type { Color, Moroso } from "@/types/database";
 
@@ -34,13 +34,23 @@ export default function PaginaMorosos() {
     descargarExcel(`morosos_${hoyLima()}`, [
       {
         nombre: "Morosos",
-        columnas: ["Placa", "Cliente", "Documento", "Celular", "Celular 2", "Empresa", "Semanas de atraso", "Color", "Inmovilizar", "Debe desde", "Cuota", "Deuda", "Último pago"],
-        filas: lista.map((m) => [m.placa, m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.celular2 ?? "", m.empresa, m.semanas_atraso, m.color, m.inmovilizar ? "Sí" : "No", formatoFecha(m.vencida_desde), m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
+        columnas: ["Placa", "Otras placas", "Cliente", "Documento", "Celular", "Celular 2", "Empresa", "Semanas de atraso", "Color", "Inmovilizar", "Debe desde", "Cuota", "Deuda", "Último pago"],
+        filas: lista.map((m) => [m.placa, m.otras_placas ?? "", m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.celular2 ?? "", m.empresa, m.semanas_atraso, m.color, m.inmovilizar ? "Sí" : "No", formatoFecha(m.vencida_desde), m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
       },
     ]);
 
   const columnas: Columna<Moroso>[] = [
-    { clave: "placa", titulo: "Placa", celda: (m) => <Placa placa={m.placa} />, ocultarEnMovil: true },
+    {
+      clave: "placa",
+      titulo: "Placa",
+      celda: (m) => (
+        <span className="flex flex-col items-start gap-1">
+          <Placa placa={m.placa} />
+          <OtrasPlacas placas={m.otras_placas} />
+        </span>
+      ),
+      ocultarEnMovil: true,
+    },
     {
       clave: "cliente",
       titulo: "Cliente",
@@ -167,7 +177,7 @@ export default function PaginaMorosos() {
           tituloMovil={(m) => (
             <span className="flex items-center justify-between gap-2">
               <span>
-                <Placa placa={m.placa} tamano="chico" /> · {m.cliente}
+                <Placa placa={m.placa} tamano="chico" /> <OtrasPlacas placas={m.otras_placas} /> · {m.cliente}
               </span>
               <span className="num text-rojo">{formatoSoles(m.deuda)}</span>
             </span>

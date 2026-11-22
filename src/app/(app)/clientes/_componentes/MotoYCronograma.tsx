@@ -5,6 +5,7 @@ import { TIPOS_MOTO } from "@/lib/placa";
 import { fechaCuota } from "@/lib/supabase/reglas";
 import type { Frecuencia } from "@/types/database";
 import { CampoPlaca } from "../../contratos/_componentes/CampoPlaca";
+import { VehiculosExtra } from "./VehiculosExtra";
 import {
   CAPITAL_MINIMO,
   CAPITAL_TOPE,
@@ -98,6 +99,7 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
                 ))}
               </datalist>
             </div>
+            <VehiculosExtra v={v} alCambiar={alCambiar} error={errores.extras} />
             {fotos}
           </div>
         ) : (

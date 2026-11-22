@@ -298,6 +298,11 @@ function estadoClientes(s: Estado): EstadoCliente[] {
         cliente: cli?.nombres ?? "—",
         dni: cli?.dni ?? "",
         placa: moto?.placa ?? "",
+        otras_placas:
+          s.motos
+            .filter((m) => m.contrato_id === con.id && m.id !== con.moto_id)
+            .map((m) => m.placa ?? "EN TRÁMITE")
+            .join(" · ") || null,
         celular: cli?.celular ?? null,
         celular2: cli?.celular2 ?? null,
         empresa_id: con.empresa_id,
@@ -598,7 +603,7 @@ export function crearDatosSimulados(): Datos {
         guardar(s);
         return s.motos[i];
       }
-      const nueva: Moto = { ...m, placa, placa_tramite, tramite_desde: placa_tramite ? new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10) : null, id: nuevoId() };
+      const nueva: Moto = { ...m, placa, placa_tramite, tramite_desde: placa_tramite ? new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10) : null, id: nuevoId(), creado_en: new Date().toISOString() };
       s.motos.push(nueva);
       guardar(s);
       return nueva;

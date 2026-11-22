@@ -1,5 +1,5 @@
 import { DUENO_REPRESENTANTE, domicilioDeEmpresa } from "@/lib/negocio";
-import { finContrato, htmlPlantillaContrato } from "./ContratoPlantilla";
+import { finContrato, htmlPlantillaContrato, type VehiculoExtraContrato } from "./ContratoPlantilla";
 export { UNIDAD_PLAZO } from "./ContratoPlantilla";
 import type { Cliente, Contrato, Cuenta, Empresa, Frecuencia, Moto, TipoDoc } from "@/types/database";
 import { DOCUMENTOS, esDocumentoValido } from "@/components/ui/formato";
@@ -165,6 +165,6 @@ export function problemaCampo(c: CamposContrato, k: keyof CamposContrato): strin
 }
 
 /** HTML del contrato llenado (la misma plantilla en blanco, con los datos escritos y las casillas marcadas). */
-export function htmlContrato(c: CamposContrato, opciones: { vistaPrevia?: boolean } = {}): string {
+export function htmlContrato(c: CamposContrato, opciones: { vistaPrevia?: boolean; extras?: VehiculoExtraContrato[] } = {}): string {
   return htmlPlantillaContrato(c, opciones);
 }

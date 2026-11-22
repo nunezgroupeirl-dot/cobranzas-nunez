@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { hoyLima } from "@/components/ui";
 import type { Datos } from "@/lib/supabase/datos";
 import type { Cliente } from "@/types/database";
-import { guardarEdicion, guardarVenta, validarVenta, ventaDe, ventaVacia, type Hechos, type Venta, type VentaActual } from "./venta";
+import { guardarEdicion, guardarExtras, guardarVenta, validarVenta, ventaDe, ventaVacia, type Hechos, type Venta, type VentaActual } from "./venta";
 
 /** Un vehículo del formulario: uno que el cliente ya tiene (actual) o uno nuevo. */
 export interface ItemVehiculo {
@@ -63,6 +63,11 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
         const id = await guardarVenta(datos, cliente, x.v, h);
         primerNuevo ??= id;
       }
+      // contrato con varios vehículos: los demás, ligados a ese contrato
+      const contratoId = h.contratoId ?? x.actual?.contrato?.id;
+      if (contratoId && (x.v.varios || x.actual?.extras?.length))
+        // react-doctor-disable-next-line async-await-in-loop
+        await guardarExtras(datos, cliente, x.v, contratoId, x.v.empresa_id || cliente.empresa_id, x.actual?.extras ?? [], h);
     }
     return primerNuevo;
   };

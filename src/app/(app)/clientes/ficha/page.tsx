@@ -37,7 +37,7 @@ export default function FichaCliente() {
       estados: estados.filter((e) => e.cliente_id === id),
       contratos: susContratos,
       // solo las motos de este cliente, indexadas por id
-      motos: new Map(motos.filter((m) => susMotos.has(m.id)).map((m) => [m.id, m])),
+      motos: new Map(motos.filter((m) => susMotos.has(m.id) || (m.contrato_id && susContratos.some((c) => c.id === m.contrato_id))).map((m) => [m.id, m])),
       cuentas,
       pagos: pagos.sort((a, b) => b.fecha_pago.localeCompare(a.fecha_pago) || b.creado_en.localeCompare(a.creado_en)),
     };

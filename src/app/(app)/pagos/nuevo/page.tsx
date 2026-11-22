@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { DIAS_ATRAS_TRABAJADOR, sumarDias } from "@/lib/supabase/reglas";
-import { Aviso, Boton, Campo, Cargando, EtiquetaSemaforo, NOMBRE_MEDIO, OpcionesBoton, Placa, Selector, Tarjeta, TituloPagina, formatoSoles, hoyLima, mensajeDeError, useCarga } from "@/components/ui";
+import { Aviso, Boton, Campo, Cargando, EtiquetaSemaforo, NOMBRE_MEDIO, OpcionesBoton, OtrasPlacas, Placa, Selector, Tarjeta, TituloPagina, formatoSoles, hoyLima, mensajeDeError, useCarga } from "@/components/ui";
 import { borrarFoto, prepararFotoPago } from "@/lib/fotos";
 import type { Contrato, EstadoCliente, MedioPago, RegistrarPagoResultado } from "@/types/database";
 import { BuscarContrato } from "../_componentes/BuscarContrato";
@@ -346,6 +346,7 @@ function ElegirVehiculo({
               </span>
               <span className="flex flex-wrap items-center gap-2 text-sm">
                 <Placa placa={e.placa} tamano="chico" />
+                <OtrasPlacas placas={e.otras_placas} />
                 {v?.descripcion && <span className="text-tenue">{v.descripcion}</span>}
               </span>
               <span className="text-sm">

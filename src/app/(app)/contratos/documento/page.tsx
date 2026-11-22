@@ -25,6 +25,8 @@ function DocumentoContrato() {
       moto,
       empresa,
       iniciales: camposGuardados(base, contrato.documento),
+      // contrato con varios vehículos: los demás salen en el contrato con sus datos
+      extras: motos.filter((m) => m.contrato_id === contrato.id && m.id !== contrato.moto_id).sort((a, b) => (a.creado_en ?? "").localeCompare(b.creado_en ?? "")),
       cuentas: cuentas.filter((c) => c.empresa_id === empresa.id || !c.empresa_id).map((c) => c.nombre), // las de la empresa y los Yape/Plin personales
     };
   }, [datos, id, empresas]);

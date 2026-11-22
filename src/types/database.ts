@@ -113,6 +113,9 @@ export interface Moto {
   serie?: string | null;
   motor?: string | null;
   carroceria?: string | null;
+  /** vehículo adicional de un contrato con varios vehículos (el principal es contratos.moto_id) */
+  contrato_id?: string | null;
+  creado_en?: string;
   archivado?: boolean;
   archivado_en?: string | null;
   archivado_motivo?: string | null;
@@ -189,6 +192,8 @@ export interface EstadoCliente {
   placa: string | null;
   celular: string | null;
   celular2?: string | null; // otro número (algunos clientes tienen dos)
+  /** contrato con varios vehículos: las placas de los demás, "1234-AB · EN TRÁMITE" */
+  otras_placas?: string | null;
   empresa_id: string;
   empresa: string;
   cuota: number;

@@ -37,7 +37,7 @@ import { mesAnterior, siguienteMes } from "@/lib/letras";
 /** Códigos que lanza la base de datos y que la pantalla traduce (ver MENSAJE_ERROR) */
 const CODIGOS = ["OPERACION_REPETIDA", "IMAGEN_REPETIDA", "MONTO_INVALIDO", "SIN_FOTO", "SIN_PERMISO", "DEMASIADAS_CONSULTAS"];
 const TAMANO_PAGINA = 1000;
-const COLUMNAS_MOTO = "id, cliente_id, empresa_id, placa, placa_tramite, archivado, archivado_en, archivado_motivo, tipo, marca, color, modelo, anio, clase, combustible, serie, motor, carroceria";
+const COLUMNAS_MOTO = "id, cliente_id, empresa_id, placa, placa_tramite, archivado, archivado_en, archivado_motivo, tipo, marca, color, modelo, anio, clase, combustible, serie, motor, carroceria, contrato_id, creado_en";
 
 type ErrorSupabase = Pick<PostgrestError, "message" | "code"> | { message: string; code?: string };
 

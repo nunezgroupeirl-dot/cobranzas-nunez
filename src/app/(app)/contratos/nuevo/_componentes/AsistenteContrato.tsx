@@ -67,7 +67,7 @@ export function AsistenteContrato({ clientes, motos, contratos, cuentas, hoy, pr
   const empresa = empresas.find((e) => e.id === empresaId) ?? null;
   const libres = useMemo(() => {
     const ocupadas = new Set(contratos.filter((c) => c.estado === "activo").map((c) => c.moto_id));
-    return cliente ? motos.filter((m) => m.cliente_id === cliente.id && !ocupadas.has(m.id)) : [];
+    return cliente ? motos.filter((m) => m.cliente_id === cliente.id && !m.contrato_id && !ocupadas.has(m.id)) : [];
   }, [contratos, motos, cliente]);
   const listos = PASOS_NUEVO.map((_, i) => pasoNuevoListo(i, b) && (i !== 0 || !!empresa));
   const completo = listos.every(Boolean);
