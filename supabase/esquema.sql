@@ -1445,7 +1445,25 @@ select
   coalesce(c.verde, 0)::integer    as clientes_verde,
   coalesce(c.amarillo, 0)::integer as clientes_amarillo,
   coalesce(c.rojo, 0)::integer     as clientes_rojo,
-  coalesce(c.deuda, 0)::numeric(12, 2) as deuda
+  coalesce(c.deuda, 0)::numeric(12, 2) as deuda,
+  -- clientes registrados (no archivados): los que tienen un contrato con esta empresa,
+  -- o los que aún no tienen contrato y están puestos en ella
+  (select count(*) from public.clientes cl
+    where not coalesce(cl.archivado, false)
+      and (exists (select 1 from public.contratos co where co.cliente_id = cl.id and co.empresa_id = e.id and co.estado <> 'anulado')
+           or (cl.empresa_id = e.id and not exists (select 1 from public.contratos co where co.cliente_id = cl.id and co.estado <> 'anulado'))))::integer as clientes_registrados,
+  (select count(*) from public.motos m where m.empresa_id = e.id and not coalesce(m.archivado, false))::integer as vehiculos,
+  -- lo que falta cobrar de los contratos activos (vencido + por vencer)
+  coalesce((select sum(cu.monto - cu.monto_pagado) from public.cuotas cu join public.contratos co on co.id = cu.contrato_id
+    where co.empresa_id = e.id and co.estado = 'activo'), 0)::numeric(12, 2) as por_cobrar,
+  -- clientes registrados en total (un cliente con vehículos en dos empresas cuenta una vez)
+  (select count(*) from public.clientes cl where not coalesce(cl.archivado, false))::integer as clientes_total,
+  -- ingresos: pagos de cuotas de este mes y de siempre, y las iniciales de los contratos
+  coalesce((select sum(p.monto) from public.pagos p join public.contratos co on co.id = p.contrato_id
+    where co.empresa_id = e.id and co.estado <> 'anulado' and not p.anulado and p.fecha_pago >= date_trunc('month', s.hoy)::date), 0)::numeric(12, 2) as cobrado_mes,
+  coalesce((select sum(p.monto) from public.pagos p join public.contratos co on co.id = p.contrato_id
+    where co.empresa_id = e.id and co.estado <> 'anulado' and not p.anulado), 0)::numeric(12, 2) as cobrado_total,
+  coalesce((select sum(co.inicial) from public.contratos co where co.empresa_id = e.id and co.estado <> 'anulado'), 0)::numeric(12, 2) as iniciales
 from public.empresas e
 cross join semana s
 left join esperado es on es.empresa_id = e.id

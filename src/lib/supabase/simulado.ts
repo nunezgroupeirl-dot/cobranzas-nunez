@@ -454,6 +454,8 @@ export function crearDatosSimulados(): Datos {
         const contratos = s.contratos.filter((c) => c.empresa_id === e.id && c.estado === "activo");
         const ids = new Set(contratos.map((c) => c.id));
         const pagos = s.pagos.filter((p) => ids.has(p.contrato_id) && !p.anulado);
+        const vigentes = new Set(s.contratos.filter((c) => c.empresa_id === e.id && c.estado !== "anulado").map((c) => c.id));
+        const todos = s.pagos.filter((p) => vigentes.has(p.contrato_id) && !p.anulado);
         const suma = (ps: Pago[]) => deCentimos(ps.reduce((t, p) => t + aCentimos(p.monto), 0));
         const esperado = s.cuotas
           .filter((c) => ids.has(c.contrato_id) && c.fecha_vencimiento >= lunes && c.fecha_vencimiento <= domingo)
@@ -469,6 +471,17 @@ export function crearDatosSimulados(): Datos {
           clientes_amarillo: est.filter((x) => x.color === "amarillo").length,
           clientes_rojo: est.filter((x) => x.color === "rojo").length,
           deuda: deCentimos(est.reduce((t, x) => t + aCentimos(x.deuda), 0)),
+          clientes_registrados: s.clientes.filter((cl) => {
+            if (cl.archivado) return false;
+            const suyos = s.contratos.filter((c) => c.cliente_id === cl.id && c.estado !== "anulado");
+            return suyos.length ? suyos.some((c) => c.empresa_id === e.id) : cl.empresa_id === e.id;
+          }).length,
+          vehiculos: s.motos.filter((m) => m.empresa_id === e.id && !m.archivado).length,
+          por_cobrar: deCentimos(Math.max(0, s.cuotas.filter((c) => ids.has(c.contrato_id)).reduce((t, c) => t + aCentimos(c.monto), 0) - pagos.reduce((t, p) => t + aCentimos(p.monto), 0))),
+          clientes_total: s.clientes.filter((cl) => !cl.archivado).length,
+          cobrado_mes: suma(todos.filter((p) => p.fecha_pago >= hoy.slice(0, 8) + "01")),
+          cobrado_total: suma(todos),
+          iniciales: deCentimos(s.contratos.filter((c) => c.empresa_id === e.id && c.estado !== "anulado").reduce((t, c) => t + aCentimos(c.inicial ?? 0), 0)),
         };
       });
     },

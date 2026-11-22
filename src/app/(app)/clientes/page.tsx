@@ -1,10 +1,11 @@
 "use client";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa, useEmpresa } from "@/components/layout/empresa";
 import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, textoDocumento, useCarga, type Columna, Placa, IconoVehiculo, OtrasPlacas } from "@/components/ui";
-import type { Color, EstadoCliente, Moto } from "@/types/database";
+import type { Color, EstadoCliente, Moto, ResumenEmpresa } from "@/types/database";
 import { alfabetico } from "@/lib/texto";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
 
@@ -79,6 +80,9 @@ export default function PaginaClientes() {
       return n;
     });
 
+  // ingresos por empresa: solo el administrador los ve
+  const { datos: resumen } = useCarga(async () => (esAdmin ? datos.resumenEmpresas().catch(() => [] as ResumenEmpresa[]) : []), [datos, esAdmin]);
+
   const { datos: filas, cargando, error } = useCarga(async () => {
     const [estado, clientes, contratos, motos] = await Promise.all([datos.estadoClientes(), datos.clientes(), datos.contratos(), datos.motos()]);
     const conContrato = new Set(estado.map((e) => e.cliente_id));
@@ -141,7 +145,12 @@ export default function PaginaClientes() {
   }, [filas, indice, texto, color, empresa, abiertos, orden]);
   const clientesVisibles = visibles.filter((f) => !f.numero).length;
 
+  // numeración: 1, 2, 3… por cliente (los vehículos desplegados no cuentan)
+  const numeros = new Map<Fila, number>();
+  for (const f of visibles) if (!f.numero) numeros.set(f, numeros.size + 1);
+
   const columnas: Columna<Fila>[] = [
+    { clave: "n", titulo: "N.º", celda: (f) => (f.numero ? null : <span className="num text-sm font-semibold text-tenue">{numeros.get(f)}</span>) },
     {
       clave: "cliente",
       titulo: "Cliente",
@@ -225,6 +234,8 @@ export default function PaginaClientes() {
         }
       />
 
+      {filas && <ClientesPorEmpresa filas={filas} empresas={empresas} resumen={resumen ?? []} elegida={empresa} />}
+
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
         <input
           type="search"
@@ -289,5 +300,88 @@ export default function PaginaClientes() {
         />
       )}
     </>
+  );
+}
+
+/**
+ * Una tarjeta por empresa: cuántos clientes y vehículos tiene y, para el administrador, sus ingresos
+ * (este mes y en total) y lo que falta cobrar. Tocar una tarjeta muestra solo esa empresa.
+ */
+function ClientesPorEmpresa({ filas, empresas, resumen, elegida }: { filas: Fila[]; empresas: { id: string; nombre: string }[]; resumen: ResumenEmpresa[]; elegida: string | null }) {
+  const datosDe = new Map(resumen.map((r) => [r.empresa_id, r]));
+  const conIngresos = resumen.length > 0;
+  const tarjetas = empresas.map((e) => {
+    const suyas = filas.filter((f) => (f.empresas ?? [f.empresa_id]).includes(e.id));
+    const r = datosDe.get(e.id);
+    return {
+      ...e,
+      clientes: suyas.length,
+      alDia: suyas.filter((f) => !f.sin_contrato && (f.vehiculos ?? [f]).every((v) => v.color === "verde")).length,
+      atrasados: suyas.filter((f) => !f.sin_contrato && (f.vehiculos ?? [f]).some((v) => v.color !== "verde")).length,
+      sinContrato: suyas.filter((f) => f.sin_contrato).length,
+      vehiculos: r?.vehiculos,
+      mes: Number(r?.cobrado_mes ?? 0),
+      total: Number(r?.cobrado_total ?? 0) + Number(r?.iniciales ?? 0),
+      iniciales: Number(r?.iniciales ?? 0),
+      porCobrar: Number(r?.por_cobrar ?? 0),
+    };
+  });
+  const suma = (k: "mes" | "total" | "porCobrar") => tarjetas.reduce((t, x) => t + x[k], 0);
+  return (
+    <section className="mb-5" aria-label="Clientes por empresa">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-lg font-bold">Por empresa</h2>
+        <p className="text-sm text-tenue">
+          <b className="num text-tinta">{filas.length}</b> clientes en total
+          {conIngresos && (
+            <>
+              {" · "}ingresos del mes: <b className="num text-verde">{formatoSoles(suma("mes"))}</b>
+              {" · "}total: <b className="num text-tinta">{formatoSoles(suma("total"))}</b>
+              {" · "}por cobrar: <b className="num text-marca">{formatoSoles(suma("porCobrar"))}</b>
+            </>
+          )}
+        </p>
+      </div>
+      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
+        {tarjetas.map((t) => {
+          const activa = elegida === t.id;
+          return (
+            <Link
+              key={t.id}
+              href={activa ? "/clientes" : `/clientes?empresa=${t.id}`}
+              aria-pressed={activa}
+              title={activa ? "Ver todas las empresas" : "Ver solo los clientes de esta empresa"}
+              className={`flex w-64 shrink-0 snap-start flex-col rounded-2xl border-2 bg-superficie p-4 sm:w-auto transition-colors hover:border-marca ${activa ? "border-marca" : elegida ? "border-borde opacity-60" : "border-borde"}`}
+            >
+              <p className="line-clamp-2 min-h-10 text-sm leading-tight font-bold">{t.nombre}</p>
+              <p className="mt-2 flex items-baseline gap-2">
+                <span className="num font-display text-3xl font-bold">{t.clientes}</span>
+                <span className="text-sm text-tenue">
+                  clientes{t.vehiculos !== undefined ? ` · ${t.vehiculos} vehículos` : ""}
+                </span>
+              </p>
+              <p className="mt-1 flex flex-wrap gap-x-3 text-xs">
+                <span className="text-verde">● {t.alDia} al día</span>
+                <span className="text-rojo">● {t.atrasados} con atraso</span>
+                {t.sinContrato > 0 && <span className="text-amarillo">● {t.sinContrato} sin contrato</span>}
+              </p>
+              {conIngresos && (
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-borde pt-3 text-sm">
+                  <dt className="text-tenue">Este mes</dt>
+                  <dd className="num text-right font-bold text-verde">{formatoSoles(t.mes)}</dd>
+                  <dt className="text-tenue" title="Iniciales de los contratos + todas las cuotas cobradas">
+                    Ingreso total
+                  </dt>
+                  <dd className="num text-right font-bold">{formatoSoles(t.total)}</dd>
+                  <dt className="text-tenue">Por cobrar</dt>
+                  <dd className="num text-right font-bold text-marca">{formatoSoles(t.porCobrar)}</dd>
+                </dl>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+      {conIngresos && <p className="mt-2 text-xs text-tenue">Ingreso total = iniciales de los contratos + cuotas cobradas. Por cobrar = lo que falta pagar de los contratos activos.</p>}
+    </section>
   );
 }

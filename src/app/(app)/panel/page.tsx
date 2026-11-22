@@ -48,6 +48,10 @@ function Panel() {
       verde: suma("clientes_verde"),
       amarillo: suma("clientes_amarillo"),
       rojo: suma("clientes_rojo"),
+      // con todas las empresas, el total de clientes cuenta una vez al que tiene vehículos en dos empresas
+      clientes: empresa ? suma("clientes_registrados") : (info.resumen[0]?.clientes_total ?? suma("clientes_registrados")),
+      vehiculos: suma("vehiculos"),
+      porCobrar: suma("por_cobrar"),
     };
   }, [info, empresa]);
 
@@ -85,6 +89,23 @@ function Panel() {
         </div>
       </section>
 
+      {/* Lo registrado: clientes, vehículos y todo lo que falta cobrar */}
+      <section className="mt-4 grid overflow-hidden rounded-2xl border border-borde bg-superficie sm:grid-cols-3" aria-label="Registrados">
+        <div className="p-4 sm:p-5">
+          <p className="text-sm font-semibold text-tenue">Clientes registrados</p>
+          <p className="num font-display text-3xl font-bold">{vista.clientes.toLocaleString("es-PE")}</p>
+        </div>
+        <div className="border-t border-borde p-4 sm:border-t-0 sm:border-l sm:p-5">
+          <p className="text-sm font-semibold text-tenue">Vehículos registrados</p>
+          <p className="num font-display text-3xl font-bold">{vista.vehiculos.toLocaleString("es-PE")}</p>
+        </div>
+        <div className="border-t border-borde p-4 sm:border-t-0 sm:border-l sm:p-5">
+          <p className="text-sm font-semibold text-tenue">Deuda total por cobrar</p>
+          <p className="num font-display text-3xl font-bold text-marca">{formatoSoles(vista.porCobrar)}</p>
+          <p className="mt-1 text-xs text-tenue">Lo que falta pagar de los contratos activos (vencido + por vencer).</p>
+        </div>
+      </section>
+
       <Tarjeta className="mt-4" titulo={`Cobrado contra esperado · últimas ${SEMANAS} semanas`}>
         <div className="grid gap-5 lg:grid-cols-[1fr_17rem]">
           <div>
@@ -107,34 +128,46 @@ function Panel() {
 
       <Tarjeta className="mt-4" titulo="Por empresa">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left">
+          <table className="w-full min-w-[900px] text-left">
             <thead className="text-sm text-tenue">
               <tr>
                 <th className="py-2 pr-3 font-semibold">Empresa</th>
                 <th className="py-2 pr-3 text-right font-semibold">Hoy</th>
-                <th className="py-2 pr-3 font-semibold">Semana</th>
+                <th className="py-2 pr-3 font-semibold">Ingresado · falta cobrar</th>
                 <th className="w-44 py-2 pr-3 font-semibold">Clientes</th>
-                <th className="py-2 pr-3 text-right font-semibold">Deuda</th>
+                <th className="py-2 pr-3 text-right font-semibold">Registrados</th>
+                <th className="py-2 pr-3 text-right font-semibold">Vencido</th>
                 <th className="py-2" />
               </tr>
             </thead>
             <tbody>
               {vista.lista.map((f) => {
-                const avance = f.esperado_semana > 0 ? Math.min(100, (f.cobrado_semana / f.esperado_semana) * 100) : 0;
+                // lo que ya entró (iniciales + cuotas cobradas) frente a lo que falta cobrar de los contratos activos
+                const ingresado = Number(f.cobrado_total ?? 0) + Number(f.iniciales ?? 0);
+                const falta = Number(f.por_cobrar ?? 0);
+                const avance = ingresado + falta > 0 ? Math.min(100, (ingresado / (ingresado + falta)) * 100) : 0;
                 return (
                   <tr key={f.empresa_id} className="border-t border-borde align-middle">
                     <td className="py-3 pr-3 font-semibold">{f.empresa}</td>
                     <td className="num py-3 pr-3 text-right">{formatoSoles(f.cobrado_hoy)}</td>
                     <td className="py-3 pr-3">
                       <p className="num text-sm whitespace-nowrap">
-                        {formatoSoles(f.cobrado_semana)} <span className="text-tenue">de {formatoSoles(f.esperado_semana)}</span>
+                        <b className="text-verde">{formatoSoles(ingresado)}</b> <span className="text-tenue">ingresado</span>
                       </p>
-                      <div className="mt-1 h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-fondo">
-                        <div className="h-full rounded-full bg-marca" style={{ width: `${avance}%` }} />
+                      <div className="mt-1 h-1.5 w-full max-w-56 overflow-hidden rounded-full bg-borde" title={`${Math.round(avance)} % cobrado`}>
+                        <div className="h-full rounded-full bg-verde" style={{ width: `${avance}%` }} />
                       </div>
+                      <p className="num mt-1 text-sm whitespace-nowrap">
+                        <b className="text-marca">{formatoSoles(falta)}</b> <span className="text-tenue">falta cobrar</span>
+                      </p>
                     </td>
                     <td className="py-3 pr-3">
                       <BarraColores v={f.clientes_verde} a={f.clientes_amarillo} r={f.clientes_rojo} enlace empresa={f.empresa_id} alto="h-7" />
+                    </td>
+                    <td className="py-3 pr-3 text-right text-sm whitespace-nowrap">
+                      <span className="num font-semibold">{f.clientes_registrados ?? 0}</span> clientes
+                      <br />
+                      <span className="num font-semibold">{f.vehiculos ?? 0}</span> vehículos
                     </td>
                     <td className="num py-3 pr-3 text-right font-bold text-rojo">{formatoSoles(f.deuda)}</td>
                     <td className="py-3 text-right">

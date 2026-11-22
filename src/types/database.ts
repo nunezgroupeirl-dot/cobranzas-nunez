@@ -225,6 +225,20 @@ export interface ResumenEmpresa {
   clientes_amarillo: number;
   clientes_rojo: number;
   deuda: number;
+  /** clientes registrados (no archivados) con contrato en esta empresa o puestos en ella */
+  clientes_registrados?: number;
+  /** vehículos registrados (no archivados) de esta empresa */
+  vehiculos?: number;
+  /** lo que falta cobrar de los contratos activos (vencido + por vencer) */
+  por_cobrar?: number;
+  /** clientes registrados en total (un cliente con vehículos en dos empresas cuenta una vez) */
+  clientes_total?: number;
+  /** pagos de cuotas de este mes (calendario) */
+  cobrado_mes?: number;
+  /** todos los pagos de cuotas registrados */
+  cobrado_total?: number;
+  /** iniciales de los contratos */
+  iniciales?: number;
 }
 
 /** Una semana (lunes) de una empresa: lo cobrado frente a las cuotas que vencían. */
