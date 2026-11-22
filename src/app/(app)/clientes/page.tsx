@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
@@ -58,7 +57,9 @@ function agrupar(filas: Fila[]): Fila[] {
   ];
 }
 
-const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo"]);
+const COLORES_VALIDOS = new Set<string>(["verde", "amarillo", "rojo", "atraso"]);
+/** Filtro de estado: un color del semáforo, o "atraso" (1–3 sem. y 4+ sem. juntos). */
+type FiltroColor = Color | "atraso" | "";
 
 export default function PaginaClientes() {
   const { datos, esAdmin, empresas } = useSesion();
@@ -68,7 +69,7 @@ export default function PaginaClientes() {
   const [texto, setTexto] = useState("");
   // ?color=rojo llega desde el semáforo del panel
   const colorInicial = useSearchParams().get("color") ?? "";
-  const [color, setColor] = useState<Color | "">(() => (COLORES_VALIDOS.has(colorInicial) ? (colorInicial as Color) : ""));
+  const [color, setColor] = useState<FiltroColor>(() => (COLORES_VALIDOS.has(colorInicial) ? (colorInicial as FiltroColor) : ""));
   // orden de la lista: por nombre, o por fecha de registro (la flechita cambia entre recientes y antiguos)
   const [orden, setOrden] = useState<"nombre" | "recientes" | "antiguos">("nombre");
   // clientes con varios vehículos que están desplegados
@@ -80,7 +81,7 @@ export default function PaginaClientes() {
       return n;
     });
 
-  // ingresos por empresa: solo el administrador los ve
+  // vehículos por empresa (solo el administrador)
   const { datos: resumen } = useCarga(async () => (esAdmin ? datos.resumenEmpresas().catch(() => [] as ResumenEmpresa[]) : []), [datos, esAdmin]);
 
   const { datos: filas, cargando, error } = useCarga(async () => {
@@ -133,7 +134,15 @@ export default function PaginaClientes() {
   const visibles = useMemo(() => {
     const q = normalizar(texto);
     const deEmpresa = (f: Fila) => !empresa || (f.empresas ?? [f.empresa_id]).includes(empresa);
-    const deColor = (f: Fila) => !color || (!f.sin_contrato && (f.vehiculos ?? [f]).some((v) => v.color === color));
+    // "Al día" = todos sus vehículos al día; "Con atraso" = alguno debe (igual que en las tarjetas por empresa)
+    const deColor = (f: Fila) => {
+      if (!color) return true;
+      if (f.sin_contrato) return false;
+      const vs = f.vehiculos ?? [f];
+      if (color === "verde") return vs.every((v) => v.color === "verde");
+      if (color === "atraso") return vs.some((v) => v.color !== "verde");
+      return vs.some((v) => v.color === color);
+    };
     return (filas ?? [])
       .filter((f) => deEmpresa(f) && deColor(f) && coincide(indice.get(f) ?? "", q))
       .sort((a, b) =>
@@ -213,9 +222,10 @@ export default function PaginaClientes() {
     { clave: "registrado", titulo: "Registrado", celda: (f) => (f.numero ? null : <Registrado iso={f.registrado} />) },
   ];
 
-  const colores: { valor: Color | ""; texto: string }[] = [
+  const colores: { valor: FiltroColor; texto: string }[] = [
     { valor: "", texto: "Todos" },
     { valor: "verde", texto: "Al día" },
+    { valor: "atraso", texto: "Con atraso" },
     { valor: "amarillo", texto: "1–3 sem." },
     { valor: "rojo", texto: "4+ sem." },
   ];
@@ -234,7 +244,19 @@ export default function PaginaClientes() {
         }
       />
 
-      {filas && <ClientesPorEmpresa filas={filas} empresas={empresas} resumen={resumen ?? []} elegida={empresa} />}
+      {filas && (
+        <ClientesPorEmpresa
+          filas={filas}
+          empresas={empresas}
+          resumen={resumen ?? []}
+          elegida={empresa}
+          color={color}
+          alElegir={(id, c) => {
+            setColor(c);
+            router.push(id ? `/clientes?empresa=${id}` : "/clientes");
+          }}
+        />
+      )}
 
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
         <input
@@ -304,84 +326,84 @@ export default function PaginaClientes() {
 }
 
 /**
- * Una tarjeta por empresa: cuántos clientes y vehículos tiene y, para el administrador, sus ingresos
- * (este mes y en total) y lo que falta cobrar. Tocar una tarjeta muestra solo esa empresa.
+ * Una tarjeta por empresa con cuántos clientes y vehículos tiene. Tocar la tarjeta muestra solo sus clientes;
+ * tocar "al día" o "con atraso" muestra solo esos (de esa empresa). Tocarla otra vez vuelve a todas.
  */
-function ClientesPorEmpresa({ filas, empresas, resumen, elegida }: { filas: Fila[]; empresas: { id: string; nombre: string }[]; resumen: ResumenEmpresa[]; elegida: string | null }) {
-  const datosDe = new Map(resumen.map((r) => [r.empresa_id, r]));
-  const conIngresos = resumen.length > 0;
+function ClientesPorEmpresa({
+  filas,
+  empresas,
+  resumen,
+  elegida,
+  color,
+  alElegir,
+}: {
+  filas: Fila[];
+  empresas: { id: string; nombre: string }[];
+  resumen: ResumenEmpresa[];
+  elegida: string | null;
+  color: FiltroColor;
+  alElegir: (empresa: string | null, color: FiltroColor) => void;
+}) {
+  const vehiculosDe = new Map(resumen.map((r) => [r.empresa_id, r.vehiculos]));
   const tarjetas = empresas.map((e) => {
     const suyas = filas.filter((f) => (f.empresas ?? [f.empresa_id]).includes(e.id));
-    const r = datosDe.get(e.id);
     return {
       ...e,
       clientes: suyas.length,
       alDia: suyas.filter((f) => !f.sin_contrato && (f.vehiculos ?? [f]).every((v) => v.color === "verde")).length,
       atrasados: suyas.filter((f) => !f.sin_contrato && (f.vehiculos ?? [f]).some((v) => v.color !== "verde")).length,
       sinContrato: suyas.filter((f) => f.sin_contrato).length,
-      vehiculos: r?.vehiculos,
-      mes: Number(r?.cobrado_mes ?? 0),
-      total: Number(r?.cobrado_total ?? 0) + Number(r?.iniciales ?? 0),
-      iniciales: Number(r?.iniciales ?? 0),
-      porCobrar: Number(r?.por_cobrar ?? 0),
+      vehiculos: vehiculosDe.get(e.id),
     };
   });
-  const suma = (k: "mes" | "total" | "porCobrar") => tarjetas.reduce((t, x) => t + x[k], 0);
+  const chip = (activo: boolean) =>
+    `inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold ${activo ? "border-tinta bg-tinta text-white" : "border-borde bg-fondo hover:border-marca"}`;
   return (
     <section className="mb-5" aria-label="Clientes por empresa">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-lg font-bold">Por empresa</h2>
         <p className="text-sm text-tenue">
-          <b className="num text-tinta">{filas.length}</b> clientes en total
-          {conIngresos && (
-            <>
-              {" · "}ingresos del mes: <b className="num text-verde">{formatoSoles(suma("mes"))}</b>
-              {" · "}total: <b className="num text-tinta">{formatoSoles(suma("total"))}</b>
-              {" · "}por cobrar: <b className="num text-marca">{formatoSoles(suma("porCobrar"))}</b>
-            </>
-          )}
+          <b className="num text-tinta">{filas.length}</b> clientes en total · toca una empresa para ver sus clientes
         </p>
       </div>
       <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
         {tarjetas.map((t) => {
           const activa = elegida === t.id;
           return (
-            <Link
+            <div
               key={t.id}
-              href={activa ? "/clientes" : `/clientes?empresa=${t.id}`}
-              aria-pressed={activa}
-              title={activa ? "Ver todas las empresas" : "Ver solo los clientes de esta empresa"}
-              className={`flex w-64 shrink-0 snap-start flex-col rounded-2xl border-2 bg-superficie p-4 sm:w-auto transition-colors hover:border-marca ${activa ? "border-marca" : elegida ? "border-borde opacity-60" : "border-borde"}`}
+              className={`flex w-64 shrink-0 snap-start flex-col rounded-2xl border-2 bg-superficie transition-colors sm:w-auto ${activa ? "border-marca" : elegida ? "border-borde opacity-60 hover:opacity-100" : "border-borde hover:border-marca"}`}
             >
-              <p className="line-clamp-2 min-h-10 text-sm leading-tight font-bold">{t.nombre}</p>
-              <p className="mt-2 flex items-baseline gap-2">
-                <span className="num font-display text-3xl font-bold">{t.clientes}</span>
-                <span className="text-sm text-tenue">
-                  clientes{t.vehiculos !== undefined ? ` · ${t.vehiculos} vehículos` : ""}
+              <button
+                type="button"
+                onClick={() => alElegir(activa && !color ? null : t.id, "")}
+                aria-pressed={activa && !color}
+                title={activa ? "Ver todas las empresas" : "Ver todos los clientes de esta empresa"}
+                className="flex flex-1 flex-col p-4 pb-2 text-left"
+              >
+                <span className="line-clamp-2 min-h-10 text-sm leading-tight font-bold">{t.nombre}</span>
+                <span className="mt-2 flex items-baseline gap-2">
+                  <span className="num font-display text-3xl font-bold">{t.clientes}</span>
+                  <span className="text-sm text-tenue">
+                    clientes{t.vehiculos !== undefined ? ` · ${t.vehiculos} vehículos` : ""}
+                  </span>
                 </span>
-              </p>
-              <p className="mt-1 flex flex-wrap gap-x-3 text-xs">
-                <span className="text-verde">● {t.alDia} al día</span>
-                <span className="text-rojo">● {t.atrasados} con atraso</span>
-                {t.sinContrato > 0 && <span className="text-amarillo">● {t.sinContrato} sin contrato</span>}
-              </p>
-              {conIngresos && (
-                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-borde pt-3 text-sm">
-                  <dt className="text-tenue">Este mes</dt>
-                  <dd className="num text-right font-bold text-verde">{formatoSoles(t.mes)}</dd>
-                  <dt className="text-tenue" title="Iniciales de los contratos + todas las cuotas cobradas">
-                    Ingreso total
-                  </dt>
-                  <dd className="num text-right font-bold">{formatoSoles(t.total)}</dd>
-                  <dt className="text-tenue">Por cobrar</dt>
-                  <dd className="num text-right font-bold text-marca">{formatoSoles(t.porCobrar)}</dd>
-                </dl>
-              )}
-            </Link>
+              </button>
+              <div className="flex flex-wrap gap-2 px-4 pb-4">
+                <button type="button" onClick={() => alElegir(t.id, activa && color === "verde" ? "" : "verde")} aria-pressed={activa && color === "verde"} className={chip(activa && color === "verde")}>
+                  <span className="text-verde" aria-hidden>●</span> {t.alDia} al día
+                </button>
+                <button type="button" onClick={() => alElegir(t.id, activa && color === "atraso" ? "" : "atraso")} aria-pressed={activa && color === "atraso"} className={chip(activa && color === "atraso")}>
+                  <span className="text-rojo" aria-hidden>●</span> {t.atrasados} con atraso
+                </button>
+                {t.sinContrato > 0 && (
+                  <span className="inline-flex min-h-9 items-center gap-1.5 px-1 text-xs text-amarillo">● {t.sinContrato} sin contrato</span>
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
-      {conIngresos && <p className="mt-2 text-xs text-tenue">Ingreso total = iniciales de los contratos + cuotas cobradas. Por cobrar = lo que falta pagar de los contratos activos.</p>}
     </section>
   );
 }

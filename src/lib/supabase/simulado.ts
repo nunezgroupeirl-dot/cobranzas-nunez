@@ -92,7 +92,7 @@ function semilla(): Estado {
     })),
   );
   const perfiles: PerfilConClave[] = [
-    { id: "usr-admin", nombre: "Andrés (prueba)", email: "admin@prueba.pe", rol: "administrador", activo: true, clave: "admin123" },
+    { id: "usr-admin", nombre: "Andrés (prueba)", email: "admin@prueba.pe", rol: "administrador", activo: true, es_dueno: true, clave: "admin123" },
     { id: "usr-cobrador", nombre: "Adrián (prueba)", email: "cobrador@prueba.pe", rol: "cobrador", puesto: "oficina", activo: true, clave: "cobrador123" },
     { id: "usr-ruta", nombre: "Luis (prueba)", email: "ruta@prueba.pe", rol: "cobrador", puesto: "ruta", activo: true, clave: "ruta123" },
   ];

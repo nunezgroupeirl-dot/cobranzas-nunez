@@ -93,7 +93,7 @@ function Usuarios() {
                     { rol: u.rol === "administrador" ? "cobrador" : "administrador" },
                     u.rol === "administrador"
                       ? `¿Quitarle el acceso de administrador a ${u.nombre}? Quedará como trabajador: luego elige su puesto con "Editar".`
-                      : `¿Hacer administrador a ${u.nombre}? Podrá ver y cambiar todo el sistema (clientes, contratos, pagos, panel y usuarios).`,
+                      : `¿Hacer administrador a ${u.nombre}? Podrá ver y cambiar todo el sistema (clientes, contratos, pagos y usuarios), menos el Panel del dueño.`,
                   )
                 }
               >

@@ -13,6 +13,8 @@ interface ValorSesion {
   datos: Datos;
   empresas: Empresa[];
   esAdmin: boolean;
+  /** el dueño: el único que ve el Panel del dueño y los ingresos (otro administrador ve todo lo demás) */
+  esDueno: boolean;
   salir: () => Promise<void>;
 }
 
@@ -99,7 +101,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
           return;
         }
         const empresas = await datos.empresas();
-        if (vivo) setValor({ perfil, datos, empresas, esAdmin: perfil.rol === "administrador" });
+        if (vivo) setValor({ perfil, datos, empresas, esAdmin: perfil.rol === "administrador", esDueno: perfil.rol === "administrador" && perfil.es_dueno === true });
       } catch (e) {
         if (vivo) setError(mensajeDeError(e));
       }

@@ -120,6 +120,10 @@ create table if not exists public.perfiles (
   creado_en  timestamptz not null default now()
 );
 
+-- El dueño (Andrés): el único que ve el Panel del dueño y los ingresos. Otro administrador ve todo lo demás.
+-- Solo se cambia desde la base de datos.
+alter table public.perfiles add column if not exists es_dueno boolean not null default false;
+
 -- Puesto del cobrador: "oficina" (caja, cobra en la oficina) o "ruta" (cobrador de ruta, puerta a puerta).
 -- Mismos permisos; solo cambia la pantalla con la que empieza. Lo pone el dueño (función "usuarios").
 alter table public.perfiles add column if not exists puesto text;

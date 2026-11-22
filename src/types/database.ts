@@ -60,6 +60,8 @@ export interface Perfil {
   rol: Rol;
   puesto?: Puesto | null; // solo cobradores
   activo: boolean;
+  /** el dueño (Andrés): el único que ve el Panel del dueño y los ingresos */
+  es_dueno?: boolean;
 }
 
 export interface Cliente {

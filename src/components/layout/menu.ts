@@ -9,6 +9,8 @@ export interface ItemMenu {
   enCelular: boolean; // aparece en la barra inferior
   /** solo para el cajero de oficina (además del dueño) */
   soloOficina?: boolean;
+  /** solo el dueño (Andrés); otro administrador no lo ve */
+  soloDueno?: boolean;
 }
 
 const TODOS: Rol[] = ["administrador", "cobrador"];
@@ -21,7 +23,7 @@ export const MENU: ItemMenu[] = [
   { href: "/morosos", texto: "¿Quién no paga?", corto: "Morosos", icono: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0", roles: TODOS, enCelular: true },
   { href: "/contratos", texto: "Vehículos y contratos", corto: "Contratos", icono: "M5 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4M19 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4M7 15h8l2-5h-4l-2-3H8M14 10l-3 5", roles: ADMIN, enCelular: true },
   { href: "/pagos", texto: "Historial de pagos", corto: "Historial", icono: "M3 6h18v12H3zM3 10h18M7 15h3", roles: ADMIN, enCelular: false },
-  { href: "/panel", texto: "Panel del dueño", corto: "Panel", icono: "M4 20V10M10 20V4M16 20v-7M22 20H2", roles: ADMIN, enCelular: true },
+  { href: "/panel", texto: "Panel del dueño", corto: "Panel", icono: "M4 20V10M10 20V4M16 20v-7M22 20H2", roles: ADMIN, enCelular: true, soloDueno: true },
   { href: "/reportes", texto: "Reportes", corto: "Reportes", icono: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M9 15l3 3 3-3M12 11v7", roles: ADMIN, enCelular: false },
   { href: "/historico", texto: "Histórico", corto: "Histórico", icono: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2", roles: ADMIN, enCelular: false },
   { href: "/archivados", texto: "Archivados", corto: "Archivados", icono: "M3 4h18v4H3zM5 8v12h14V8M10 12h4", roles: ADMIN, enCelular: false },
@@ -31,14 +33,16 @@ export const MENU: ItemMenu[] = [
   { href: "/configuracion", texto: "Configuración", corto: "Ajustes", icono: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z", roles: ADMIN, enCelular: false },
 ];
 
-type QuienEs = Pick<Perfil, "rol" | "puesto">;
+type QuienEs = Pick<Perfil, "rol" | "puesto" | "es_dueno">;
+
+const esDueno = (p: QuienEs) => p.rol === "administrador" && p.es_dueno === true;
 
 /** El cajero de oficina (o un cobrador sin puesto elegido) ve los clientes, sin editarlos. El cobrador de ruta no. */
 export const veClientes = (p: QuienEs) => p.rol === "administrador" || p.puesto !== "ruta";
 
 /** Menú según el rol. El cobrador de ruta ve primero "¿Quién no paga?" (es su lista de visitas). */
 export const menuPara = (perfil: QuienEs) => {
-  const items = MENU.filter((m) => m.roles.includes(perfil.rol) && (!m.soloOficina || veClientes(perfil)));
+  const items = MENU.filter((m) => m.roles.includes(perfil.rol) && (!m.soloOficina || veClientes(perfil)) && (!m.soloDueno || esDueno(perfil)));
   return perfil.rol === "cobrador" && perfil.puesto === "ruta" ? [...items].sort((a, b) => Number(b.href === "/morosos") - Number(a.href === "/morosos")) : items;
 };
 
@@ -50,7 +54,10 @@ export const inicioPara = (perfil: QuienEs) =>
 const RUTAS_TRABAJADOR = ["/pagos/nuevo", "/morosos"];
 // solo consulta: la lista y la ficha (no nuevo ni editar)
 const RUTAS_CAJERO = ["/clientes", "/clientes/ficha"];
+const RUTAS_DUENO = ["/panel"];
 export const rutaPermitida = (perfil: QuienEs, ruta: string) =>
-  perfil.rol === "administrador" ||
+  RUTAS_DUENO.some((r) => ruta === r || ruta.startsWith(`${r}/`))
+    ? esDueno(perfil)
+    : perfil.rol === "administrador" ||
   RUTAS_TRABAJADOR.some((r) => ruta === r || ruta.startsWith(`${r}/`)) ||
   (veClientes(perfil) && RUTAS_CAJERO.includes(ruta));
