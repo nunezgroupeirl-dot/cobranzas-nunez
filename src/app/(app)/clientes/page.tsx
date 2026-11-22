@@ -64,7 +64,13 @@ type FiltroColor = Color | "atraso" | "";
 export default function PaginaClientes() {
   const { datos, esAdmin, empresas } = useSesion();
   const router = useRouter();
-  const empresa = useEmpresa();
+  // la empresa elegida arriba (vale para todo el sistema) o la tarjeta tocada aquí (solo esta lista)
+  const empresaGlobal = useEmpresa();
+  // (si cambian la empresa de arriba, la tarjeta tocada deja de valer)
+  const [tocada, setTocada] = useState<{ id: string | null; con: string | null }>({ id: null, con: null });
+  const empresaLocal = tocada.con === empresaGlobal ? tocada.id : null;
+  const setEmpresaLocal = (id: string | null) => setTocada({ id, con: empresaGlobal });
+  const empresa = empresaLocal ?? empresaGlobal;
   const conEmpresa = useConEmpresa();
   const [texto, setTexto] = useState("");
   // ?color=rojo llega desde el semáforo del panel
@@ -253,7 +259,8 @@ export default function PaginaClientes() {
           color={color}
           alElegir={(id, c) => {
             setColor(c);
-            router.push(id ? `/clientes?empresa=${id}` : "/clientes");
+            setEmpresaLocal(id);
+            if (!id && empresaGlobal) router.replace("/clientes");
           }}
         />
       )}
@@ -306,6 +313,34 @@ export default function PaginaClientes() {
         </div>
       </div>
 
+      {(empresa || color || texto) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-marca/40 bg-marca-suave/40 px-4 py-2">
+          <span className="text-sm">
+            Mostrando{" "}
+            <b>
+              {[
+                empresa ? (empresas.find((e) => e.id === empresa)?.nombre ?? "una empresa") : "todas las empresas",
+                color === "verde" ? "al día" : color === "atraso" ? "con atraso" : color === "amarillo" ? "1–3 semanas" : color === "rojo" ? "4+ semanas" : "",
+                texto ? `«${texto}»` : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </b>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setEmpresaLocal(null);
+              setColor("");
+              setTexto("");
+              if (empresaGlobal) router.replace("/clientes");
+            }}
+            className="ml-auto inline-flex min-h-10 items-center gap-2 rounded-xl border border-tinta bg-tinta px-4 text-sm font-semibold text-white hover:opacity-90"
+          >
+            ✕ Ver todos los clientes
+          </button>
+        </div>
+      )}
       {error && <Aviso tipo="error">{error}</Aviso>}
       {cargando && !filas ? (
         <Cargando />
