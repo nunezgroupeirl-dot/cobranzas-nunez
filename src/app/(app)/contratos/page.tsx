@@ -44,24 +44,21 @@ export default function PaginaContratos() {
       claveMoto: new Map((info?.motos ?? []).map((m) => [m.id, claveBusqueda(m.placa, cliente(m.cliente_id))])),
     };
   }, [info]);
-  // Lo que le falta a cada contrato activo (igual que en Datos pendientes): llenar, subir el firmado o la foto con el contrato.
-  const faltasContrato = useMemo(() => {
+  // Estado de cada contrato activo. Lo principal es si la hoja firmada está subida (el respaldo);
+  // llenar y la foto del cliente con el contrato son secundarios. Misma lógica que Datos pendientes.
+  const estadoContrato = useMemo(() => {
     const firmados = new Set<string>();
     const fotoCliente = new Set<string>();
     for (const d of info?.documentos ?? []) {
       if (d.tipo === "contrato" && d.contrato_id) firmados.add(d.contrato_id);
       else if (!d.moto_id && d.tipo === "cliente_contrato") fotoCliente.add(d.cliente_id);
     }
-    const falta = new Map<string, string[]>();
+    const estado = new Map<string, { firmado: boolean; llenar: boolean; foto: boolean }>();
     for (const c of info?.contratos ?? []) {
       if (c.estado !== "activo") continue;
-      const f: string[] = [];
-      if (!c.documento) f.push("Falta llenar");
-      if (!firmados.has(c.id)) f.push("Falta firmar");
-      if (!fotoCliente.has(c.cliente_id)) f.push("Falta foto");
-      if (f.length) falta.set(c.id, f);
+      estado.set(c.id, { firmado: firmados.has(c.id), llenar: !c.documento, foto: !fotoCliente.has(c.cliente_id) });
     }
-    return falta;
+    return estado;
   }, [info]);
   const nombreCliente = (id: string | null) => (id && mapas.clientes.get(id)) || "—";
   const nombreEmpresa = (id: string) => mapas.empresas.get(id) ?? "—";
@@ -102,15 +99,18 @@ export default function PaginaContratos() {
       clave: "estado",
       titulo: "Estado",
       celda: (c) => {
-        const faltas = c.estado === "activo" ? faltasContrato.get(c.id) : undefined;
-        if (!faltas) return <span>{NOMBRE_ESTADO_CONTRATO[c.estado]}</span>;
+        const s = c.estado === "activo" ? estadoContrato.get(c.id) : undefined;
+        if (!s) return <span>{NOMBRE_ESTADO_CONTRATO[c.estado]}</span>;
+        const chip = "whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold";
         return (
           <span className="flex flex-col items-start gap-1">
-            {faltas.map((f) => (
-              <span key={f} className="whitespace-nowrap rounded-full bg-amarillo-suave px-2 py-0.5 text-xs font-semibold text-amarillo">
-                {f}
-              </span>
-            ))}
+            {s.firmado ? (
+              <span className={`${chip} bg-tinta/10 text-tinta`}>✓ Firmado</span>
+            ) : (
+              <span className={`${chip} bg-rojo-suave text-rojo`}>Falta firmar</span>
+            )}
+            {s.llenar && <span className={`${chip} bg-amarillo-suave text-amarillo`}>Falta llenar</span>}
+            {s.foto && <span className={`${chip} bg-amarillo-suave text-amarillo`}>Falta foto</span>}
           </span>
         );
       },
