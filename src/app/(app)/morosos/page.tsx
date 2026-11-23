@@ -4,7 +4,7 @@ import { enlaceRuta } from "@/lib/mapa";
 import { useEffect, useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, useCarga, type Columna, Placa, OtrasPlacas } from "@/components/ui";
+import { Aviso, Boton, clasesBoton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, useCarga, type Columna, Placa, OtrasPlacas } from "@/components/ui";
 import { copiarTexto, descargarExcel, enlaceWhatsApp, textoWhatsApp } from "@/lib/exportar";
 import type { Color, Moroso } from "@/types/database";
 
@@ -73,7 +73,7 @@ export default function PaginaMorosos() {
       celda: (m) => {
         const ruta = enlaceRuta(m.ubicacion, m.direccion);
         return ruta ? (
-          <a href={ruta} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-marca-suave px-2 py-1 text-sm font-bold whitespace-nowrap text-marca-oscura">
+          <a href={ruta} target="_blank" rel="noopener noreferrer" className={`${clasesBoton("secundario", "chico")} whitespace-nowrap`}>
             📍 Cómo llegar
           </a>
         ) : (
@@ -89,14 +89,19 @@ export default function PaginaMorosos() {
         if (!numeros.length) return "—";
         const texto = `Hola ${m.cliente.split(" ")[0]}, le recordamos que tiene ${m.semanas_atraso} semana(s) de atraso (${formatoSoles(m.deuda)}) del vehículo${m.placa ? ` ${m.placa}` : ""}.`;
         return (
-          <span className="flex flex-col gap-1.5">
+          <span className="flex flex-col gap-2">
             {numeros.map((n) => (
               <span key={n} className="inline-flex items-center gap-3">
                 <a href={`tel:${n}`} className="num font-semibold text-marca underline">
                   {n}
                 </a>
-                <a href={enlaceWhatsApp(texto, n)} target="_blank" rel="noreferrer" className="rounded-lg bg-verde-suave px-2 py-1 text-sm font-bold text-verde">
-                  WhatsApp
+                <a
+                  href={enlaceWhatsApp(texto, n)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-verde px-3 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition select-none hover:brightness-95"
+                >
+                  💬 Enviar WhatsApp
                 </a>
               </span>
             ))}
