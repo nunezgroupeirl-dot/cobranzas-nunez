@@ -1406,7 +1406,7 @@ select * from public.v_estado_cliente
 where semanas_atraso > 0
 order by semanas_atraso desc, deuda desc;
 
--- Panel del dueño (solo administrador). Semana = lunes a domingo.
+-- Panel del dueño: SOLO el dueño (Andrés) recibe filas; otro administrador (Elvis) no. Semana = lunes a domingo.
 create or replace view public.v_resumen_empresa
 with (security_invoker = true) as
 with dia as (
@@ -1472,7 +1472,7 @@ from public.empresas e
 cross join semana s
 left join esperado es on es.empresa_id = e.id
 left join colores c on c.empresa_id = e.id
-where public.es_admin()
+where public.es_dueno()
 order by e.nombre;
 
 
@@ -1514,7 +1514,7 @@ as $$
   cross join public.empresas e
   left join cobrado c on c.semana = s.semana and c.empresa_id = e.id
   left join esperado x on x.semana = s.semana and x.empresa_id = e.id
-  where public.es_admin()
+  where public.es_dueno()
   order by s.semana, e.nombre;
 $$;
 
@@ -1531,7 +1531,7 @@ as $$
   select coalesce(sum((o.metadata ->> 'size')::bigint), 0)::bigint, count(*)::bigint
   from storage.objects o
   where o.bucket_id in ('evidencias', 'documentos')
-    and public.es_admin();
+    and public.es_dueno();
 $$;
 
 

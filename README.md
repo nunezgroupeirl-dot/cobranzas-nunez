@@ -19,7 +19,7 @@ Sistema web de cobranzas para financiamiento de vehículos (mototaxi, lineal, sc
 | `/pagos/nuevo` | Registrar un pago con foto del comprobante. Pantalla de inicio del **cajero de oficina** | Administradores y trabajadores |
 | `/pagos` | Historial de pagos (anular, filtrar por fechas) | Administradores |
 | `/morosos` | ¿Quién no paga? Con dirección y “Cómo llegar”, copiar para WhatsApp y Excel. Pantalla de inicio del **cobrador de ruta** | Administradores y trabajadores |
-| `/panel` | Cobrado hoy y en la semana, deuda por empresa | Administradores |
+| `/panel` | Panel del dueño: ingresos por día, semana, mes y año con medio de pago y cuenta; cobrado contra esperado; ingresado y por cobrar por empresa | **Solo el dueño** (otro administrador no lo ve ni recibe sus datos) |
 | `/reportes` | Reporte mensual (resumen, pagos y clientes) y Excel de clientes y de pagos por fechas. Desde el día 1 de cada mes el dueño ve un aviso fijo hasta descargar el reporte del mes anterior | Administradores |
 | `/usuarios` | Crear trabajadores con su puesto (**cajero de oficina** o **cobrador de ruta**), nombre, correo y contraseña; cambiarles puesto, nombre o contraseña; desactivarlos; cambiar la contraseña propia. Solo el dueño nombra o quita administradores | Administradores |
 | `/importar` | Cargar clientes desde la plantilla Excel (DNI y placa opcionales; frecuencia semanal, quincenal o mensual; precio e inicial opcionales). Una fila ya importada se rechaza sola | Administradores |
@@ -36,8 +36,8 @@ Sistema web de cobranzas para financiamiento de vehículos (mototaxi, lineal, sc
 - **Semáforo:** verde al día · amarillo 1 a 3 semanas de atraso · rojo 4 o más.
 - Cada pago se aplica a la **cuota pendiente más antigua** y guarda la fecha real de pago.
 - Todo pago lleva **foto**: captura o voucher si es Yape, Plin o banco; si es **efectivo**, una foto del cliente tomada con la cámara al recibir el dinero. No se acepta un **n.º de operación** ni una **imagen** ya registrados.
-- Sin intereses ni mora: la cuota es fija. Un contrato pagado completo pasa a **terminado**.
-- Lo registrado hasta las **10:00 p.m.** (hora de Lima) cuenta para ese día.
+- Sin mora: la cuota es fija. Un administrador puede calcularla con **capital e interés** (no lo ve el cliente). Un contrato pagado completo pasa a **terminado**.
+- El día cambia a **medianoche** (hora de Lima).
 
 Las reglas viven en la base de datos (`supabase/esquema.sql`). `src/lib/supabase/reglas.ts` y `simulado.ts` son una copia **solo para el modo de prueba** (sin `.env.local`); si se cambia una regla en la base, hay que cambiarla también ahí.
 
@@ -47,7 +47,7 @@ Cada cliente tiene dirección escrita y, opcional, su ubicación en Google Maps:
 
 ## Seguridad
 
-- **Administradores.** Puede haber varios (hoy el dueño y Elvis). Solo el **dueño** (la cuenta `correo_dueno()` en `esquema.sql`) nombra o quita administradores; un administrador no puede quitarle el puesto al dueño. Los administradores anulan pagos, cierran contratos, crean usuarios, importan, configuran y ven panel, reportes, histórico, archivados y auditoría. Lo garantiza la base de datos (`es_admin()`, `es_dueno()`, disparadores y RLS), no solo la pantalla.
+- **Administradores.** Puede haber varios (hoy el dueño y Elvis). Solo el **dueño** (la cuenta `correo_dueno()` en `esquema.sql`) nombra o quita administradores; un administrador no puede quitarle el puesto al dueño. Los administradores anulan pagos, cierran contratos, crean usuarios, importan, configuran y ven reportes, histórico, archivados y auditoría. El **Panel del dueño** es solo del dueño: la base (`v_resumen_empresa`, `cobranza_semanal`, `uso_fotos`) solo le entrega esos datos a `es_dueno()`. Lo garantiza la base de datos (`es_admin()`, `es_dueno()`, disparadores y RLS), no solo la pantalla.
 - **Trabajadores** (cajero de oficina o cobrador de ruta): registran pagos y ven ¿Quién no paga?; no crean ni editan clientes, vehículos ni contratos. Solo registran pagos con fecha de hoy o de **hasta 7 días atrás**; uno más antiguo lo registra un administrador (lo impide `registrar_pago`).
 - **RLS en todas las tablas.** El frontend solo lleva la llave pública (anon). Lo que cada usuario puede ver o cambiar lo decide la base de datos.
 - Pagos, contratos y cuotas **no se escriben directo**: solo con `registrar_pago`, `crear_contrato`, `anular_pago` y `cerrar_contrato`.

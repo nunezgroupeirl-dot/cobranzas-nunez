@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useConEmpresa, useEmpresa } from "@/components/layout/empresa";
 import { Aviso, BotonEnlace, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, textoDocumento, useCarga, type Columna, Placa, IconoVehiculo, OtrasPlacas } from "@/components/ui";
-import type { Color, EstadoCliente, Moto, ResumenEmpresa } from "@/types/database";
+import type { Color, EstadoCliente, Moto } from "@/types/database";
 import { alfabetico } from "@/lib/texto";
 import { claveBusqueda, coincide, normalizar } from "./_componentes/buscar";
 
@@ -100,8 +100,16 @@ export default function PaginaClientes() {
       return n;
     });
 
-  // vehículos por empresa (solo el administrador)
-  const { datos: resumen } = useCarga(async () => (esAdmin ? datos.resumenEmpresas().catch(() => [] as ResumenEmpresa[]) : []), [datos, esAdmin]);
+  // vehículos por empresa (solo el administrador). Se cuentan aquí y no con el resumen del panel,
+  // que la base solo le entrega al dueño.
+  const { datos: vehiculosPorEmpresa } = useCarga(async () => {
+    if (!esAdmin) return null;
+    const motos = await datos.motos().catch(() => null);
+    if (!motos) return null;
+    const cuenta = new Map<string, number>();
+    for (const m of motos) if (!m.archivado) cuenta.set(m.empresa_id, (cuenta.get(m.empresa_id) ?? 0) + 1);
+    return cuenta;
+  }, [datos, esAdmin]);
 
   const { datos: filas, cargando, error } = useCarga(async () => {
     const [estado, clientes, contratos, motos] = await Promise.all([datos.estadoClientes(), datos.clientes(), datos.contratos(), datos.motos()]);
@@ -269,7 +277,7 @@ export default function PaginaClientes() {
         <ClientesPorEmpresa
           filas={filas}
           empresas={empresas}
-          resumen={resumen ?? []}
+          vehiculosPorEmpresa={vehiculosPorEmpresa}
           elegida={empresa}
           color={color}
           alElegir={(id, c) => {
@@ -382,19 +390,19 @@ export default function PaginaClientes() {
 function ClientesPorEmpresa({
   filas,
   empresas,
-  resumen,
+  vehiculosPorEmpresa,
   elegida,
   color,
   alElegir,
 }: {
   filas: Fila[];
   empresas: { id: string; nombre: string }[];
-  resumen: ResumenEmpresa[];
+  /** vehículos (no archivados) de cada empresa; null = no se muestran */
+  vehiculosPorEmpresa: Map<string, number> | null;
   elegida: string | null;
   color: FiltroColor;
   alElegir: (empresa: string | null, color: FiltroColor) => void;
 }) {
-  const vehiculosDe = new Map(resumen.map((r) => [r.empresa_id, r.vehiculos]));
   const tarjetas = empresas.map((e) => {
     const suyas = filas.filter((f) => (f.empresas ?? [f.empresa_id]).includes(e.id)).map((f) => soloDeEmpresa(f, e.id));
     return {
@@ -403,7 +411,7 @@ function ClientesPorEmpresa({
       alDia: suyas.filter((f) => !f.sin_contrato && (f.vehiculos ?? [f]).every((v) => v.color === "verde")).length,
       atrasados: suyas.filter((f) => !f.sin_contrato && (f.vehiculos ?? [f]).some((v) => v.color !== "verde")).length,
       sinContrato: suyas.filter((f) => f.sin_contrato).length,
-      vehiculos: vehiculosDe.get(e.id),
+      vehiculos: vehiculosPorEmpresa ? (vehiculosPorEmpresa.get(e.id) ?? 0) : undefined,
     };
   });
   const chip = (activo: boolean) =>

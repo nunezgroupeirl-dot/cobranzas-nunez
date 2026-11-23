@@ -2,7 +2,7 @@
 import { Campo } from "@/components/ui";
 
 import { CampoCombustible } from "./CampoCombustible";
-import { CAMPOS_FICHA, type FichaTecnica } from "./fichaTecnica";
+import { CAMPOS_FICHA, type FichaTecnica } from "./camposFicha";
 
 const ETIQUETAS: Record<
   keyof FichaTecnica,

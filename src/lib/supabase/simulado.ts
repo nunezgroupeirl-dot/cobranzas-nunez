@@ -344,6 +344,12 @@ export function crearDatosSimulados(): Datos {
     if (p.rol !== "administrador") throw new ErrorDatos("SIN_PERMISO", "Solo el administrador puede hacer esto.");
     return p;
   };
+  /** Panel del dueño: solo Andrés (es_dueno), igual que es_dueno() en la base. */
+  const exigirDueno = (s: Estado) => {
+    const p = exigirAdmin(s);
+    if (!p.es_dueno) throw new ErrorDatos("SIN_PERMISO", "Solo el dueño puede ver el panel.");
+    return p;
+  };
 
   return {
     modoPrueba: true,
@@ -445,7 +451,7 @@ export function crearDatosSimulados(): Datos {
     async resumenEmpresas() {
       await pausa();
       const s = leer();
-      exigirAdmin(s);
+      exigirDueno(s);
       const hoy = fechaOperativaLima();
       const lunes = inicioSemana(hoy);
       const domingo = sumarDias(lunes, 6);
@@ -488,7 +494,7 @@ export function crearDatosSimulados(): Datos {
     async usoFotos() {
       // Modo prueba: estimación con el tamaño promedio de una foto comprimida (~120 KB)
       const s = leer();
-      exigirAdmin(s);
+      exigirDueno(s);
       const archivos = s.documentos.length + s.pagos.length;
       return { bytes: archivos * 120 * 1024, archivos, limite: (process.env.NEXT_PUBLIC_FOTOS_URL ? 10 : 1) * 1024 ** 3 };
     },
@@ -516,7 +522,7 @@ export function crearDatosSimulados(): Datos {
     async cobranzaSemanal(semanas = 8) {
       await pausa();
       const s = leer();
-      exigirAdmin(s);
+      exigirDueno(s);
       const hoy = fechaOperativaLima();
       const lunes = inicioSemana(hoy);
       const n = Math.min(Math.max(semanas, 1), 26);

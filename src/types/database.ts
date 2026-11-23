@@ -216,7 +216,7 @@ export interface EstadoCliente {
 /** v_morosos: igual a v_estado_cliente, solo con atraso, de más a menos semanas */
 export type Moroso = EstadoCliente;
 
-/** v_resumen_empresa */
+/** v_resumen_empresa: solo el dueño recibe filas (es_dueno()); otro administrador recibe la lista vacía */
 export interface ResumenEmpresa {
   empresa_id: string;
   empresa: string;

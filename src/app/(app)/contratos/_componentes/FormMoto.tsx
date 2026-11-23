@@ -4,7 +4,7 @@ import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
 import { Aviso, Boton, Campo, OpcionesBoton, Selector, mensajeDeError } from "@/components/ui";
 import { CamposFichaTecnica } from "./FichaTecnica";
-import { CAMPOS_FICHA, type FichaTecnica } from "./fichaTecnica";
+import { CAMPOS_FICHA, type FichaTecnica } from "./camposFicha";
 import type { Moto } from "@/types/database";
 import { TIPOS_MOTO } from "@/lib/placa";
 import { CampoPlaca } from "./CampoPlaca";
