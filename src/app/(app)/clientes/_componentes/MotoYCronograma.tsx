@@ -298,7 +298,7 @@ function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "
                   <span className="basis-full text-base">
                     Cuota <b className="num">{formatoSoles(calculo.cuota)}</b> × {v.nro_cuotas} = Precio total{" "}
                     <b className="num text-marca">{formatoSoles(calculo.total)}</b>
-                    {Math.abs(calculo.total - calculo.calculado) >= 0.01 && <span className="text-tenue"> (diferencia de céntimos por la división; puedes corregir la cuota a mano)</span>}
+                    {Math.abs(calculo.total - calculo.calculado) >= 0.01 && <span className="text-tenue"> (la cuota se redondea hacia arriba al décimo; puedes corregirla a mano)</span>}
                   </span>
                 </span>
               ) : (

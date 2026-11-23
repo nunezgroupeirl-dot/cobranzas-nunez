@@ -254,6 +254,9 @@ export function mesesDelPlazo(nroCuotas: number, frecuencia: Frecuencia): number
 
 const centimos = (x: number) => Math.round(x * 100) / 100;
 
+/** La cuota con capital e interés sube siempre al siguiente décimo de sol (0.10). */
+export const PASO_CUOTA = 0.1;
+
 /** Redondeo a favor de la empresa: hacia arriba al siguiente múltiplo (0.10 o 0.50). */
 export function redondearArriba(x: number, paso: number): number {
   const centavos = Math.round(x * 100);
@@ -265,7 +268,7 @@ export function redondearArriba(x: number, paso: number): number {
  * Precio total y cuota a partir del capital, el plazo y el tramo (las hojas del administrador):
  *  - más de S/ 12 000 a 12 meses → por día: (capital + 50 %) ÷ 12 ÷ 30, al céntimo → × 7 la semana, × 52 semanas
  *    (13 000 → 54.17 al día → 379.19 a la semana). El GPS lo cubren los días de más (364 en vez de 360).
- *  - los demás → interés del mes × meses + capital + GPS S/ 3 × meses, ÷ cuotas, al céntimo (sin redondear a favor de nadie).
+ *  - los demás → interés del mes × meses + capital + GPS S/ 3 × meses, ÷ cuotas, y la cuota sube al siguiente 0.10.
  *  - cobro diario → total ÷ (meses × 30), al céntimo; se cobran los días de las semanas del plazo (12 meses = 364).
  * El precio total es lo que de verdad se cobra: cuota × n.º de cuotas.
  */
@@ -281,7 +284,8 @@ export function calcularConInteres(v: Pick<Venta, "capital" | "interes" | "nro_c
 
   if (porDia) {
     const diaria = centimos((c * (1 + i / 100)) / 12 / 30);
-    const cuota = v.frecuencia === "diario" ? diaria : centimos(diaria * 7);
+    // la cuota siempre sube al siguiente 0.10 (a favor de la empresa)
+    const cuota = redondearArriba(v.frecuencia === "diario" ? diaria : diaria * 7, PASO_CUOTA);
     const total = centimos(cuota * n);
     const interesSoles = centimos((c * i) / 100);
     return { tramo, porcentaje, porDia, meses, interesMes: centimos(interesSoles / 12), interesSoles, gpsSoles: 0, calculado: centimos(c + interesSoles), total, cuota, diaria, diasGps: 0 };
@@ -292,13 +296,15 @@ export function calcularConInteres(v: Pick<Venta, "capital" | "interes" | "nro_c
   if (v.frecuencia === "diario") {
     // los días de más (12 meses = 364 en vez de 360) son el GPS
     const base = c + interesSoles;
-    const cuota = centimos(base / Math.max(1, Math.round(meses * 30)));
+    // la cuota siempre sube al siguiente 0.10 (a favor de la empresa)
+    const cuota = redondearArriba(base / Math.max(1, Math.round(meses * 30)), PASO_CUOTA);
     const total = centimos(cuota * n);
     return { tramo, porcentaje, porDia, meses, interesMes, interesSoles, gpsSoles: centimos(total - base), calculado: centimos(base), total, cuota, diaria: cuota, diasGps: Math.max(0, n - Math.round(meses * 30)) };
   }
   const gpsSoles = centimos((Number(v.gps) || 0) * meses);
   const calculado = centimos(c + interesSoles + gpsSoles);
-  const cuota = centimos(calculado / n);
+  // la cuota siempre sube al siguiente 0.10 (a favor de la empresa); el precio total se rehace con esa cuota
+  const cuota = redondearArriba(calculado / n, PASO_CUOTA);
   return { tramo, porcentaje, porDia, meses, interesMes, interesSoles, gpsSoles, calculado, total: centimos(cuota * n), cuota, diaria: 0, diasGps: 0 };
 }
 
