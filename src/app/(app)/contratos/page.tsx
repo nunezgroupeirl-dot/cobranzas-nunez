@@ -25,8 +25,8 @@ export default function PaginaContratos() {
   const [archivando, setArchivando] = useState<Moto | null>(null);
 
   const { datos: info, cargando, error, recargar } = useCarga(async () => {
-    const [contratos, motos, clientes, empresas] = await Promise.all([datos.contratos(), datos.motos(), datos.clientes(), datos.empresas()]);
-    return { contratos, motos, clientes, empresas };
+    const [contratos, motos, clientes, empresas, documentos] = await Promise.all([datos.contratos(), datos.motos(), datos.clientes(), datos.empresas(), datos.resumenDocumentos()]);
+    return { contratos, motos, clientes, empresas, documentos };
   }, [datos]);
 
   // búsquedas por id en O(1): con cientos de contratos, .find dentro de cada fila se vuelve lento
@@ -43,6 +43,25 @@ export default function PaginaContratos() {
       claveContrato: new Map((info?.contratos ?? []).map((c) => [c.id, claveBusqueda(cliente(c.cliente_id), placas.get(c.moto_id))])),
       claveMoto: new Map((info?.motos ?? []).map((m) => [m.id, claveBusqueda(m.placa, cliente(m.cliente_id))])),
     };
+  }, [info]);
+  // Lo que le falta a cada contrato activo (igual que en Datos pendientes): llenar, subir el firmado o la foto con el contrato.
+  const faltasContrato = useMemo(() => {
+    const firmados = new Set<string>();
+    const fotoCliente = new Set<string>();
+    for (const d of info?.documentos ?? []) {
+      if (d.tipo === "contrato" && d.contrato_id) firmados.add(d.contrato_id);
+      else if (!d.moto_id && d.tipo === "cliente_contrato") fotoCliente.add(d.cliente_id);
+    }
+    const falta = new Map<string, string[]>();
+    for (const c of info?.contratos ?? []) {
+      if (c.estado !== "activo") continue;
+      const f: string[] = [];
+      if (!c.documento) f.push("Falta llenar");
+      if (!firmados.has(c.id)) f.push("Falta firmar");
+      if (!fotoCliente.has(c.cliente_id)) f.push("Falta foto");
+      if (f.length) falta.set(c.id, f);
+    }
+    return falta;
   }, [info]);
   const nombreCliente = (id: string | null) => (id && mapas.clientes.get(id)) || "—";
   const nombreEmpresa = (id: string) => mapas.empresas.get(id) ?? "—";
@@ -79,7 +98,23 @@ export default function PaginaContratos() {
     { clave: "nro", titulo: "Cuotas", numero: true, celda: (c) => c.nro_cuotas },
     { clave: "inicio", titulo: "1.ª cuota", celda: (c) => formatoFecha(c.fecha_inicio) },
     { clave: "empresa", titulo: "Empresa", celda: (c) => nombreEmpresa(c.empresa_id), ocultarEnMovil: true },
-    { clave: "estado", titulo: "Estado", celda: (c) => <span>{NOMBRE_ESTADO_CONTRATO[c.estado]}</span> },
+    {
+      clave: "estado",
+      titulo: "Estado",
+      celda: (c) => {
+        const faltas = c.estado === "activo" ? faltasContrato.get(c.id) : undefined;
+        if (!faltas) return <span>{NOMBRE_ESTADO_CONTRATO[c.estado]}</span>;
+        return (
+          <span className="flex flex-col items-start gap-1">
+            {faltas.map((f) => (
+              <span key={f} className="whitespace-nowrap rounded-full bg-amarillo-suave px-2 py-0.5 text-xs font-semibold text-amarillo">
+                {f}
+              </span>
+            ))}
+          </span>
+        );
+      },
+    },
   ];
   const colMotos: Columna<Moto>[] = [
     { clave: "placa", titulo: "Placa", celda: (m) => <Placa placa={m.placa} tramite={m.placa_tramite} /> },

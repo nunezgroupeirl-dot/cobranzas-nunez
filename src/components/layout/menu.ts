@@ -28,9 +28,8 @@ export const MENU: ItemMenu[] = [
   { href: "/historico", texto: "Histórico", corto: "Histórico", icono: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2", roles: ADMIN, enCelular: false },
   { href: "/archivados", texto: "Archivados", corto: "Archivados", icono: "M3 4h18v4H3zM5 8v12h14V8M10 12h4", roles: ADMIN, enCelular: false },
   { href: "/auditoria", texto: "Auditoría", corto: "Auditoría", icono: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4", roles: ADMIN, enCelular: false },
-  { href: "/usuarios", texto: "Usuarios", corto: "Usuarios", icono: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-1a6 6 0 0 1 12 0v1M19 8v6M22 11h-6", roles: ADMIN, enCelular: false },
-  { href: "/importar", texto: "Importar clientes", corto: "Importar", icono: "M12 3v12M7 10l5 5 5-5M5 21h14", roles: ADMIN, enCelular: false },
-  { href: "/configuracion", texto: "Configuración", corto: "Ajustes", icono: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z", roles: ADMIN, enCelular: false },
+  { href: "/usuarios", texto: "Usuarios", corto: "Usuarios", icono: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-1a6 6 0 0 1 12 0v1M19 8v6M22 11h-6", roles: ADMIN, enCelular: false, soloDueno: true },
+  { href: "/configuracion", texto: "Configuración", corto: "Ajustes", icono: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z", roles: ADMIN, enCelular: false, soloDueno: true },
 ];
 
 type QuienEs = Pick<Perfil, "rol" | "puesto" | "es_dueno">;
@@ -54,9 +53,13 @@ export const inicioPara = (perfil: QuienEs) =>
 const RUTAS_TRABAJADOR = ["/pagos/nuevo", "/morosos"];
 // solo consulta: la lista y la ficha (no nuevo ni editar)
 const RUTAS_CAJERO = ["/clientes", "/clientes/ficha"];
-const RUTAS_DUENO = ["/panel"];
+const RUTAS_DUENO = ["/panel", "/usuarios", "/configuracion"];
+// Retiradas del sistema: nadie entra, ni escribiendo el enlace (la pantalla existe, pero sin acceso).
+const RUTAS_RETIRADAS = ["/importar"];
 export const rutaPermitida = (perfil: QuienEs, ruta: string) =>
-  RUTAS_DUENO.some((r) => ruta === r || ruta.startsWith(`${r}/`))
+  RUTAS_RETIRADAS.some((r) => ruta === r || ruta.startsWith(`${r}/`))
+    ? false
+    : RUTAS_DUENO.some((r) => ruta === r || ruta.startsWith(`${r}/`))
     ? esDueno(perfil)
     : perfil.rol === "administrador" ||
   RUTAS_TRABAJADOR.some((r) => ruta === r || ruta.startsWith(`${r}/`)) ||
