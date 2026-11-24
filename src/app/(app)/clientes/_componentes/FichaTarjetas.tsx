@@ -128,6 +128,7 @@ interface PropsCronograma {
 export function TarjetaCronograma({ cliente, empresa, contratos, motos, documentos, contratoActivo, alElegir, cuotas, soloLectura, alCambiar }: PropsCronograma) {
   const { esAdmin } = useSesion();
   const contrato = contratos.find((c) => c.id === contratoActivo);
+  const esPrestamo = (contrato?.tipo ?? "vehiculo") === "prestamo";
   const moto = contrato ? motos.get(contrato.moto_id) : undefined;
   const enOrden = [...contratos].sort((a, b) => a.creado_en.localeCompare(b.creado_en));
   const numero = enOrden.findIndex((c) => c.id === contratoActivo) + 1;
@@ -137,16 +138,18 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, document
     <Tarjeta
       className="mt-4"
       titulo={
-        moto
-          ? `${varios ? `Vehículo ${numero}` : "Cronograma"} · ${textoPlaca(moto)} (${[moto.marca, moto.tipo].filter(Boolean).join(" ")})${empresa ? ` · ${empresa}` : ""}`
-          : "Cronograma"
+        esPrestamo
+          ? `Préstamo de dinero${empresa ? ` · ${empresa}` : ""}`
+          : moto
+            ? `${varios ? `Vehículo ${numero}` : "Cronograma"} · ${textoPlaca(moto)} (${[moto.marca, moto.tipo].filter(Boolean).join(" ")})${empresa ? ` · ${empresa}` : ""}`
+            : "Cronograma"
       }
       accion={
         <div className="flex flex-wrap items-center gap-2">
           {contrato && cuotas && moto && (
             <BotonPdfCronograma cliente={cliente.nombres} dni={cliente.dni} tipoDoc={cliente.tipo_doc} placa={moto.placa ?? (moto.placa_tramite ? "PLACA EN TRÁMITE" : null)} empresa={empresa ?? ""} contrato={contrato} cuotas={cuotas} />
           )}
-          {contrato && soloLectura !== true && (
+          {contrato && soloLectura !== true && !esPrestamo && (
             <BotonEnlace href={`/contratos/ver?id=${contrato.id}`} variante="fantasma" tamano="chico">
               Ver contrato
             </BotonEnlace>
@@ -168,9 +171,9 @@ export function TarjetaCronograma({ cliente, empresa, contratos, motos, document
                 onClick={() => alElegir(c.id)}
                 className={`flex min-h-11 flex-col items-start rounded-xl border-2 px-3 py-1.5 text-left leading-tight ${elegido ? "border-marca bg-marca-suave" : "border-borde bg-superficie hover:border-marca/60"}`}
               >
-                <span className="text-sm font-bold">Vehículo {i + 1}</span>
-                <span className={`text-xs font-semibold ${m?.placa ? "" : "text-amarillo"}`}>
-                  {textoPlaca(m)}
+                <span className="text-sm font-bold">{(c.tipo ?? "vehiculo") === "prestamo" ? "Préstamo" : `Vehículo ${i + 1}`}</span>
+                <span className={`text-xs font-semibold ${(c.tipo ?? "vehiculo") === "prestamo" || m?.placa ? "" : "text-amarillo"}`}>
+                  {(c.tipo ?? "vehiculo") === "prestamo" ? "dinero" : textoPlaca(m)}
                   {c.estado !== "activo" ? ` · ${NOMBRE_ESTADO_CONTRATO[c.estado]}` : ""}
                 </span>
               </button>

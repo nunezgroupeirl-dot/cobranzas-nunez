@@ -63,7 +63,14 @@ export function BuscarContrato({
                       {vehiculos?.get(e.contrato_id)?.descripcion ? ` (${vehiculos.get(e.contrato_id)?.descripcion})` : ""} ·{" "}
                     </b>
                   )}
-                  <Placa placa={e.placa} tamano="chico" /> <OtrasPlacas placas={e.otras_placas} /> · {textoDocumento(e.dni, e.tipo_doc)}
+                  {e.tipo === "prestamo" ? (
+                    <b className="text-marca-oscura">PRÉSTAMO</b>
+                  ) : (
+                    <>
+                      <Placa placa={e.placa} tamano="chico" /> <OtrasPlacas placas={e.otras_placas} />
+                    </>
+                  )}{" "}
+                  · {textoDocumento(e.dni, e.tipo_doc)}
                 </span>
               </span>
               <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} />

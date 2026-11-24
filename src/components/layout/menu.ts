@@ -20,6 +20,7 @@ export const MENU: ItemMenu[] = [
   { href: "/clientes", texto: "Clientes", corto: "Clientes", icono: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M22 19v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8", roles: TODOS, enCelular: true, soloOficina: true },
   { href: "/pendientes", texto: "Datos pendientes", corto: "Pendientes", icono: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M12 11v3M12 17h.01", roles: ADMIN, enCelular: false },
   { href: "/pagos/nuevo", texto: "Registrar pago", corto: "Pagar", icono: "M12 5v14M5 12h14", roles: TODOS, enCelular: true },
+  { href: "/prestamos/nuevo", texto: "Nuevo préstamo", corto: "Préstamo", icono: "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", roles: ADMIN, enCelular: false },
   { href: "/morosos", texto: "¿Quién no paga?", corto: "Morosos", icono: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0", roles: TODOS, enCelular: true },
   { href: "/contratos", texto: "Vehículos y contratos", corto: "Contratos", icono: "M5 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4M19 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4M7 15h8l2-5h-4l-2-3H8M14 10l-3 5", roles: ADMIN, enCelular: true },
   { href: "/pagos", texto: "Historial de pagos", corto: "Historial", icono: "M3 6h18v12H3zM3 10h18M7 15h3", roles: ADMIN, enCelular: false },

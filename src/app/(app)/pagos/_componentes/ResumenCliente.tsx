@@ -8,7 +8,7 @@ export function ResumenCliente({ estado, alCambiar }: { estado: EstadoCliente; a
       <p className="text-sm text-tenue">Cliente</p>
       <p className="text-xl font-extrabold">{estado.cliente}</p>
       <p className="text-tenue">
-        <Placa placa={estado.placa} tamano="chico" /> · {estado.empresa}
+        {estado.tipo === "prestamo" ? <b className="text-marca-oscura">PRÉSTAMO</b> : <Placa placa={estado.placa} tamano="chico" />} · {estado.empresa}
       </p>
       <div className="my-3">
         <EtiquetaSemaforo color={estado.color} semanas={estado.semanas_atraso} grande />

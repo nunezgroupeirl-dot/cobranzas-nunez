@@ -221,6 +221,8 @@ export default function PaginaClientes() {
             <IconoVehiculo tipo={f.vehiculos[0].moto?.tipo} />
             {f.vehiculos.length} vehículos
           </button>
+        ) : f.tipo === "prestamo" ? (
+          <span className="rounded-full bg-marca-suave px-2 py-0.5 text-xs font-bold whitespace-nowrap text-marca-oscura">PRÉSTAMO</span>
         ) : f.moto || f.placa ? (
           <span className="flex items-center gap-2">
             <IconoVehiculo tipo={f.moto?.tipo} />

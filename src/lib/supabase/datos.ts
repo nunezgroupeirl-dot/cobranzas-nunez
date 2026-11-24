@@ -15,6 +15,7 @@ import type {
   ConsultaPublica,
   Contrato,
   CrearContratoArgs,
+  CrearPrestamoArgs,
   Cuenta,
   Cuota,
   Documento,
@@ -133,6 +134,8 @@ export interface Datos {
   tramitesVencidos(): Promise<TramiteVencido[]>;
   contrato(id: string): Promise<Contrato | null>;
   crearContrato(args: CrearContratoArgs): Promise<string>;
+  /** Crea un préstamo de dinero (contrato sin vehículo). Devuelve el id del contrato. */
+  crearPrestamo(args: CrearPrestamoArgs): Promise<string>;
   cuotas(contratoId: string): Promise<Cuota[]>;
   cerrarContrato(contratoId: string, motivo: string): Promise<void>;
   importarCliente(fila: FilaImportacion): Promise<string>;

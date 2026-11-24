@@ -430,6 +430,25 @@ export function crearDatosReales(): Datos {
       lanzar(r.error);
       return String(r.data);
     },
+    async crearPrestamo(args) {
+      const r = await sb.rpc("crear_prestamo", {
+        p_cliente_id: args.cliente_id,
+        p_empresa_id: args.empresa_id,
+        p_monto_cuota: args.monto_cuota,
+        p_nro_cuotas: args.nro_cuotas,
+        p_fecha_inicio: args.fecha_inicio,
+        p_precio_total: args.precio_total ?? null,
+        p_inicial: args.inicial ?? null,
+        p_capital: args.capital ?? null,
+        p_interes_pct: args.interes_pct ?? null,
+        p_interes_mes: args.interes_mes ?? null,
+        p_gps_mes: args.gps_mes ?? null,
+        ...(args.observaciones ? { p_observaciones: args.observaciones } : {}),
+        ...(args.frecuencia && args.frecuencia !== "semanal" ? { p_frecuencia: args.frecuencia } : {}),
+      });
+      lanzar(r.error);
+      return String(r.data);
+    },
     async cuotas(contratoId) {
       const filas = await todas<Cuota>((a, b) => sb.from("cuotas").select("*").eq("contrato_id", contratoId).order("numero").range(a, b));
       return filas.map(normalizarCuota);

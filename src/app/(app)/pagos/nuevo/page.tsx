@@ -67,7 +67,8 @@ export default function RegistrarPago() {
     for (const lista of porCliente.values())
       lista.forEach((c, i) => {
         const m = motoPorId.get(c.moto_id);
-        vehiculos.set(c.id, { numero: i + 1, total: lista.length, descripcion: [m?.tipo, m?.marca].filter(Boolean).join(" ") });
+        const descripcion = (c.tipo ?? "vehiculo") === "prestamo" ? "Préstamo de dinero" : [m?.tipo, m?.marca].filter(Boolean).join(" ");
+        vehiculos.set(c.id, { numero: i + 1, total: lista.length, descripcion });
       });
     return { estados, cuentas, vehiculos };
   }, [datos]);

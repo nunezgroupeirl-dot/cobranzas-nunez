@@ -126,7 +126,10 @@ export interface Moto {
 export interface Contrato {
   id: string;
   cliente_id: string;
+  /** en un préstamo de dinero no hay vehículo (llega null de la base); se usa junto con `tipo` */
   moto_id: string;
+  /** "vehiculo" = venta con vehículo; "prestamo" = préstamo de dinero (sin vehículo). Por defecto vehículo. */
+  tipo?: "vehiculo" | "prestamo";
   empresa_id: string;
   monto_cuota: number;
   nro_cuotas: number;
@@ -189,6 +192,8 @@ export interface Pago {
 export interface EstadoCliente {
   contrato_id: string;
   cliente_id: string;
+  /** "vehiculo" o "prestamo" (préstamo de dinero, sin placa) */
+  tipo?: "vehiculo" | "prestamo";
   cliente: string;
   dni: string | null;
   placa: string | null;
@@ -264,6 +269,24 @@ export interface CrearContratoArgs {
   frecuencia?: Frecuencia;
   /** cuotas que ya pagó antes de registrarlo (quedan como "del cuaderno": se les puede subir el voucher) */
   cuotas_pagadas?: number;
+}
+
+/** Crear un préstamo de dinero (sin vehículo). Lo cobra por días y cuotas, igual que una venta. */
+export interface CrearPrestamoArgs {
+  cliente_id: string;
+  empresa_id: string;
+  monto_cuota: number;
+  nro_cuotas: number;
+  fecha_inicio: string;
+  frecuencia?: Frecuencia;
+  precio_total?: number | null;
+  inicial?: number | null;
+  /** capital e interés (solo administradores); el cliente no los ve */
+  capital?: number | null;
+  interes_pct?: number | null;
+  interes_mes?: number | null;
+  gps_mes?: number | null;
+  observaciones?: string | null;
 }
 
 /** Datos editables de un contrato (solo el dueño). Al guardar se rehace el cronograma. */

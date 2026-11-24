@@ -56,6 +56,7 @@ export default function PaginaContratos() {
     const estado = new Map<string, { firmado: boolean; llenar: boolean; foto: boolean }>();
     for (const c of info?.contratos ?? []) {
       if (c.estado !== "activo") continue;
+      if ((c.tipo ?? "vehiculo") === "prestamo") continue; // un préstamo no tiene contrato en papel
       estado.set(c.id, { firmado: firmados.has(c.id), llenar: !c.documento, foto: !fotoCliente.has(c.cliente_id) });
     }
     return estado;
@@ -84,12 +85,15 @@ export default function PaginaContratos() {
     {
       clave: "placa",
       titulo: "Vehículo",
-      celda: (c) => (
-        <span className="flex items-center gap-2">
-          <IconoVehiculo tipo={mapas.motos.get(c.moto_id)?.tipo} />
-          <Placa placa={mapas.motos.get(c.moto_id)?.placa} tramite={mapas.motos.get(c.moto_id)?.placa_tramite} tamano="chico" />
-        </span>
-      ),
+      celda: (c) =>
+        (c.tipo ?? "vehiculo") === "prestamo" ? (
+          <span className="rounded-full bg-marca-suave px-2 py-0.5 text-xs font-bold whitespace-nowrap text-marca-oscura">PRÉSTAMO</span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <IconoVehiculo tipo={mapas.motos.get(c.moto_id)?.tipo} />
+            <Placa placa={mapas.motos.get(c.moto_id)?.placa} tramite={mapas.motos.get(c.moto_id)?.placa_tramite} tamano="chico" />
+          </span>
+        ),
     },
     { clave: "cuota", titulo: "Cuota", numero: true, celda: (c) => formatoSoles(c.monto_cuota) },
     { clave: "nro", titulo: "Cuotas", numero: true, celda: (c) => c.nro_cuotas },

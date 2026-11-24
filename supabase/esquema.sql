@@ -311,6 +311,18 @@ create index if not exists documentos_contrato_idx on public.documentos (contrat
 alter table public.motos add column if not exists contrato_id uuid references public.contratos (id) on delete set null;
 create index if not exists motos_contrato_idx on public.motos (contrato_id);
 
+-- Préstamo de dinero (Nuñez Group también presta efectivo): un contrato sin vehículo, cobrado por días y cuotas
+-- igual que una venta. 'vehiculo' = contrato de una venta (con moto); 'prestamo' = préstamo de dinero (sin moto).
+alter table public.contratos alter column moto_id drop not null;
+alter table public.contratos add column if not exists tipo text not null default 'vehiculo';
+alter table public.contratos drop constraint if exists contratos_tipo_check;
+alter table public.contratos add constraint contratos_tipo_check check (tipo in ('vehiculo', 'prestamo'));
+-- una venta siempre tiene vehículo; un préstamo nunca
+alter table public.contratos drop constraint if exists contratos_tipo_moto_check;
+alter table public.contratos add constraint contratos_tipo_moto_check check (
+  (tipo = 'vehiculo' and moto_id is not null) or (tipo = 'prestamo' and moto_id is null)
+);
+
 -- Fotos del vehículo: cada una ligada a su vehículo (un cliente puede tener varios).
 alter table public.documentos add column if not exists moto_id uuid references public.motos (id) on delete cascade;
 create index if not exists documentos_moto_idx on public.documentos (moto_id);
@@ -1363,6 +1375,7 @@ ultimo as (
 select
   co.id                                  as contrato_id,
   co.cliente_id,
+  co.tipo,                               -- 'vehiculo' o 'prestamo' (préstamo de dinero, sin placa)
   cl.nombres                             as cliente,
   cl.dni,
   m.placa,
@@ -1386,14 +1399,14 @@ select
   -- 4 semanas de deuda (la cuota impaga más antigua venció hace más de 21 días): hay que inmovilizar el vehículo.
   -- Se mide por fecha para que valga igual en contratos diarios, semanales, quincenales y mensuales;
   -- en los semanales coincide con el rojo (4 cuotas vencidas).
-  coalesce(r.vencida_desde < public.hoy_lima() - 21, false) as inmovilizar,
+  (co.tipo = 'vehiculo' and coalesce(r.vencida_desde < public.hoy_lima() - 21, false)) as inmovilizar,
   cl.celular2,
   -- contrato con varios vehículos: las placas de los demás ("EN TRÁMITE" si aún no sale)
   (select string_agg(coalesce(m2.placa, 'EN TRÁMITE'), ' · ' order by m2.creado_en)
      from public.motos m2 where m2.contrato_id = co.id and m2.id <> co.moto_id) as otras_placas
 from public.contratos co
 join public.clientes cl on cl.id = co.cliente_id
-join public.motos m on m.id = co.moto_id
+left join public.motos m on m.id = co.moto_id   -- un préstamo no tiene vehículo
 join public.empresas e on e.id = co.empresa_id
 left join resumen r on r.contrato_id = co.id
 left join ultimo u on u.contrato_id = co.id
@@ -1557,12 +1570,13 @@ as $$
     where upper(p_dni) ~ '^[A-Z0-9]{5,12}$' and cl.dni = upper(p_dni)
   ),
   contratos as (
-    select co.id, co.monto_cuota, co.frecuencia, co.creado_en, co.nro_cuotas, m.placa, m.placa_tramite,
+    select co.id, co.monto_cuota, co.frecuencia, co.creado_en, co.nro_cuotas,
+           case when co.tipo = 'prestamo' then 'PRÉSTAMO' else m.placa end as placa, m.placa_tramite,
            (select sum(cu.monto) from public.cuotas cu where cu.contrato_id = co.id) as total,
            (select sum(cu.monto_pagado) from public.cuotas cu where cu.contrato_id = co.id) as pagado
     from cliente c
     join public.contratos co on co.cliente_id = c.id and co.estado = 'activo'
-    join public.motos m on m.id = co.moto_id
+    left join public.motos m on m.id = co.moto_id   -- un préstamo no tiene vehículo
   )
   select jsonb_build_object(
     'nombre', (
@@ -1931,6 +1945,72 @@ grant execute on function public.correo_dueno() to service_role; -- la usa la re
 revoke all on function public.recalcular_contrato(uuid) from public, anon, authenticated;
 revoke all on function public.al_crear_usuario() from public, anon, authenticated;
 revoke all on function public.registrar_auditoria() from public, anon, authenticated;
+
+-- Crear un préstamo de dinero (sin vehículo). Solo el dueño/administrador. Genera el cronograma igual que una venta:
+-- por días y cuotas, con la misma frecuencia (diario, semanal, quincenal o mensual).
+create or replace function public.crear_prestamo(
+  p_cliente_id      uuid,
+  p_empresa_id      uuid,
+  p_monto_cuota     numeric,
+  p_nro_cuotas      integer,
+  p_fecha_inicio    date,
+  p_precio_total    numeric default null,
+  p_inicial         numeric default null,
+  p_capital         numeric default null,
+  p_interes_pct     numeric default null,
+  p_interes_mes     numeric default null,
+  p_gps_mes         numeric default null,
+  p_frecuencia      text    default 'semanal',
+  p_observaciones   text    default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.clientes where id = p_cliente_id) then
+    raise exception 'El cliente no existe.';
+  end if;
+  if not exists (select 1 from public.empresas where id = p_empresa_id) then
+    raise exception 'Elige la empresa.';
+  end if;
+  if p_monto_cuota is null or p_monto_cuota <= 0 then
+    raise exception 'La cuota debe ser mayor a 0.';
+  end if;
+  if coalesce(p_frecuencia, 'semanal') not in ('diario', 'semanal', 'quincenal', 'mensual') then
+    raise exception 'Frecuencia no válida.';
+  end if;
+  if p_nro_cuotas is null or p_nro_cuotas < 1 or p_nro_cuotas > 1000 then
+    raise exception 'El número de cuotas debe estar entre 1 y 1000.';
+  end if;
+  if p_fecha_inicio is null then
+    raise exception 'Elige la fecha de la primera cuota.';
+  end if;
+
+  insert into public.contratos (
+    cliente_id, moto_id, empresa_id, tipo, monto_cuota, nro_cuotas, fecha_inicio,
+    precio_total, inicial, observaciones, frecuencia,
+    capital, interes_pct, interes_mes, gps_mes
+  ) values (
+    p_cliente_id, null, p_empresa_id, 'prestamo', round(p_monto_cuota, 2), p_nro_cuotas, p_fecha_inicio,
+    p_precio_total, p_inicial, nullif(trim(p_observaciones), ''), coalesce(p_frecuencia, 'semanal'),
+    p_capital, p_interes_pct, p_interes_mes, p_gps_mes
+  )
+  returning id into v_id;
+
+  perform public.generar_cuotas(v_id);
+  perform public.recalcular_contrato(v_id);
+  return v_id;
+end;
+$$;
+revoke all on function public.crear_prestamo(uuid, uuid, numeric, integer, date, numeric, numeric, numeric, numeric, numeric, numeric, text, text) from public, anon;
+grant execute on function public.crear_prestamo(uuid, uuid, numeric, integer, date, numeric, numeric, numeric, numeric, numeric, numeric, text, text) to authenticated;
 
 revoke all on function public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text, text) from public, anon;
 revoke all on function public.registrar_pago(uuid, numeric, date, public.medio_pago, uuid, text, text, text) from public, anon;

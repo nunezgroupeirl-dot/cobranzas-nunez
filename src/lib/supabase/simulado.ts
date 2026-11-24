@@ -295,9 +295,10 @@ function estadoClientes(s: Estado): EstadoCliente[] {
       return {
         contrato_id: con.id,
         cliente_id: con.cliente_id,
+        tipo: con.tipo ?? "vehiculo",
         cliente: cli?.nombres ?? "—",
         dni: cli?.dni ?? "",
-        placa: moto?.placa ?? "",
+        placa: moto?.placa ?? null,
         otras_placas:
           s.motos
             .filter((m) => m.contrato_id === con.id && m.id !== con.moto_id)
@@ -317,7 +318,7 @@ function estadoClientes(s: Estado): EstadoCliente[] {
         ubicacion: cli?.ubicacion ?? null,
         tipo_doc: cli?.tipo_doc ?? null,
         vencida_desde: r.vencida_desde,
-        inmovilizar: !!r.vencida_desde && r.vencida_desde < sumarDias(hoy, -DIAS_INMOVILIZAR),
+        inmovilizar: (con.tipo ?? "vehiculo") === "vehiculo" && !!r.vencida_desde && r.vencida_desde < sumarDias(hoy, -DIAS_INMOVILIZAR),
       };
     });
 }
@@ -796,6 +797,40 @@ export function crearDatosSimulados(): Datos {
       s.contratos.push(contrato);
       s.cuotas.push(...generarCuotas(contrato).map((c) => ({ ...c, id: `${contrato.id}-c${c.numero}` })));
       if (!moto.cliente_id) moto.cliente_id = args.cliente_id;
+      guardar(s);
+      return contrato.id;
+    },
+    async crearPrestamo(args) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      if (!s.clientes.some((c) => c.id === args.cliente_id)) throw new ErrorDatos("CLIENTE", "El cliente no existe.");
+      if (!s.empresas.some((e) => e.id === args.empresa_id)) throw new ErrorDatos("EMPRESA", "Elige la empresa.");
+      if (!(args.monto_cuota > 0) || !(args.nro_cuotas > 0)) throw new ErrorDatos("DATOS", "Revisa la cuota y el número de cuotas.");
+      const contrato: Contrato = {
+        id: nuevoId(),
+        cliente_id: args.cliente_id,
+        moto_id: null as unknown as string, // un préstamo no tiene vehículo
+        tipo: "prestamo",
+        empresa_id: args.empresa_id,
+        monto_cuota: args.monto_cuota,
+        nro_cuotas: args.nro_cuotas,
+        fecha_inicio: args.fecha_inicio,
+        frecuencia: args.frecuencia ?? "semanal",
+        precio_total: args.precio_total ?? null,
+        inicial: args.inicial ?? null,
+        capital: args.capital ?? null,
+        interes_pct: args.interes_pct ?? null,
+        interes_mes: args.interes_mes ?? null,
+        gps_mes: args.gps_mes ?? null,
+        cuotas_pagadas_inicial: 0,
+        observaciones: args.observaciones ?? null,
+        estado: "activo",
+        cerrado_motivo: null,
+        creado_en: new Date().toISOString(),
+      };
+      s.contratos.push(contrato);
+      s.cuotas.push(...generarCuotas(contrato).map((c) => ({ ...c, id: `${contrato.id}-c${c.numero}` })));
       guardar(s);
       return contrato.id;
     },

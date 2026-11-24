@@ -43,12 +43,15 @@ export default function PaginaMorosos() {
     {
       clave: "placa",
       titulo: "Placa",
-      celda: (m) => (
-        <span className="flex flex-col items-start gap-1">
-          <Placa placa={m.placa} />
-          <OtrasPlacas placas={m.otras_placas} />
-        </span>
-      ),
+      celda: (m) =>
+        m.tipo === "prestamo" ? (
+          <span className="rounded-full bg-marca-suave px-2 py-0.5 text-xs font-bold whitespace-nowrap text-marca-oscura">PRÉSTAMO</span>
+        ) : (
+          <span className="flex flex-col items-start gap-1">
+            <Placa placa={m.placa} />
+            <OtrasPlacas placas={m.otras_placas} />
+          </span>
+        ),
       ocultarEnMovil: true,
     },
     {
@@ -182,7 +185,14 @@ export default function PaginaMorosos() {
           tituloMovil={(m) => (
             <span className="flex items-center justify-between gap-2">
               <span>
-                <Placa placa={m.placa} tamano="chico" /> <OtrasPlacas placas={m.otras_placas} /> · {m.cliente}
+                {m.tipo === "prestamo" ? (
+                  <span className="rounded-full bg-marca-suave px-2 py-0.5 text-xs font-bold text-marca-oscura">PRÉSTAMO</span>
+                ) : (
+                  <>
+                    <Placa placa={m.placa} tamano="chico" /> <OtrasPlacas placas={m.otras_placas} />
+                  </>
+                )}{" "}
+                · {m.cliente}
               </span>
               <span className="num text-rojo">{formatoSoles(m.deuda)}</span>
             </span>

@@ -114,6 +114,8 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
   const filas: FilaPendiente[] = [];
   for (const e of estados) {
     const contrato = contratoPorId.get(e.contrato_id);
+    // un préstamo de dinero no tiene vehículo ni contrato en papel: no aplica a datos pendientes
+    if ((contrato?.tipo ?? e.tipo) === "prestamo") continue;
     const cliente = clientePorId.get(e.cliente_id);
     const moto = contrato ? (motoPorId.get(contrato.moto_id) ?? null) : null;
     const tiene = fotos.get(e.cliente_id);
