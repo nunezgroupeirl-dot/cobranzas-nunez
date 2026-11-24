@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
-import { AreaTexto, Aviso, Boton, Campo, NOMBRE_DOCUMENTO, Selector, DOCUMENTOS, TIPOS_DOC, Tarjeta, esDocumentoValido, limpiarDocumento, mensajeDeError } from "@/components/ui";
+import { AreaTexto, Aviso, Boton, BotonEnlace, Campo, NOMBRE_DOCUMENTO, Selector, DOCUMENTOS, TIPOS_DOC, Tarjeta, esDocumentoValido, limpiarDocumento, mensajeDeError } from "@/components/ui";
 import { borrarFoto, prepararFotoPago, sha256, subirDocumento } from "@/lib/fotos";
 import { fechaCuota } from "@/lib/supabase/reglas";
 import { borrarBorrador, guardarArchivosBorrador, guardarBorrador, leerArchivosBorrador, leerBorrador } from "@/lib/borrador";
@@ -382,6 +382,7 @@ export function FormCliente({ cliente, actuales }: { cliente?: Cliente; actuales
         vehiculos={vehiculos}
         empresas={opcionesEmpresa}
         empresaCliente={f.empresa_id}
+        hrefPrestamo={cliente ? `/prestamos/nuevo?cliente=${cliente.id}` : "/prestamos/nuevo"}
         fotosDe={(x) => {
           const prefijo = `${x.clave}|`;
           const motoId = x.actual?.moto?.id;
@@ -517,6 +518,7 @@ function ListaVehiculos({
   vehiculos,
   empresas,
   empresaCliente,
+  hrefPrestamo,
   fotosDe,
   comprobantesDe,
   alQuitar,
@@ -524,6 +526,8 @@ function ListaVehiculos({
   vehiculos: ReturnType<typeof useVehiculos>;
   empresas: { valor: string; texto: string }[];
   empresaCliente: string;
+  /** a dónde va "+ Registrar un préstamo" (apartado de préstamo, con el cliente ya puesto) */
+  hrefPrestamo: string;
   fotosDe: (x: ItemVehiculo) => ReactNode;
   comprobantesDe: (x: ItemVehiculo) => ReactNode;
   alQuitar: (clave: string) => void;
@@ -547,11 +551,16 @@ function ListaVehiculos({
           alCambiar={(cambio) => vehiculos.cambiar(x.clave, cambio)}
         />
       ))}
-      {vehiculos.alguno && (
-        <Boton variante="secundario" className="self-start" onClick={vehiculos.agregar}>
-          + Registrar otro vehículo
-        </Boton>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {vehiculos.alguno && (
+          <Boton variante="secundario" onClick={vehiculos.agregar}>
+            + Registrar otro vehículo
+          </Boton>
+        )}
+        <BotonEnlace href={hrefPrestamo} variante="secundario">
+          + Registrar un préstamo
+        </BotonEnlace>
+      </div>
     </>
   );
 }
