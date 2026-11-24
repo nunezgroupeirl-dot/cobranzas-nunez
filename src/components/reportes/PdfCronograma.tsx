@@ -10,6 +10,8 @@ interface Props {
   tipoDoc?: TipoDoc | null;
   placa: string | null;
   empresa: string;
+  /** préstamo de dinero: no hay vehículo, el PDF dice "Tipo: Préstamo de dinero" en vez de la placa */
+  prestamo?: boolean;
   contrato: Pick<Contrato, "monto_cuota" | "nro_cuotas" | "fecha_inicio" | "frecuencia"> & { empresa_id?: string };
   cuotas: Pick<Cuota, "numero" | "fecha_vencimiento" | "monto" | "monto_pagado" | "fecha_pago" | "estado">[];
 }
@@ -29,7 +31,7 @@ interface Cabecera {
   ruc: string | null;
 }
 
-export function htmlCronograma({ cliente, dni, tipoDoc, placa, empresa, contrato, cuotas }: Props, { logo, ruc }: Cabecera): string {
+export function htmlCronograma({ cliente, dni, tipoDoc, placa, empresa, prestamo, contrato, cuotas }: Props, { logo, ruc }: Cabecera): string {
   const pagado = cuotas.reduce((s, c) => s + c.monto_pagado, 0);
   const total = cuotas.reduce((s, c) => s + c.monto, 0);
   const vencido = cuotas.filter((c) => c.estado === "vencida").reduce((s, c) => s + c.monto - c.monto_pagado, 0);
@@ -41,7 +43,7 @@ export function htmlCronograma({ cliente, dni, tipoDoc, placa, empresa, contrato
         <td>${NOMBRE_ESTADO_CUOTA[c.estado]}</td></tr>`,
     )
     .join("");
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cronograma ${esc(placa ?? "sin placa")} - ${esc(cliente)}</title>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cronograma ${esc(prestamo ? "préstamo" : (placa ?? "sin placa"))} - ${esc(cliente)}</title>
 <style>
 @page{size:A4;margin:14mm}
 body{font-family:Segoe UI,system-ui,sans-serif;color:#1d2a2f;font-size:11pt;margin:0}
@@ -64,7 +66,7 @@ ${ruc ? `<div class="t" style="letter-spacing:.05em">RUC ${esc(ruc)}</div>` : ""
 <div style="text-align:right"><h1>Cronograma de pagos</h1><div class="t">Emitido el ${formatoFecha(hoyLima())}</div></div></header>
 <section class="datos">
 <div><span>Cliente</span><b>${esc(cliente)}</b></div><div><span>${nombreDocumento(dni, tipoDoc)}</span><b>${esc(dni ?? "Falta")}</b></div>
-<div><span>Placa</span><b>${esc(placa ?? "Sin placa")}</b></div><div><span>${nombreCuota(contrato.frecuencia)}</span><b>${formatoSoles(contrato.monto_cuota)}</b></div>
+<div><span>${prestamo ? "Tipo" : "Placa"}</span><b>${esc(prestamo ? "Préstamo de dinero" : (placa ?? "Sin placa"))}</b></div><div><span>${nombreCuota(contrato.frecuencia)}</span><b>${formatoSoles(contrato.monto_cuota)}</b></div>
 <div><span>N.º de cuotas</span><b>${contrato.nro_cuotas}</b></div><div><span>Total del contrato</span><b>${formatoSoles(total)}</b></div>
 <div><span>Pagado</span><b>${formatoSoles(pagado)}</b></div><div><span>Deuda vencida</span><b style="color:#c0362c">${formatoSoles(vencido)}</b></div>
 </section>
