@@ -4,6 +4,8 @@ import type { Cliente, Contrato, Frecuencia, MedioPago, Moto } from "@/types/dat
 
 /** Moto y cronograma de un cliente nuevo (todo como texto, tal como se escribe en el formulario). */
 export interface Venta {
+  /** préstamo de dinero (sin vehículo): se cobra por días y cuotas igual que una venta */
+  es_prestamo: boolean;
   /** empresa del vehículo (y de su contrato); "" = la del cliente */
   empresa_id: string;
   tipo: string;
@@ -139,6 +141,7 @@ export function problemaComprobantes(v: Venta, pagadasAntes: number, conFoto: (i
 }
 
 export const ventaVacia = (hoy: string): Venta => ({
+  es_prestamo: false,
   empresa_id: "",
   tipo: "Mototaxi",
   placa: "",
@@ -162,6 +165,9 @@ export const ventaVacia = (hoy: string): Venta => ({
   extras: [],
 });
 
+/** Una ficha de préstamo nueva para el formulario (sin vehículo, con capital e interés encendido). */
+export const ventaPrestamoVacia = (hoy: string): Venta => ({ ...ventaVacia(hoy), es_prestamo: true, usar_capital: true, gps: "" });
+
 /** Errores por campo (vacío = todo bien). */
 export function validarVenta(
   v: Venta,
@@ -170,7 +176,9 @@ export function validarVenta(
   fotoRepetida: (id: string) => number | null = () => null,
 ): Record<string, string> {
   const e: Record<string, string> = {};
-  if (v.varios) {
+  // un préstamo no tiene vehículo: se validan solo la cuota, el número de cuotas, la fecha y el capital/interés
+  if (!v.es_prestamo) {
+    if (v.varios) {
     if (!v.extras.length) e.extras = "Agrega los otros vehículos de este contrato (o quita la opción de varios vehículos).";
     else
       for (const [i, x] of v.extras.entries()) {
@@ -187,8 +195,9 @@ export function validarVenta(
   // obligatorio: o la placa o "Placa en trámite" marcado
   if (!v.tramite && !v.placa.trim()) e.placa = "Escribe la placa o marca «Placa en trámite».";
   else if (!v.tramite && !/^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/i.test(v.placa.trim())) e.placa = "Escribe la placa (ej.: 1234-AB).";
-  // con placa en trámite el vehículo puede no estar entregado: marca y color quedan para después (salen en Datos pendientes)
-  if (!v.tramite && !v.marca.trim()) e.marca = "Escribe la marca.";
+    // con placa en trámite el vehículo puede no estar entregado: marca y color quedan para después (salen en Datos pendientes)
+    if (!v.tramite && !v.marca.trim()) e.marca = "Escribe la marca.";
+  }
   const nro = Number(v.nro_cuotas);
   if (!(Number(v.cuota) > 0)) e.cuota = "Escribe la cuota.";
   if (!Number.isInteger(nro) || nro < 1 || nro > 1000) e.nro_cuotas = "Entre 1 y 1000 cuotas.";
@@ -383,6 +392,26 @@ export async function guardarExtras(datos: Datos, cliente: Cliente, v: Venta, co
 /** Registra la moto y crea el cronograma (contrato sin llenar). Devuelve el id del contrato. */
 export async function guardarVenta(datos: Datos, cliente: Cliente, v: Venta, hechos: Hechos): Promise<string> {
   const opcional = (x: string) => (x.trim() ? Number(x) : null);
+  // préstamo de dinero: sin vehículo, se crea el contrato directo
+  if (v.es_prestamo) {
+    const usa = v.usar_capital && v.capital.trim() !== "";
+    const enPct = usa && interesEnPorcentaje(v.capital);
+    hechos.contratoId ??= await datos.crearPrestamo({
+      cliente_id: cliente.id,
+      empresa_id: v.empresa_id || cliente.empresa_id,
+      monto_cuota: Number(v.cuota),
+      nro_cuotas: Number(v.nro_cuotas),
+      fecha_inicio: v.fecha_inicio,
+      frecuencia: v.frecuencia,
+      precio_total: opcional(v.precio),
+      inicial: opcional(v.inicial),
+      capital: usa ? Number(v.capital) : null,
+      interes_pct: usa && enPct && v.interes.trim() ? Number(v.interes) : null,
+      interes_mes: usa && !enPct && v.interes.trim() ? Number(v.interes) : null,
+      gps_mes: usa && v.gps.trim() ? Number(v.gps) : null,
+    });
+    return hechos.contratoId;
+  }
   hechos.moto ??= await datos.guardarMoto({
     cliente_id: cliente.id,
     empresa_id: v.empresa_id || cliente.empresa_id,
@@ -441,6 +470,7 @@ export function ventaDe(hoy: string, { moto, contrato, extras = [] }: VentaActua
   const base = ventaVacia(hoy);
   return {
     ...base,
+    es_prestamo: (contrato?.tipo ?? "vehiculo") === "prestamo",
     ...(moto
       ? {
           empresa_id: moto.empresa_id,

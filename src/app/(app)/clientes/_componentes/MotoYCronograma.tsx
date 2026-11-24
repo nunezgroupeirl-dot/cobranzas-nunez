@@ -47,21 +47,37 @@ interface Props {
  * Sirve al crear y al editar; el contrato en papel se llena aparte.
  */
 export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, titulo, alQuitar, empresas, empresaCliente, fotos, comprobantes }: Props) {
+  const esP = v.es_prestamo;
   const visible = activa !== false;
   const id = titulo.replace(/\W+/g, "-").toLowerCase();
+  const tituloM = esP ? titulo.replace("Vehículo", "Préstamo") : titulo;
   return (
     <>
       <Tarjeta
-        titulo={titulo}
+        titulo={tituloM}
         accion={
           alQuitar && (
             <button type="button" onClick={alQuitar} className="text-sm font-semibold text-rojo">
-              Quitar este vehículo
+              {esP ? "Quitar este préstamo" : "Quitar este vehículo"}
             </button>
           )
         }
       >
-        {activa !== null && (
+        {/* nuevo registro: elegir si es vehículo o préstamo de dinero (un préstamo no tiene vehículo) */}
+        {!conContrato && (
+          <div className="mb-4">
+            <OpcionesBoton
+              etiqueta="¿Qué registras?"
+              opciones={[
+                { valor: "vehiculo", texto: "Vehículo" },
+                { valor: "prestamo", texto: "Préstamo de dinero" },
+              ]}
+              valor={esP ? "prestamo" : "vehiculo"}
+              alCambiar={(t) => alCambiar(t === "prestamo" ? { es_prestamo: true, usar_capital: true, gps: "" } : { es_prestamo: false })}
+            />
+          </div>
+        )}
+        {activa !== null && !esP && (
           <label className="mb-4 flex min-h-11 cursor-pointer items-center gap-2 font-semibold">
             <input type="checkbox" checked={activa} onChange={(e) => alActivar(e.target.checked)} className="size-5 shrink-0 accent-marca" />
             Registrar ya su vehículo y su cronograma de pagos (aunque todavía no tenga el contrato firmado)
@@ -70,7 +86,7 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
         {visible ? (
           <div className="flex flex-col gap-4">
             <Selector
-              etiqueta="Empresa del vehículo"
+              etiqueta={esP ? "Empresa del préstamo" : "Empresa del vehículo"}
               opciones={empresas}
               value={v.empresa_id || empresaCliente}
               onChange={(e) => alCambiar({ empresa_id: e.target.value })}
@@ -82,25 +98,31 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
               className="sm:max-w-md"
               obligatorio
             />
-            <OpcionesBoton etiqueta="Tipo" opciones={TIPOS_MOTO.map((t) => ({ valor: t, texto: t }))} valor={v.tipo} alCambiar={(t) => alCambiar({ tipo: t })} obligatorio />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <CampoPlaca
-                placa={v.placa}
-                tramite={v.tramite}
-                error={errores.placa}
-                alCambiarPlaca={(placa) => alCambiar({ placa })}
-                alCambiarTramite={(tramite) => alCambiar({ tramite })}
-              />
-              <Campo etiqueta="Marca" value={v.marca} onChange={(e) => alCambiar({ marca: e.target.value })} error={errores.marca} obligatorio={!v.tramite} list={`marcas-${id}`} />
-              <Campo etiqueta="Color" value={v.color} onChange={(e) => alCambiar({ color: e.target.value })} />
-              <datalist id={`marcas-${id}`}>
-                {MARCAS.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
-            </div>
-            <VehiculosExtra v={v} alCambiar={alCambiar} error={errores.extras} />
-            {fotos}
+            {esP ? (
+              <p className="text-sm text-tenue">Préstamo de dinero: sin vehículo. Abajo va el monto, el interés y las cuotas.</p>
+            ) : (
+              <>
+                <OpcionesBoton etiqueta="Tipo" opciones={TIPOS_MOTO.map((t) => ({ valor: t, texto: t }))} valor={v.tipo} alCambiar={(t) => alCambiar({ tipo: t })} obligatorio />
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <CampoPlaca
+                    placa={v.placa}
+                    tramite={v.tramite}
+                    error={errores.placa}
+                    alCambiarPlaca={(placa) => alCambiar({ placa })}
+                    alCambiarTramite={(tramite) => alCambiar({ tramite })}
+                  />
+                  <Campo etiqueta="Marca" value={v.marca} onChange={(e) => alCambiar({ marca: e.target.value })} error={errores.marca} obligatorio={!v.tramite} list={`marcas-${id}`} />
+                  <Campo etiqueta="Color" value={v.color} onChange={(e) => alCambiar({ color: e.target.value })} />
+                  <datalist id={`marcas-${id}`}>
+                    {MARCAS.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
+                </div>
+                <VehiculosExtra v={v} alCambiar={alCambiar} error={errores.extras} />
+                {fotos}
+              </>
+            )}
           </div>
         ) : (
           <p className="text-sm text-tenue">Sin vehículo ni cronograma por ahora: podrás registrarlos después.</p>
@@ -108,12 +130,14 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
       </Tarjeta>
 
       {visible && (
-        <Tarjeta titulo={`Cronograma de pagos${titulo === "Vehículo" ? "" : ` · ${titulo}`}`}>
+        <Tarjeta titulo={`Cronograma de pagos${tituloM === "Vehículo" || tituloM === "Préstamo" ? "" : ` · ${tituloM}`}`}>
           <CamposCronograma v={v} errores={errores} alCambiar={alCambiar} comprobantes={comprobantes} />
           <p className="mt-4 text-sm text-tenue">
             {conContrato
               ? "Si cambias la cuota, el número de cuotas, la fecha o la frecuencia, el cronograma se vuelve a armar y los pagos ya registrados se aplican de nuevo."
-              : "El contrato en papel se llena después: el cliente saldrá en Datos pendientes → Contratos hasta que lo llenes, lo imprimas y subas el firmado."}
+              : esP
+                ? "El préstamo se cobra por cuotas; no necesita contrato en papel."
+                : "El contrato en papel se llena después: el cliente saldrá en Datos pendientes → Contratos hasta que lo llenes, lo imprimas y subas el firmado."}
           </p>
         </Tarjeta>
       )}
@@ -122,6 +146,7 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
 }
 
 function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "v" | "errores" | "alCambiar" | "comprobantes">) {
+  const esP = v.es_prestamo;
   const cuota = Number(v.cuota);
   const nro = Number(v.nro_cuotas);
   const plural = FRECUENCIAS.find((f) => f.valor === v.frecuencia)?.plural ?? "";
@@ -345,28 +370,32 @@ function CamposCronograma({ v, errores, alCambiar, comprobantes }: Pick<Props, "
             ayuda={calculo ? "Capital + interés (+ GPS). Si lo cambias, la cuota se recalcula." : "Se llena solo: cuota × n.º de cuotas. Si lo cambias, la cuota se recalcula."}
             className="num"
           />
-          <Campo
-            etiqueta="Fecha de entrega del vehículo"
-            type="date"
-            value={v.fecha_entrega}
-            onChange={(e) => alCambiar({ fecha_entrega: e.target.value })}
-            ayuda="El día que se le entrega el vehículo."
-          />
+          {!esP && (
+            <Campo
+              etiqueta="Fecha de entrega del vehículo"
+              type="date"
+              value={v.fecha_entrega}
+              onChange={(e) => alCambiar({ fecha_entrega: e.target.value })}
+              ayuda="El día que se le entrega el vehículo."
+            />
+          )}
         </div>
         <Campo etiqueta="Inicial (S/)" type="number" inputMode="decimal" min="0" value={v.inicial} onChange={(e) => alCambiar({ inicial: e.target.value })} ayuda="Opcional" className="num" />
-        <Campo
-          etiqueta="Cuotas que ya pagó"
-          type="number"
-          inputMode="numeric"
-          min="0"
-          value={v.pagadas}
-          onChange={(e) => alCambiar({ pagadas: e.target.value })}
-          error={errores.pagadas}
-          ayuda="Si ya venía pagando: abajo se sube el comprobante de esas cuotas (obligatorio)."
-          className="num"
-        />
+        {!esP && (
+          <Campo
+            etiqueta="Cuotas que ya pagó"
+            type="number"
+            inputMode="numeric"
+            min="0"
+            value={v.pagadas}
+            onChange={(e) => alCambiar({ pagadas: e.target.value })}
+            error={errores.pagadas}
+            ayuda="Si ya venía pagando: abajo se sube el comprobante de esas cuotas (obligatorio)."
+            className="num"
+          />
+        )}
       </div>
-      {comprobantes}
+      {!esP && comprobantes}
       {cuota > 0 && nro > 0 && v.fecha_inicio && (
         <p className="rounded-xl bg-marca-suave px-3 py-2 text-sm font-medium">
           {nro} cuotas {plural} de <b className="num">{formatoSoles(cuota)}</b>: del {fechaLarga(v.fecha_inicio)} al{" "}

@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { hoyLima } from "@/components/ui";
 import type { Datos } from "@/lib/supabase/datos";
 import type { Cliente } from "@/types/database";
-import { guardarEdicion, guardarExtras, guardarVenta, validarVenta, ventaDe, ventaVacia, type Hechos, type Venta, type VentaActual } from "./venta";
+import { guardarEdicion, guardarExtras, guardarVenta, validarVenta, ventaDe, ventaPrestamoVacia, ventaVacia, type Hechos, type Venta, type VentaActual } from "./venta";
 
 /** Un vehículo del formulario: uno que el cliente ya tiene (actual) o uno nuevo. */
 export interface ItemVehiculo {
@@ -39,6 +39,7 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
     );
   const activar = (clave: string, activo: boolean) => setItems((xs) => xs.map((x) => (x.clave === clave ? { ...x, activo } : x)));
   const agregar = () => setItems((xs) => [...xs, { clave: claveNueva(), v: ventaVacia(hoyLima()), actual: null, activo: true, errores: {} }]);
+  const agregarPrestamo = () => setItems((xs) => [...xs, { clave: claveNueva(), v: ventaPrestamoVacia(hoyLima()), actual: null, activo: true, errores: {} }]);
   const quitar = (clave: string) => setItems((xs) => xs.filter((x) => x.clave !== clave || x.actual));
 
   /** Revisa los vehículos activos; marca los errores de cada uno. */
@@ -92,5 +93,5 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
   const seguirEmpresa = (antes: string, despues: string) =>
     setItems((xs) => xs.map((x) => (!x.v.empresa_id || x.v.empresa_id === antes ? { ...x, v: { ...x.v, empresa_id: despues } } : x)));
 
-  return { items, cambiar, activar, agregar, quitar, validar, guardarTodos, restaurar, motoDe, contratoDe, seguirEmpresa, alguno: items.some((x) => x.activo) };
+  return { items, cambiar, activar, agregar, agregarPrestamo, quitar, validar, guardarTodos, restaurar, motoDe, contratoDe, seguirEmpresa, alguno: items.some((x) => x.activo) };
 }
