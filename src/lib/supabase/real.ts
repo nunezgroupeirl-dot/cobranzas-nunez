@@ -334,6 +334,9 @@ export function crearDatosReales(): Datos {
         ).error,
       );
     },
+    async convertirAPrestamo(id) {
+      lanzar((await sb.rpc("convertir_a_prestamo", { p_contrato_id: id })).error);
+    },
 
     async contratos() {
       const filas = await todas<Contrato>((a, b) => sb.from("contratos").select("*").order("creado_en", { ascending: false }).range(a, b));

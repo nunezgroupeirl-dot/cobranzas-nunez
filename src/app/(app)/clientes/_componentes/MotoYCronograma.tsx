@@ -36,6 +36,8 @@ interface Props {
   /** empresas para elegir la de este vehículo; si no se elige, va la del cliente */
   empresas: { valor: string; texto: string }[];
   empresaCliente: string;
+  /** lo que ya está guardado es un préstamo (al editar); si es un vehículo guardado, se puede corregir a préstamo */
+  guardadoPrestamo?: boolean;
   /** las fotos de este vehículo (4 lados y tarjeta de propiedad) */
   fotos?: ReactNode;
   /** comprobantes de las cuotas que ya venía pagando (van justo debajo de "cuotas pagadas") */
@@ -46,11 +48,13 @@ interface Props {
  * La moto (placa) y el cronograma de pagos del cliente, en dos tarjetas.
  * Sirve al crear y al editar; el contrato en papel se llena aparte.
  */
-export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, titulo, alQuitar, empresas, empresaCliente, fotos, comprobantes }: Props) {
+export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conContrato, titulo, alQuitar, empresas, empresaCliente, guardadoPrestamo, fotos, comprobantes }: Props) {
   const esP = v.es_prestamo;
   const visible = activa !== false;
   const id = titulo.replace(/\W+/g, "-").toLowerCase();
   const tituloM = esP ? titulo.replace("Vehículo", "Préstamo") : titulo;
+  // se muestra el selector al registrar algo nuevo y también al editar un vehículo (por si fue un error y era préstamo)
+  const puedeElegirTipo = !conContrato || !guardadoPrestamo;
   return (
     <>
       <Tarjeta
@@ -63,8 +67,8 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
           )
         }
       >
-        {/* nuevo registro: elegir si es vehículo o préstamo de dinero (un préstamo no tiene vehículo) */}
-        {!conContrato && (
+        {/* elegir si es vehículo o préstamo de dinero (un préstamo no tiene vehículo). Al editar un vehículo, permite corregirlo a préstamo */}
+        {puedeElegirTipo && (
           <div className="mb-4">
             <OpcionesBoton
               etiqueta="¿Qué registras?"
@@ -75,6 +79,9 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
               valor={esP ? "prestamo" : "vehiculo"}
               alCambiar={(t) => alCambiar(t === "prestamo" ? { es_prestamo: true, usar_capital: true, gps: "" } : { es_prestamo: false })}
             />
+            {conContrato && esP && (
+              <p className="mt-2 text-sm text-rojo">Al guardar, este vehículo se archiva y el contrato queda como préstamo. Las cuotas y los pagos se conservan.</p>
+            )}
           </div>
         )}
         {activa !== null && !esP && (

@@ -66,7 +66,7 @@ export function useVehiculos(nuevo: boolean, actuales: VentaActual[] = []) {
       }
       // contrato con varios vehículos: los demás, ligados a ese contrato
       const contratoId = h.contratoId ?? x.actual?.contrato?.id;
-      if (contratoId && (x.v.varios || x.actual?.extras?.length))
+      if (contratoId && !x.v.es_prestamo && (x.v.varios || x.actual?.extras?.length))
         // react-doctor-disable-next-line async-await-in-loop
         await guardarExtras(datos, cliente, x.v, contratoId, x.v.empresa_id || cliente.empresa_id, x.actual?.extras ?? [], h);
     }

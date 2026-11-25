@@ -1078,6 +1078,44 @@ begin
 end;
 $$;
 
+-- Convertir un contrato de vehículo a préstamo (cuando se registró por error como vehículo).
+-- Archiva la(s) moto(s) ligadas y deja el contrato como préstamo, sin vehículo. Conserva cuotas y pagos.
+create or replace function public.convertir_a_prestamo(p_contrato_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_c public.contratos;
+begin
+  if not public.es_admin() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  select * into v_c from public.contratos where id = p_contrato_id for update;
+  if not found then
+    raise exception 'El contrato no existe.';
+  end if;
+  if v_c.estado = 'anulado' then
+    raise exception 'El contrato está cerrado: no se puede editar.';
+  end if;
+  if v_c.tipo = 'prestamo' then
+    return;  -- ya es un préstamo
+  end if;
+  -- archivar la moto principal y las adicionales de este contrato
+  update public.motos
+  set archivado = true,
+      archivado_en = now(),
+      archivado_motivo = coalesce(archivado_motivo, 'Contrato convertido a préstamo'),
+      contrato_id = null
+  where id = v_c.moto_id or contrato_id = p_contrato_id;
+  -- el contrato pasa a préstamo (tipo y moto_id juntos, por la restricción contratos_tipo_moto_check)
+  update public.contratos
+  set tipo = 'prestamo', moto_id = null
+  where id = p_contrato_id;
+end;
+$$;
+
 -- Eliminar un contrato con sus cuotas y pagos. Devuelve las fotos de pago a borrar del almacenamiento.
 create or replace function public.eliminar_contrato(p_contrato_id uuid)
 returns text[]
@@ -2057,6 +2095,8 @@ grant execute on function public.importar_cliente(jsonb) to authenticated;
 revoke all on function public.generar_cuotas(uuid) from public, anon, authenticated;
 revoke all on function public.editar_contrato(uuid, numeric, integer, date, numeric, numeric, integer, text, text) from public, anon;
 revoke all on function public.eliminar_contrato(uuid) from public, anon;
+revoke all on function public.convertir_a_prestamo(uuid) from public, anon;
+grant execute on function public.convertir_a_prestamo(uuid) to authenticated;
 revoke all on function public.guardar_documento_contrato(uuid, jsonb) from public, anon;
 grant execute on function public.guardar_documento_contrato(uuid, jsonb) to authenticated;
 revoke all on function public.eliminar_cliente(uuid) from public, anon;

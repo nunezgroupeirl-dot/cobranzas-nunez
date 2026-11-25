@@ -349,6 +349,8 @@ export interface Hechos {
   contratoId?: string;
   /** vehículos adicionales ya guardados (clave del formulario → id), para no repetirlos al reintentar */
   extras?: Record<string, string>;
+  /** ya se convirtió este contrato de vehículo a préstamo (para no repetirlo al reintentar) */
+  convertido?: boolean;
 }
 
 /**
@@ -505,7 +507,13 @@ export function ventaDe(hoy: string, { moto, contrato, extras = [] }: VentaActua
 /** Al editar: actualiza la moto y el cronograma solo si cambiaron; si aún no tenía, los crea. */
 export async function guardarEdicion(datos: Datos, cliente: Cliente, v: Venta, actual: VentaActual, hechos: Hechos): Promise<void> {
   const { moto, contrato } = actual;
-  if (moto && !hechos.moto) {
+  // se registró por error como vehículo y ahora se corrige a préstamo: archiva la moto y deja el contrato como préstamo
+  const convertirAPrestamo = !!contrato && (contrato.tipo ?? "vehiculo") !== "prestamo" && v.es_prestamo;
+  if (convertirAPrestamo && !hechos.convertido) {
+    await datos.convertirAPrestamo(contrato!.id);
+    hechos.convertido = true;
+  }
+  if (moto && !hechos.moto && !convertirAPrestamo) {
     const placa = v.tramite ? null : v.placa.trim().toUpperCase() || null;
     const empresa = v.empresa_id || cliente.empresa_id;
     const cambio =

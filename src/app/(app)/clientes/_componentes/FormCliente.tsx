@@ -547,6 +547,7 @@ function ListaVehiculos({
           v={x.v}
           errores={x.errores}
           conContrato={!!x.actual?.contrato}
+          guardadoPrestamo={(x.actual?.contrato?.tipo ?? "vehiculo") === "prestamo"}
           alCambiar={(cambio) => vehiculos.cambiar(x.clave, cambio)}
         />
       ))}

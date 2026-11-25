@@ -119,6 +119,8 @@ export interface Datos {
   eliminarContrato(id: string): Promise<void>;
   /** Cambia cuota, n.º de cuotas o fecha: rehace el cronograma y reaplica los pagos (solo el dueño). */
   editarContrato(id: string, c: EditarContratoArgs): Promise<void>;
+  /** Convierte un contrato de vehículo a préstamo (si se registró por error como vehículo): archiva la moto y conserva cuotas y pagos. */
+  convertirAPrestamo(id: string): Promise<void>;
   /** Capital, interés (% anual desde S/ 12 001 o soles por mes hasta S/ 12 000), GPS por mes y fecha de entrega. Solo administradores. */
   guardarCapital(id: string, c: CapitalContrato): Promise<void>;
   contratos(): Promise<Contrato[]>;

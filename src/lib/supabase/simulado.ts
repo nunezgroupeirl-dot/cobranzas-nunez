@@ -709,6 +709,18 @@ export function crearDatosSimulados(): Datos {
       actualizarEstadoContrato(s, id);
       guardar(s);
     },
+    async convertirAPrestamo(id) {
+      await pausa();
+      const s = leer();
+      exigirAdmin(s);
+      const con = s.contratos.find((x) => x.id === id);
+      if (!con) throw new ErrorDatos("NO_EXISTE", "El contrato no existe.");
+      if (con.estado === "anulado") throw new ErrorDatos("CERRADO", "El contrato está cerrado: no se puede editar.");
+      if ((con.tipo ?? "vehiculo") === "prestamo") return;
+      for (const m of s.motos) if (m.id === con.moto_id || m.contrato_id === id) Object.assign(m, { archivado: true, contrato_id: null });
+      Object.assign(con, { tipo: "prestamo", moto_id: null as unknown as string });
+      guardar(s);
+    },
 
     async contratos() {
       return leer().contratos;
