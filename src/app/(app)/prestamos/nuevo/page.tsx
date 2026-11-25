@@ -1,5 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { useEmpresa } from "@/components/layout/empresa";
@@ -37,6 +37,8 @@ function FormPrestamo() {
   const { datos, empresas } = useSesion();
   const empresaFiltro = useEmpresa();
   const router = useRouter();
+  // si se llega desde la ficha de un cliente (?cliente=<id>), queda elegido
+  const clienteParam = useSearchParams().get("cliente") ?? "";
 
   const [modo, setModo] = useState<"existente" | "nuevo">("existente");
   // cliente existente elegido
@@ -57,12 +59,23 @@ function FormPrestamo() {
   const [empresaId, setEmpresaId] = useState(empresaInicial);
   const [v, setV] = useState<Prestamo>(() => ({ ...prestamoVacio(sumarDias(new Date().toISOString().slice(0, 10), 7)) }));
   const cambiarV = (cambio: Partial<Prestamo>) => setV((x) => ({ ...x, ...cambio }));
+  // si se llega desde la ficha de un cliente, queda elegido y su empresa por defecto
+  useEffect(() => {
+    if (!clienteParam) return;
+    datos
+      .cliente(clienteParam)
+      .then((c) => {
+        if (!c) return;
+        setModo("existente");
+        setCliente(c);
+        setEmpresaId((e) => e || c.empresa_id);
+      })
+      .catch(() => undefined);
+  }, [clienteParam, datos]);
 
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
-
-  const opcionesEmpresa = useMemo(() => empresas.map((e) => ({ valor: e.id, texto: e.nombre })), [empresas]);
 
   const validar = () => {
     const e: Record<string, string> = {};
@@ -204,17 +217,10 @@ function FormPrestamo() {
       </Tarjeta>
 
       <Tarjeta titulo="Préstamo">
-        <Selector
-          etiqueta="Empresa del préstamo"
-          opciones={opcionesEmpresa}
-          value={empresaId}
-          onChange={(e) => setEmpresaId(e.target.value)}
-          error={errores.empresa}
-          ayuda="A qué empresa entra este préstamo."
-          className="mb-4 sm:max-w-md"
-          obligatorio
-          vacio="Elige…"
-        />
+        <div className="mb-4 rounded-lg border border-borde bg-suave px-4 py-3 sm:max-w-md">
+          <p className="font-semibold text-marca">Préstamos personales</p>
+          <p className="text-sm text-tenue">Préstamo de dinero en efectivo, sin vehículo.</p>
+        </div>
         <CamposPrestamo v={v} errores={errores} alCambiar={cambiarV} />
       </Tarjeta>
 

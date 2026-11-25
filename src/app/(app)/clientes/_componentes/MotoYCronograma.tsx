@@ -85,22 +85,27 @@ export function MotoYCronograma({ activa, alActivar, v, errores, alCambiar, conC
         )}
         {visible ? (
           <div className="flex flex-col gap-4">
-            <Selector
-              etiqueta={esP ? "Empresa del préstamo" : "Empresa del vehículo"}
-              opciones={empresas}
-              value={v.empresa_id || empresaCliente}
-              onChange={(e) => alCambiar({ empresa_id: e.target.value })}
-              ayuda={
-                conContrato
-                  ? "Su contrato y sus pagos van a esta empresa. Si ya tiene pagos registrados, no se puede cambiar."
-                  : "Su contrato y sus pagos van a esta empresa (por defecto, la del cliente)."
-              }
-              className="sm:max-w-md"
-              obligatorio
-            />
             {esP ? (
-              <p className="text-sm text-tenue">Préstamo de dinero: sin vehículo. Abajo va el monto, el interés y las cuotas.</p>
+              <div className="rounded-lg border border-borde bg-suave px-4 py-3 sm:max-w-md">
+                <p className="font-semibold text-marca">Préstamos personales</p>
+                <p className="text-sm text-tenue">Préstamo de dinero: sin vehículo. Abajo va el monto, el interés y las cuotas.</p>
+              </div>
             ) : (
+              <Selector
+                etiqueta="Empresa del vehículo"
+                opciones={empresas}
+                value={v.empresa_id || empresaCliente}
+                onChange={(e) => alCambiar({ empresa_id: e.target.value })}
+                ayuda={
+                  conContrato
+                    ? "Su contrato y sus pagos van a esta empresa. Si ya tiene pagos registrados, no se puede cambiar."
+                    : "Su contrato y sus pagos van a esta empresa (por defecto, la del cliente)."
+                }
+                className="sm:max-w-md"
+                obligatorio
+              />
+            )}
+            {esP ? null : (
               <>
                 <OpcionesBoton etiqueta="Tipo" opciones={TIPOS_MOTO.map((t) => ({ valor: t, texto: t }))} valor={v.tipo} alCambiar={(t) => alCambiar({ tipo: t })} obligatorio />
                 <div className="grid gap-4 sm:grid-cols-3">
