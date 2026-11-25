@@ -17,6 +17,8 @@ type Fila = EstadoCliente & {
   vehiculos?: Fila[];
   /** fila de un vehículo desplegado: su número (Vehículo 1, 2…) */
   numero?: number;
+  /** rótulo de la fila desplegada: "Vehículo 1", "Préstamo"… */
+  rotulo?: string;
   /** empresas de sus vehículos (para filtrar) */
   empresas?: string[];
   /** cuándo se registró el cliente */
@@ -52,9 +54,32 @@ function agrupar(filas: Fila[]): Fila[] {
       ultimo_pago: filas.map((f) => f.ultimo_pago).reduce((a, b) => (b && (!a || b > a) ? b : a), null as string | null),
       empresa: nombres.join(" · "),
       empresas: [...new Set(filas.map((f) => f.empresa_id))],
-      vehiculos: filas.map((f, i) => ({ ...f, numero: i + 1 })),
+      vehiculos: conRotulos(filas),
     },
   ];
+}
+
+/** Numera y rotula cada fila desplegada por su tipo: "Vehículo 1/2…", "Préstamo 1/2…" (sin número si es el único de su tipo). */
+function conRotulos(filas: Fila[]): Fila[] {
+  const esPrestamo = (f: Fila) => (f.tipo ?? "vehiculo") === "prestamo";
+  const nVeh = filas.filter((f) => !esPrestamo(f)).length;
+  const nPre = filas.filter(esPrestamo).length;
+  let iv = 0;
+  let ip = 0;
+  return filas.map((f, i) => {
+    const rotulo = esPrestamo(f) ? (nPre > 1 ? `Préstamo ${++ip}` : "Préstamo") : nVeh > 1 ? `Vehículo ${++iv}` : "Vehículo";
+    return { ...f, numero: i + 1, rotulo };
+  });
+}
+
+/** Resumen de cuántos vehículos y préstamos tiene el cliente: "2 vehículos", "1 vehículo y 1 préstamo"… */
+function resumenVehiculos(filas: Fila[]): string {
+  const nPre = filas.filter((f) => (f.tipo ?? "vehiculo") === "prestamo").length;
+  const nVeh = filas.length - nPre;
+  const partes: string[] = [];
+  if (nVeh) partes.push(`${nVeh} ${nVeh === 1 ? "vehículo" : "vehículos"}`);
+  if (nPre) partes.push(`${nPre} ${nPre === 1 ? "préstamo" : "préstamos"}`);
+  return partes.join(" y ");
 }
 
 /**
@@ -194,7 +219,7 @@ export default function PaginaClientes() {
       titulo: "Cliente",
       celda: (f) =>
         f.numero ? (
-          <span className="pl-4 text-sm font-semibold text-tenue">↳ Vehículo {f.numero}</span>
+          <span className="pl-4 text-sm font-semibold text-tenue">↳ {f.rotulo ?? `Vehículo ${f.numero}`}</span>
         ) : (
           <span className="font-semibold">{f.cliente}</span>
         ),
@@ -218,8 +243,8 @@ export default function PaginaClientes() {
             <span aria-hidden className={`inline-block transition-transform ${abiertos.has(f.cliente_id) ? "rotate-90" : ""}`}>
               ▸
             </span>
-            <IconoVehiculo tipo={f.vehiculos[0].moto?.tipo} />
-            {f.vehiculos.length} vehículos
+            <IconoVehiculo tipo={f.vehiculos.find((v) => (v.tipo ?? "vehiculo") !== "prestamo")?.moto?.tipo} />
+            {resumenVehiculos(f.vehiculos)}
           </button>
         ) : f.tipo === "prestamo" ? (
           <span className="rounded-full bg-marca-suave px-2 py-0.5 text-xs font-bold whitespace-nowrap text-marca-oscura">PRÉSTAMO</span>
