@@ -33,7 +33,7 @@ function Registrado({ iso }: { iso?: string }) {
   const dias = Math.round((Date.parse(enLima(new Date())) - Date.parse(dia)) / 86_400_000);
   const [a, m, d] = dia.split("-");
   return (
-    <span className="flex flex-col leading-tight">
+    <span className="flex flex-col leading-tight whitespace-nowrap">
       <span className="num">{`${d}/${m}/${a}`}</span>
       <span className={`text-xs ${dias <= 1 ? "font-semibold text-marca" : "text-tenue"}`}>{dias <= 0 ? "hoy" : dias === 1 ? "ayer" : `hace ${dias} días`}</span>
     </span>
@@ -258,7 +258,7 @@ export default function PaginaClientes() {
           <span className="text-tenue">—</span>
         ),
     },
-    { clave: "empresa", titulo: "Empresa", celda: (f) => f.empresa || "—", ocultarEnMovil: true },
+    { clave: "empresa", titulo: "Empresa", celda: (f) => f.empresa || "—", ocultarEnMovil: true, ocultarEnEstrecho: true },
     {
       clave: "estado",
       titulo: "Estado",
@@ -274,7 +274,7 @@ export default function PaginaClientes() {
         ),
     },
     { clave: "deuda", titulo: "Deuda", numero: true, celda: (f) => (f.sin_contrato ? "—" : formatoSoles(f.deuda)) },
-    { clave: "ultimo", titulo: "Último pago", celda: (f) => formatoFecha(f.ultimo_pago), ocultarEnMovil: true },
+    { clave: "ultimo", titulo: "Último pago", celda: (f) => formatoFecha(f.ultimo_pago), ocultarEnMovil: true, ocultarEnEstrecho: true },
     { clave: "registrado", titulo: "Registrado", celda: (f) => (f.numero ? null : <Registrado iso={f.registrado} />) },
   ];
 

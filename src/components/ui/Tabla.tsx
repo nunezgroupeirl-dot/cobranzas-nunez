@@ -8,6 +8,8 @@ export interface Columna<T> {
   numero?: boolean;
   /** no mostrar en la tarjeta de celular */
   ocultarEnMovil?: boolean;
+  /** ocultar en pantallas angostas (tablet/escritorio chico); vuelve a aparecer desde xl */
+  ocultarEnEstrecho?: boolean;
 }
 
 interface Props<T> {
@@ -49,7 +51,7 @@ export function Tabla<T>({ columnas, filas, claveFila, alTocar, vacio = "No hay 
           <thead className="bg-fondo text-sm text-tenue">
             <tr>
               {columnas.map((c) => (
-                <th key={c.clave} className={`px-4 py-3 font-semibold ${c.numero ? "text-right" : ""}`}>
+                <th key={c.clave} className={`px-3 py-3 font-semibold ${c.numero ? "text-right" : ""} ${c.ocultarEnEstrecho ? "hidden xl:table-cell" : ""}`}>
                   {c.titulo}
                 </th>
               ))}
@@ -64,7 +66,7 @@ export function Tabla<T>({ columnas, filas, claveFila, alTocar, vacio = "No hay 
                 style={acento?.(f) ? { boxShadow: `inset 4px 0 0 ${acento(f)}` } : undefined}
               >
                 {columnas.map((c) => (
-                  <td key={c.clave} className={`px-4 py-3 align-middle ${c.numero ? "num text-right" : ""}`}>
+                  <td key={c.clave} className={`px-3 py-3 align-middle ${c.numero ? "num text-right" : ""} ${c.ocultarEnEstrecho ? "hidden xl:table-cell" : ""}`}>
                     {c.celda(f)}
                   </td>
                 ))}
