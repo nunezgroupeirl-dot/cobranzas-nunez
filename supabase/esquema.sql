@@ -945,6 +945,38 @@ begin
 end;
 $$;
 
+-- Corrige la fecha de un pago que se registró en otra fecha por error (solo el dueño).
+-- Reaplica los pagos para que el estado de las cuotas (a tiempo / con atraso) se recalcule.
+create or replace function public.editar_fecha_pago(p_pago_id uuid, p_fecha date)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_pago public.pagos;
+begin
+  if not public.es_dueno() then
+    raise exception 'SIN_PERMISO' using errcode = '42501';
+  end if;
+  if p_fecha is null or p_fecha > public.hoy_lima() then
+    raise exception 'La fecha no puede ser futura.';
+  end if;
+  select * into v_pago from public.pagos where id = p_pago_id for update;
+  if not found then
+    raise exception 'El pago no existe.';
+  end if;
+  if v_pago.anulado then
+    raise exception 'Este pago está anulado: no se puede editar.';
+  end if;
+  if v_pago.fecha_pago = p_fecha then
+    return;
+  end if;
+  update public.pagos set fecha_pago = p_fecha where id = p_pago_id;
+  perform public.recalcular_contrato(v_pago.contrato_id);
+end;
+$$;
+
 -- Cierra un contrato (moto recuperada, acuerdo, etc.). Solo administrador.
 create or replace function public.cerrar_contrato(p_contrato_id uuid, p_motivo text)
 returns void
@@ -2053,6 +2085,8 @@ grant execute on function public.crear_prestamo(uuid, uuid, numeric, integer, da
 revoke all on function public.crear_contrato(uuid, uuid, numeric, integer, date, numeric, numeric, integer, date, text, text) from public, anon;
 revoke all on function public.registrar_pago(uuid, numeric, date, public.medio_pago, uuid, text, text, text) from public, anon;
 revoke all on function public.anular_pago(uuid, text) from public, anon;
+revoke all on function public.editar_fecha_pago(uuid, date) from public, anon;
+grant execute on function public.editar_fecha_pago(uuid, date) to authenticated;
 revoke all on function public.cerrar_contrato(uuid, text) from public, anon;
 revoke all on function public.actualizar_usuario(uuid, public.rol_usuario, boolean) from public, anon;
 revoke all on function public.importar_cliente(jsonb) from public, anon;

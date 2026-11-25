@@ -149,6 +149,8 @@ export interface Datos {
   /** Cancelación anticipada: registra el pago y descuenta el resto; el contrato queda terminado. Solo administradores. */
   cancelarAnticipado(args: CancelarAnticipadoArgs): Promise<string>;
   anularPago(pagoId: string, motivo: string): Promise<void>;
+  /** Corrige la fecha de un pago que se registró en otra fecha por error; recalcula el estado de las cuotas (solo el dueño). */
+  editarFechaPago(pagoId: string, fecha: string): Promise<void>;
   // público
   consultaPublica(dni: string): Promise<ConsultaPublica | null>;
   // usuarios

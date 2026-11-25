@@ -1023,6 +1023,19 @@ export function crearDatosSimulados(): Datos {
       actualizarEstadoContrato(s, p.contrato_id);
       guardar(s);
     },
+    async editarFechaPago(pagoId, fecha) {
+      await pausa();
+      const s = leer();
+      exigirDueno(s);
+      if (!fecha || fecha > fechaOperativaLima()) throw new ErrorDatos("FECHA", "La fecha no puede ser futura.");
+      const p = s.pagos.find((x) => x.id === pagoId);
+      if (!p) throw new ErrorDatos("NO_EXISTE", "El pago no existe.");
+      if (p.anulado) throw new ErrorDatos("ANULADO", "Este pago está anulado: no se puede editar.");
+      if (p.fecha_pago === fecha) return;
+      p.fecha_pago = fecha;
+      actualizarEstadoContrato(s, p.contrato_id);
+      guardar(s);
+    },
 
     async consultaPublica(dni) {
       await pausa();

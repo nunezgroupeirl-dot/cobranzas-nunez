@@ -109,13 +109,35 @@ export function CronogramaConComprobantes({ contrato, cuotas, alGuardar }: Props
           alGuardar();
         }}
       />
-      <ModalVoucher numero={viendo} aportes={viendo === null ? [] : (reparto.get(viendo) ?? [])} cuentas={cuentas ?? []} alCerrar={() => setViendo(null)} />
+      <ModalVoucher
+        numero={viendo}
+        aportes={viendo === null ? [] : (reparto.get(viendo) ?? [])}
+        cuentas={cuentas ?? []}
+        alCerrar={() => setViendo(null)}
+        alEditado={() => {
+          setAviso("Fecha del pago corregida. El estado de las cuotas se recalculó.");
+          setViendo(null);
+          alGuardar();
+        }}
+      />
     </div>
   );
 }
 
 /** Los pagos que cubren una cuota, con su voucher, medio, cuenta y quién lo registró. */
-function ModalVoucher({ numero, aportes, cuentas, alCerrar }: { numero: number | null; aportes: { pago: Pago; monto: number }[]; cuentas: Cuenta[]; alCerrar: () => void }) {
+function ModalVoucher({
+  numero,
+  aportes,
+  cuentas,
+  alCerrar,
+  alEditado,
+}: {
+  numero: number | null;
+  aportes: { pago: Pago; monto: number }[];
+  cuentas: Cuenta[];
+  alCerrar: () => void;
+  alEditado: () => void;
+}) {
   const nombreCuenta = (id: string | null) => cuentas.find((c) => c.id === id)?.nombre;
   return (
     <Modal abierto={numero !== null} titulo={`Voucher de la cuota N.º ${numero ?? ""}`} alCerrar={alCerrar}>
@@ -126,9 +148,7 @@ function ModalVoucher({ numero, aportes, cuentas, alCerrar }: { numero: number |
             <div className="flex flex-col gap-1 text-sm">
               <p className="num text-xl font-extrabold">{formatoSoles(p.monto)}</p>
               {monto !== p.monto && <p className="text-tenue">De este pago, {formatoSoles(monto)} fueron para esta cuota.</p>}
-              <p>
-                <b>Pagó:</b> {formatoFecha(p.fecha_pago)}
-              </p>
+              <FechaPago pago={p} alEditado={alEditado} />
               <p>
                 <b>Medio:</b> {textoMedio(NOMBRE_MEDIO[p.medio], p.entidad_origen)}
                 {nombreCuenta(p.cuenta_id) ? ` · ${nombreCuenta(p.cuenta_id)}` : ""}
@@ -148,6 +168,61 @@ function ModalVoucher({ numero, aportes, cuentas, alCerrar }: { numero: number |
       </ul>
       <p className="mt-4 text-sm text-tenue">Toca la foto para verla en grande.</p>
     </Modal>
+  );
+}
+
+/** Muestra la fecha de un pago. El dueño puede corregirla si se registró en otra fecha por error. */
+function FechaPago({ pago, alEditado }: { pago: Pago; alEditado: () => void }) {
+  const { datos, esDueno } = useSesion();
+  const [editando, setEditando] = useState(false);
+  const [fecha, setFecha] = useState(pago.fecha_pago ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  if (!pago.fecha_pago) return null;
+
+  if (editando)
+    return (
+      <div className="flex flex-col gap-2 rounded-xl border border-marca/40 bg-marca-suave/40 p-2">
+        <Campo etiqueta="Fecha en que pagó" type="date" max={hoyLima()} value={fecha} onChange={(e) => setFecha(e.target.value)} error={error ?? undefined} obligatorio />
+        <div className="flex gap-2">
+          <Boton
+            tamano="chico"
+            cargando={guardando}
+            onClick={async () => {
+              setError(null);
+              setGuardando(true);
+              try {
+                await datos.editarFechaPago(pago.id, fecha);
+                setEditando(false);
+                alEditado();
+              } catch (err) {
+                setError(mensajeDeError(err));
+              } finally {
+                setGuardando(false);
+              }
+            }}
+          >
+            Guardar fecha
+          </Boton>
+          <Boton variante="secundario" tamano="chico" onClick={() => { setEditando(false); setFecha(pago.fecha_pago ?? ""); setError(null); }}>
+            Cancelar
+          </Boton>
+        </div>
+      </div>
+    );
+
+  return (
+    <p className="flex flex-wrap items-center gap-2">
+      <span>
+        <b>Pagó:</b> {formatoFecha(pago.fecha_pago)}
+      </span>
+      {esDueno && (
+        <button type="button" onClick={() => setEditando(true)} className="text-xs font-bold text-marca underline">
+          Corregir fecha
+        </button>
+      )}
+    </p>
   );
 }
 

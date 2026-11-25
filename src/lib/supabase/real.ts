@@ -551,6 +551,9 @@ export function crearDatosReales(): Datos {
     async anularPago(pagoId, motivo) {
       lanzar((await sb.rpc("anular_pago", { p_pago_id: pagoId, p_motivo: motivo })).error);
     },
+    async editarFechaPago(pagoId, fecha) {
+      lanzar((await sb.rpc("editar_fecha_pago", { p_pago_id: pagoId, p_fecha: fecha })).error);
+    },
 
     /* ---------------- consulta pública ---------------- */
     async consultaPublica(dni) {
