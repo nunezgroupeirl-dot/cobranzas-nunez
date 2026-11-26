@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
 import { Aviso, Boton, clasesBoton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, useCarga, type Columna, Placa, OtrasPlacas } from "@/components/ui";
-import { copiarTexto, descargarExcel, enlaceWhatsApp, textoWhatsApp } from "@/lib/exportar";
+import { copiarTexto, descargarExcel, enlaceWhatsApp, mensajeRecordatorio, textoWhatsApp } from "@/lib/exportar";
 import type { Color, Moroso } from "@/types/database";
 
 export default function PaginaMorosos() {
@@ -90,7 +90,7 @@ export default function PaginaMorosos() {
       celda: (m) => {
         const numeros = [m.celular, m.celular2].filter((x): x is string => !!x);
         if (!numeros.length) return "—";
-        const texto = `Hola ${m.cliente.split(" ")[0]}, le recordamos que tiene ${m.semanas_atraso} semana(s) de atraso (${formatoSoles(m.deuda)}) del vehículo${m.placa ? ` ${m.placa}` : ""}.`;
+        const texto = mensajeRecordatorio(m);
         return (
           <span className="flex flex-col gap-2">
             {numeros.map((n) => (

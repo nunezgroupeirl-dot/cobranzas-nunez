@@ -1473,7 +1473,8 @@ select
   cl.celular2,
   -- contrato con varios vehículos: las placas de los demás ("EN TRÁMITE" si aún no sale)
   (select string_agg(coalesce(m2.placa, 'EN TRÁMITE'), ' · ' order by m2.creado_en)
-     from public.motos m2 where m2.contrato_id = co.id and m2.id <> co.moto_id) as otras_placas
+     from public.motos m2 where m2.contrato_id = co.id and m2.id <> co.moto_id) as otras_placas,
+  co.frecuencia                          -- cada cuánto paga: diario, semanal, quincenal o mensual (para el recordatorio)
 from public.contratos co
 join public.clientes cl on cl.id = co.cliente_id
 left join public.motos m on m.id = co.moto_id   -- un préstamo no tiene vehículo

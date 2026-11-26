@@ -2,7 +2,7 @@
  * Exportar: copiar lista en formato WhatsApp y generar Excel (.xlsx) sin librerías externas.
  */
 import { numeroWhatsApp } from "@/lib/telefono";
-import type { EstadoCliente } from "@/types/database";
+import type { EstadoCliente, Frecuencia } from "@/types/database";
 
 /* ---------------- WhatsApp ---------------- */
 
@@ -10,13 +10,37 @@ const soles = (n: number) => `S/ ${n.toLocaleString("es-PE", { minimumFractionDi
 const fecha = (f: string | null) => (f ? f.split("-").reverse().join("/") : "—");
 const EMOJI = { verde: "🟢", amarillo: "🟡", rojo: "🔴" } as const;
 
+// Cómo se nombra el atraso según cada cuánto paga el cliente (singular, plural).
+const UNIDAD_ATRASO: Record<Frecuencia, [string, string]> = {
+  diario: ["cuota diaria vencida", "cuotas diarias vencidas"],
+  semanal: ["semana de atraso", "semanas de atraso"],
+  quincenal: ["quincena de atraso", "quincenas de atraso"],
+  mensual: ["mes de atraso", "meses de atraso"],
+};
+// Forma corta para la lista: "sem.", "cuotas"…
+const CORTO_ATRASO: Record<Frecuencia, string> = { diario: "cuotas", semanal: "sem.", quincenal: "quinc.", mensual: "meses" };
+
+/** "1 semana de atraso", "3 cuotas diarias vencidas"… según cada cuánto paga el cliente. */
+export function atrasoTexto(frecuencia: Frecuencia | undefined, n: number): string {
+  const [sing, plur] = UNIDAD_ATRASO[frecuencia ?? "semanal"];
+  return `${n} ${n === 1 ? sing : plur}`;
+}
+
+/** Recordatorio de WhatsApp redactado según la frecuencia de pago y el tipo (vehículo o préstamo). */
+export function mensajeRecordatorio(m: EstadoCliente): string {
+  const nombre = m.cliente.split(" ")[0];
+  const atraso = atrasoTexto(m.frecuencia, m.semanas_atraso);
+  const sobre = (m.tipo ?? "vehiculo") === "prestamo" ? "su préstamo" : `su vehículo${m.placa ? ` ${m.placa}` : ""}`;
+  return `Hola ${nombre}, le recordamos que tiene ${atraso} en ${sobre} (${soles(m.deuda)} pendiente). Por favor, acérquese a regularizar su pago. Gracias.`;
+}
+
 /** Lista de morosos lista para pegar en WhatsApp (usa *negrita* de WhatsApp). */
 export function textoWhatsApp(filas: EstadoCliente[], titulo: string): string {
   const total = filas.reduce((s, f) => s + f.deuda, 0);
   const lineas = filas.map(
     (f, i) =>
       `${i + 1}. ${EMOJI[f.color]} *${f.placa ?? "sin placa"}* · ${f.cliente}\n` +
-      `   📞 ${[f.celular, f.celular2].filter(Boolean).join(" / ") || "—"} · ${f.semanas_atraso} sem. · debe ${soles(f.deuda)} · últ. pago ${fecha(f.ultimo_pago)}`,
+      `   📞 ${[f.celular, f.celular2].filter(Boolean).join(" / ") || "—"} · ${f.semanas_atraso} ${CORTO_ATRASO[f.frecuencia ?? "semanal"]} · debe ${soles(f.deuda)} · últ. pago ${fecha(f.ultimo_pago)}`,
   );
   return [`*${titulo}*`, `${filas.length} clientes · Total ${soles(total)}`, "", ...lineas].join("\n");
 }

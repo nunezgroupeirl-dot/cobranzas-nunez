@@ -319,6 +319,7 @@ function estadoClientes(s: Estado): EstadoCliente[] {
         tipo_doc: cli?.tipo_doc ?? null,
         vencida_desde: r.vencida_desde,
         inmovilizar: (con.tipo ?? "vehiculo") === "vehiculo" && !!r.vencida_desde && r.vencida_desde < sumarDias(hoy, -DIAS_INMOVILIZAR),
+        frecuencia: con.frecuencia ?? "semanal",
       };
     });
 }

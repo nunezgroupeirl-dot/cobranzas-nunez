@@ -216,6 +216,8 @@ export interface EstadoCliente {
   vencida_desde?: string | null;
   /** 4 semanas de deuda o más: hay que inmovilizar el vehículo */
   inmovilizar?: boolean;
+  /** cada cuánto paga: diario, semanal, quincenal o mensual (para el recordatorio de WhatsApp) */
+  frecuencia?: Frecuencia;
 }
 
 /** v_morosos: igual a v_estado_cliente, solo con atraso, de más a menos semanas */
