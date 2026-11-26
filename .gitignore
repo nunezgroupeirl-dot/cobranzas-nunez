@@ -23,3 +23,6 @@ Thumbs.db
 npm-debug.log*
 .vercel
 .wrangler/
+
+# paquetes de cambios que se pasan a la PC (no se suben)
+/.cambios/
