@@ -218,7 +218,7 @@ export function BuscadorGlobal() {
                     {e.sin_contrato ? (
                       <span className="shrink-0 rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Sin contrato</span>
                     ) : (
-                      <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} />
+                      <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} frecuencia={e.frecuencia} />
                     )}
                     <button type="button" hidden={e.sin_contrato} onClick={() => cobrar(e)} className="min-h-10 shrink-0 rounded-lg bg-marca px-3 text-sm font-semibold text-white hover:bg-marca-oscura">
                       Cobrar

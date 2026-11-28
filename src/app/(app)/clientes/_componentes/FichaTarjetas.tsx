@@ -15,7 +15,7 @@ export function TarjetaSituacion({ estado, deudaTotal }: { estado?: EstadoClient
     <Tarjeta className="lg:col-span-1" titulo="Situación">
       {estado ? (
         <div className="flex flex-col gap-3">
-          <EtiquetaSemaforo color={estado.color} semanas={estado.semanas_atraso} grande />
+          <EtiquetaSemaforo color={estado.color} semanas={estado.semanas_atraso} frecuencia={estado.frecuencia} grande />
           <div>
             <p className="text-sm text-tenue">Deuda vencida</p>
             <p className={`num text-3xl font-extrabold ${deudaTotal > 0 ? "text-rojo" : "text-verde"}`}>{formatoSoles(deudaTotal)}</p>

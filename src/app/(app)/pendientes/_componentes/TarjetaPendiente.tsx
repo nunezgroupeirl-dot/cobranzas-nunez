@@ -28,7 +28,7 @@ export function TarjetaPendiente({ fila: f, resaltado, alEditarMoto }: Props) {
             <span>{f.empresa}</span>
           </p>
         </div>
-        {f.contrato_id ? <EtiquetaSemaforo color={f.color} semanas={f.semanas} /> : <span className="rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Sin contrato</span>}
+        {f.contrato_id ? <EtiquetaSemaforo color={f.color} semanas={f.semanas} frecuencia={f.frecuencia} /> : <span className="rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Sin contrato</span>}
       </div>
 
       <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Le falta">

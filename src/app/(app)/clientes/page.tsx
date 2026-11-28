@@ -270,7 +270,7 @@ export default function PaginaClientes() {
             <span className="rounded-full bg-amarillo-suave px-2.5 py-1 text-xs font-bold text-amarillo">Falta contrato</span>
           )
         ) : (
-          <EtiquetaSemaforo color={f.color} semanas={f.semanas_atraso} />
+          <EtiquetaSemaforo color={f.color} semanas={f.semanas_atraso} frecuencia={f.frecuencia} />
         ),
     },
     { clave: "deuda", titulo: "Deuda", numero: true, celda: (f) => (f.sin_contrato ? "—" : formatoSoles(f.deuda)) },

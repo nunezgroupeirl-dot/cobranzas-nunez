@@ -1,6 +1,6 @@
 /** Hojas de Excel de los reportes (pantalla Reportes y reporte mensual). */
 import { textoMedio } from "@/lib/cuentas";
-import { NOMBRE_MEDIO, formatoFecha, formatoFechaHora } from "@/components/ui/formato";
+import { NOMBRE_MEDIO, formatoFecha, formatoFechaHora, textoSemaforo } from "@/components/ui/formato";
 import { descargarExcel, type Hoja } from "@/lib/exportar";
 import { nombreMes, siguienteMes } from "@/lib/letras";
 import type { Datos } from "@/lib/supabase/datos";
@@ -22,7 +22,7 @@ export async function hojaClientes(datos: Datos, empresa: string | null): Promis
     e.otras_placas ? `${e.placa ?? "EN TRÁMITE"} + ${e.otras_placas}` : e.placa,
     e.empresa,
     e.cuota,
-    e.semanas_atraso,
+    textoSemaforo(e.color, e.semanas_atraso, e.frecuencia),
     e.color,
     e.deuda,
     formatoFecha(e.ultimo_pago),
@@ -30,7 +30,7 @@ export async function hojaClientes(datos: Datos, empresa: string | null): Promis
   ]);
   return {
     nombre: "Clientes",
-    columnas: ["Cliente", "DNI / C.E.", "Celular", "Celular 2", "Dirección", "Placa", "Empresa", "Cuota", "Semanas de atraso", "Color", "Deuda vencida", "Último pago", "Próxima cuota"],
+    columnas: ["Cliente", "DNI / C.E.", "Celular", "Celular 2", "Dirección", "Placa", "Empresa", "Cuota", "Atraso", "Color", "Deuda vencida", "Último pago", "Próxima cuota"],
     filas,
   };
 }

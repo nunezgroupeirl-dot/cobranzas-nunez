@@ -4,7 +4,7 @@ import { enlaceRuta } from "@/lib/mapa";
 import { useEffect, useMemo, useState } from "react";
 import { useSesion } from "@/components/layout/Sesion";
 import { filtrarPorEmpresa, useEmpresa } from "@/components/layout/empresa";
-import { Aviso, Boton, clasesBoton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, useCarga, type Columna, Placa, OtrasPlacas } from "@/components/ui";
+import { Aviso, Boton, clasesBoton, COLOR_HEX, Cargando, EtiquetaSemaforo, Tabla, TituloPagina, formatoFecha, formatoSoles, hoyLima, textoDocumento, textoSemaforo, useCarga, type Columna, Placa, OtrasPlacas } from "@/components/ui";
 import { copiarTexto, descargarExcel, enlaceWhatsApp, mensajeRecordatorio, textoWhatsApp } from "@/lib/exportar";
 import type { Color, Moroso } from "@/types/database";
 
@@ -34,8 +34,8 @@ export default function PaginaMorosos() {
     descargarExcel(`morosos_${hoyLima()}`, [
       {
         nombre: "Morosos",
-        columnas: ["Placa", "Otras placas", "Cliente", "Documento", "Celular", "Celular 2", "Empresa", "Semanas de atraso", "Color", "Inmovilizar", "Debe desde", "Cuota", "Deuda", "Último pago"],
-        filas: lista.map((m) => [m.placa, m.otras_placas ?? "", m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.celular2 ?? "", m.empresa, m.semanas_atraso, m.color, m.inmovilizar ? "Sí" : "No", formatoFecha(m.vencida_desde), m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
+        columnas: ["Placa", "Otras placas", "Cliente", "Documento", "Celular", "Celular 2", "Empresa", "Atraso", "Color", "Inmovilizar", "Debe desde", "Cuota", "Deuda", "Último pago"],
+        filas: lista.map((m) => [m.placa, m.otras_placas ?? "", m.cliente, m.dni ? textoDocumento(m.dni, m.tipo_doc) : "", m.celular, m.celular2 ?? "", m.empresa, textoSemaforo(m.color, m.semanas_atraso, m.frecuencia), m.color, m.inmovilizar ? "Sí" : "No", formatoFecha(m.vencida_desde), m.cuota, m.deuda, formatoFecha(m.ultimo_pago)]),
       },
     ]);
 
@@ -117,7 +117,7 @@ export default function PaginaMorosos() {
       titulo: "Atraso",
       celda: (m) => (
         <span className="flex flex-col items-start gap-1">
-          <EtiquetaSemaforo color={m.color} semanas={m.semanas_atraso} />
+          <EtiquetaSemaforo color={m.color} semanas={m.semanas_atraso} frecuencia={m.frecuencia} />
           {m.inmovilizar && (
             <span className="rounded-lg bg-rojo px-2 py-0.5 text-xs font-bold whitespace-nowrap text-white" title={`Debe desde el ${formatoFecha(m.vencida_desde)}`}>
               🚫 Inmovilizar

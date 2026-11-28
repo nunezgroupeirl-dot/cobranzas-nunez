@@ -146,7 +146,17 @@ export function sumarDias(fecha: string, dias: number): string {
 /** Colores del semáforo para bordes y acentos (los mismos de globals.css) */
 export const COLOR_HEX: Record<Color, string> = { verde: "#1f7a45", amarillo: "#a64b07", rojo: "#b3322a" };
 
-export function textoSemaforo(color: Color, semanas: number) {
-  if (color === "verde" || semanas <= 0) return "Al día";
-  return `${semanas} ${semanas === 1 ? "semana" : "semanas"}`;
+/** Cómo se cuenta el atraso según cada cuánto paga: 1 cuota diaria vencida = 1 día, 1 semanal = 1 semana… */
+const UNIDAD_ATRASO: Record<Frecuencia, [string, string]> = {
+  diario: ["día", "días"],
+  semanal: ["semana", "semanas"],
+  quincenal: ["quincena", "quincenas"],
+  mensual: ["mes", "meses"],
+};
+
+/** "Al día", "3 días", "1 semana", "2 quincenas", "1 mes": cuotas vencidas en la unidad de su cronograma. */
+export function textoSemaforo(color: Color, cuotasVencidas: number, frecuencia?: Frecuencia | null) {
+  if (color === "verde" || cuotasVencidas <= 0) return "Al día";
+  const [una, varias] = UNIDAD_ATRASO[frecuencia ?? "semanal"] ?? UNIDAD_ATRASO.semanal;
+  return `${cuotasVencidas} ${cuotasVencidas === 1 ? una : varias}`;
 }

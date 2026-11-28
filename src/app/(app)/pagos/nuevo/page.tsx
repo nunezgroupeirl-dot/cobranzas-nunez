@@ -343,7 +343,7 @@ function ElegirVehiculo({
                 <span className="font-bold">
                   {elegido ? "● " : "○ "}Vehículo {v?.numero ?? ""}
                 </span>
-                <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} />
+                <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} frecuencia={e.frecuencia} />
               </span>
               <span className="flex flex-wrap items-center gap-2 text-sm">
                 <Placa placa={e.placa} tamano="chico" />

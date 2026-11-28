@@ -81,7 +81,7 @@ function TarjetaContrato({ c }: { c: ContratoPublico }) {
     <section className="overflow-hidden rounded-2xl border border-borde bg-superficie">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-borde px-5 py-4">
         <Placa placa={c.placa} tramite={c.tramite} tamano="grande" />
-        <EtiquetaSemaforo color={colorPorSemanas(c.semanas_atraso)} semanas={c.semanas_atraso} grande />
+        <EtiquetaSemaforo color={colorPorSemanas(c.semanas_atraso)} semanas={c.semanas_atraso} frecuencia={c.frecuencia} grande />
       </div>
       <PlanDePago c={c} />
 

@@ -20,7 +20,7 @@ export function ResumenContrato({ contrato, cuotas, estado, moto }: Props) {
     <Tarjeta>
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <Dato etiqueta="Estado">
-          {estado ? <EtiquetaSemaforo color={estado.color} semanas={estado.semanas_atraso} /> : <span>{NOMBRE_ESTADO_CONTRATO[contrato.estado]}</span>}
+          {estado ? <EtiquetaSemaforo color={estado.color} semanas={estado.semanas_atraso} frecuencia={estado.frecuencia ?? contrato.frecuencia} /> : <span>{NOMBRE_ESTADO_CONTRATO[contrato.estado]}</span>}
         </Dato>
         <Dato etiqueta={nombreCuota(contrato.frecuencia)}>{formatoSoles(contrato.monto_cuota)}</Dato>
         <Dato etiqueta="Deuda vencida">{formatoSoles(estado?.deuda ?? 0)}</Dato>

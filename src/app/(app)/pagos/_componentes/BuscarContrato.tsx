@@ -73,7 +73,7 @@ export function BuscarContrato({
                   · {textoDocumento(e.dni, e.tipo_doc)}
                 </span>
               </span>
-              <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} />
+              <EtiquetaSemaforo color={e.color} semanas={e.semanas_atraso} frecuencia={e.frecuencia} />
             </button>
           </li>
         ))}

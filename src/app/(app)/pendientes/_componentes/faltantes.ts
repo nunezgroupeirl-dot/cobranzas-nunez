@@ -1,5 +1,5 @@
 import { alfabetico } from "@/lib/texto";
-import type { Cliente, Color, Contrato, Documento, EstadoCliente, Moto } from "@/types/database";
+import type { Cliente, Color, Contrato, Documento, EstadoCliente, Frecuencia, Moto } from "@/types/database";
 
 /** Cada dato que puede faltar en un contrato activo, agrupado por dónde se completa (el contrato va en su propia pestaña). */
 export const FALTANTES = {
@@ -35,6 +35,8 @@ export interface FilaPendiente {
   placa: string | null;
   color: Color;
   semanas: number;
+  /** cada cuánto paga: el atraso se dice en días, semanas, quincenas o meses */
+  frecuencia?: Frecuencia;
   moto: Moto | null;
   faltan: Faltante[];
   /** Lo que el cuaderno dice que hay que revisar (nombre poco legible, placa de otro cliente, etc.). */
@@ -135,6 +137,7 @@ export function calcularPendientes({ estados, contratos, clientes, motos, docume
       placa: moto?.placa ?? e.placa,
       color: e.color,
       semanas: e.semanas_atraso,
+      frecuencia: e.frecuencia,
       moto,
       faltan,
       nota,
